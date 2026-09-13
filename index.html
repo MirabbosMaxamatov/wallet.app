@@ -292,7 +292,7 @@
       <div class="text-5xl mb-4">&#128241;</div>
       <h2 class="text-2xl font-bold mb-3 text-slate-100">Bosh ekranga qo'shing</h2>
       <p class="text-slate-400 mb-6 text-sm leading-relaxed">
-        Ilovamizdan foydalanayotganingizdan mamnunmiz! Yo'qotib qo'ymaslik va tezkor kirish uchun bosh ekraningizga (Home Screen) qo'shishni taklif qilamiz.
+        Ilovamizdan foydalanayotganingizdan mamnunmiz! Uni yo'qotib qo'ymaslik va tezkor kirish uchun bosh ekraningizga (Home Screen) qo'shishni taklif qilamiz.
       </p>
       <button
         type="button"
@@ -307,6 +307,24 @@
         class="w-full mt-3 bg-transparent text-slate-400 hover:text-slate-200 font-medium py-2 active:scale-95 transition-all duration-200 text-sm"
       >
         Keyinroq
+      </button>
+    </div>
+  </div>
+
+  <!-- iOS Guide Modal -->
+  <div id="ios-install-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl p-8 w-full max-w-sm mx-4 shadow-2xl text-center">
+      <div class="text-5xl mb-4">&#128241;</div>
+      <h2 class="text-2xl font-bold mb-3 text-slate-100">Bosh ekranga qo'shing</h2>
+      <p class="text-slate-400 mb-6 text-sm leading-relaxed">
+        Safari menyusidagi 'Ulashish' (&#128232;) tugmasini bosing va 'Bosh ekranga qo'shish' (+ Add to Home Screen) opsiyasini tanlang.
+      </p>
+      <button
+        type="button"
+        id="ios-install-dismiss"
+        class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-900 font-semibold py-3 rounded-lg h-12 active:scale-95 transition-all duration-200 text-base pointer-events:auto cursor:pointer"
+      >
+        Bizim Yoq &#128073;
       </button>
     </div>
   </div>
@@ -804,26 +822,56 @@
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
         if (isStandalone) return;
 
+        const dismissed = localStorage.getItem('pwa_dismissed');
+        if (dismissed && (Date.now() - parseInt(dismissed)) < 86400000) return;
+
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+        const ICON_192 = `<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192"><rect width="192" height="192" rx="40" fill="#0f172a"/><text x="96" y="120" font-size="96" text-anchor="middle" fill="#10b981">&#128176;</text></svg>`;
+        const ICON_512 = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512"><rect width="512" height="512" rx="107" fill="#0f172a"/><text x="256" y="320" font-size="256" text-anchor="middle" fill="#10b981">&#128176;</text></svg>`;
+
         const MANIFEST = {
-          name: 'Smart Expense Tracker',
-          short_name: 'Expense Tracker',
+          name: 'Smart Byudjet Tracker',
+          short_name: 'Byudjet',
+          start_url: '/',
           display: 'standalone',
           background_color: '#0f172a',
           theme_color: '#0f172a',
-          start_url: '.'
+          icons: [
+            { src: 'data:image/svg+xml;base64,' + btoa(ICON_192), sizes: '192x192', type: 'image/svg+xml' },
+            { src: 'data:image/svg+xml;base64,' + btoa(ICON_512), sizes: '512x512', type: 'image/svg+xml' }
+          ]
         };
 
-        const manifestBlob = new Blob([JSON.stringify(MANIFEST)], { type: 'application/json' });
-        const manifestUrl = URL.createObjectURL(manifestBlob);
-        document.getElementById('manifest-link').setAttribute('href', manifestUrl);
+        const manifestBase64 = btoa(JSON.stringify(MANIFEST));
+        const manifestLink = document.getElementById('manifest-link');
+        if (manifestLink) {
+          manifestLink.setAttribute('href', 'data:application/json;base64,' + manifestBase64);
+        }
 
-        const SW_CODE = `
-          self.addEventListener('fetch', function(e) { e.respondWith(fetch(e.request).catch(function() { return new Response('Offline'); })); });
-          self.addEventListener('install', function() { self.skipWaiting(); });
-          self.addEventListener('activate', function() { self.clients.claim(); });
-        `;
         if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.register(new Blob([SW_CODE], { type: 'application/javascript' })).catch(function() {});
+          const swCode = `
+            self.addEventListener('install', e => e.waitUntil(self.skipWaiting()));
+            self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
+            self.addEventListener('fetch', e => e.respondWith(fetch(e.request)));
+          `;
+          const blob = new Blob([swCode], { type: 'text/javascript' });
+          navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
+        }
+
+        if (isIOS) {
+          const iosModal = document.getElementById('ios-install-modal');
+          const iosDismiss = document.getElementById('ios-install-dismiss');
+          if (iosModal && iosDismiss) {
+            setTimeout(() => iosModal.classList.remove('hidden'), 2000);
+            iosDismiss.addEventListener('click', () => {
+              iosModal.classList.add('hidden');
+            });
+            iosModal.addEventListener('click', (e) => {
+              if (e.target === iosModal) iosModal.classList.add('hidden');
+            });
+          }
+          return;
         }
 
         let deferredPrompt = null;
@@ -841,11 +889,11 @@
         const pwaDismissBtn = document.getElementById('pwa-install-dismiss');
 
         function showInstallModal() {
-          pwaModal.classList.remove('hidden');
+          if (pwaModal) pwaModal.classList.remove('hidden');
         }
 
         function hideInstallModal() {
-          pwaModal.classList.add('hidden');
+          if (pwaModal) pwaModal.classList.add('hidden');
         }
 
         window.addEventListener('appinstalled', function() {
@@ -853,22 +901,27 @@
           if (installTimer) { clearTimeout(installTimer); installTimer = null; }
         });
 
-        pwaInstallBtn.addEventListener('click', function() {
-          if (deferredPrompt) {
-            deferredPrompt.prompt();
-            deferredPrompt.userChoice.then(function() {
-              deferredPrompt = null;
+        if (pwaInstallBtn) {
+          pwaInstallBtn.addEventListener('click', function() {
+            if (deferredPrompt) {
+              deferredPrompt.prompt();
+              deferredPrompt.userChoice.then(function() {
+                deferredPrompt = null;
+                hideInstallModal();
+              });
+            } else {
               hideInstallModal();
-            });
-          } else {
-            hideInstallModal();
-          }
-        });
+            }
+          });
+        }
 
-        pwaDismissBtn.addEventListener('click', function() {
-          hideInstallModal();
-          if (installTimer) { clearTimeout(installTimer); installTimer = null; }
-        });
+        if (pwaDismissBtn) {
+          pwaDismissBtn.addEventListener('click', function() {
+            localStorage.setItem('pwa_dismissed', Date.now().toString());
+            hideInstallModal();
+            if (installTimer) { clearTimeout(installTimer); installTimer = null; }
+          });
+        }
       })();
 
     })();
