@@ -60,6 +60,86 @@
     </div>
   </div>
 
+  <!-- Archive Modal -->
+  <div id="archive-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 modal-backdrop">
+    <div class="bg-slate-800 border border-slate-700 rounded-xl sm:rounded-2xl p-6 sm:p-8 w-full max-w-md mx-4 shadow-2xl">
+      <h2 class="text-xl sm:text-2xl font-bold mb-2 text-slate-100">Davrni arxivlash</h2>
+      <p class="text-slate-400 mb-6">Davrni arxivlang va yangi boshlang'ich pulni belgilang.</p>
+      <form id="archive-form" onsubmit="event.preventDefault(); return false;">
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-slate-300 mb-2">Davr nomi (masalan: Sentyabr 2026)</label>
+          <input
+            type="text"
+            id="archive-name"
+            required
+            placeholder="Sentyabr 2026"
+            class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-base text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
+          />
+        </div>
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-slate-300 mb-2">Yangi boshlang'ich pul ($)</label>
+          <input
+            type="number"
+            id="archive-starting-balance"
+            step="any"
+            required
+            placeholder="0.00"
+            class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-base text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
+          />
+        </div>
+        <button
+          type="button"
+          id="archive-submit-btn"
+          class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-900 font-semibold py-3 rounded-lg h-12 active:scale-95 transition-all duration-200 text-base"
+        >
+          Arxivlash
+        </button>
+        <button
+          type="button"
+          id="cancel-archive"
+          class="w-full mt-3 bg-slate-700 hover:bg-slate-600 text-slate-200 font-medium py-3 rounded-lg h-12 active:scale-95 transition-all duration-200 text-base"
+        >
+          Bekor qilish
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Edit Balance Modal -->
+  <div id="edit-balance-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 modal-backdrop">
+    <div class="bg-slate-800 border border-slate-700 rounded-xl sm:rounded-2xl p-6 sm:p-8 w-full max-w-md mx-4 shadow-2xl">
+      <h2 class="text-xl sm:text-2xl font-bold mb-2 text-slate-100">Boshlang'ich pulni tahrirlash</h2>
+      <p class="text-slate-400 mb-6">Boshlang'ich pul miqdorini yangilang. Tranzaksiya tarixi o'zgarmaydi.</p>
+      <form id="edit-balance-form" onsubmit="event.preventDefault(); return false;">
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-slate-300 mb-2">Boshlang'ich pul ($)</label>
+          <input
+            type="number"
+            id="edit-balance-input"
+            step="any"
+            required
+            placeholder="0.00"
+            class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-base text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
+          />
+        </div>
+        <button
+          type="button"
+          id="edit-balance-submit-btn"
+          class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-900 font-semibold py-3 rounded-lg h-12 active:scale-95 transition-all duration-200 text-base"
+        >
+          Saqlash
+        </button>
+        <button
+          type="button"
+          id="cancel-edit-balance"
+          class="w-full mt-3 bg-slate-700 hover:bg-slate-600 text-slate-200 font-medium py-3 rounded-lg h-12 active:scale-95 transition-all duration-200 text-base"
+        >
+          Bekor qilish
+        </button>
+      </form>
+    </div>
+  </div>
+
   <!-- Main App Container -->
   <div class="w-full px-4 py-6 sm:px-4 sm:py-8 lg:max-w-4xl lg:mx-auto">
 
@@ -96,12 +176,8 @@
       <h2 id="balance-display" class="text-3xl sm:text-5xl font-extrabold text-slate-100 transition-all duration-200">0 so'm</h2>
     </div>
 
-    <!-- Dashboard Cards: Starting + Income + Expenses (3-col on tablet+) -->
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
-      <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 hidden">
-        <p class="text-slate-500 text-xs font-medium uppercase tracking-wider">Boshlang'ich</p>
-        <p id="start-display" class="text-lg font-bold text-slate-300">0 so'm</p>
-      </div>
+    <!-- Dashboard Cards: Income + Expenses -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8">
       <div class="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 sm:p-5">
         <p class="text-emerald-400 text-xs sm:text-sm font-medium uppercase tracking-wider mb-1">Jami Kirim</p>
         <p id="income-display" class="text-2xl sm:text-3xl font-bold text-emerald-400">0 so'm</p>
@@ -109,59 +185,13 @@
       <div class="bg-rose-500/10 border border-rose-500/20 rounded-xl p-4 sm:p-5">
         <p class="text-rose-400 text-xs sm:text-sm font-medium uppercase tracking-wider mb-1">Jami Chiqim</p>
         <p id="expense-display" class="text-2xl sm:text-3xl font-bold text-rose-400">0 so'm</p>
-  </div>
-
-  <!-- Archive Modal -->
-  <div id="archive-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 modal-backdrop">
-    <div class="bg-slate-800 border border-slate-700 rounded-xl sm:rounded-2xl p-6 sm:p-8 w-full max-w-md mx-4 shadow-2xl">
-      <h2 class="text-xl sm:text-2xl font-bold mb-2 text-slate-100">Davrni arxivlash</h2>
-      <p class="text-slate-400 mb-6">Davrni arxivlang va yangi boshlang'ich pulni belgilang.</p>
-      <form id="archive-form" onsubmit="return false;">
-        <div class="mb-4">
-          <label class="block text-sm font-medium text-slate-300 mb-2">Davr nomi (masalan: Sentyabr 2026)</label>
-          <input
-            type="text"
-            id="archive-name"
-            required
-            placeholder="Sentyabr 2026"
-            class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-base text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
-          />
-        </div>
-        <div class="mb-6">
-          <label class="block text-sm font-medium text-slate-300 mb-2">Yangi boshlang'ich pul ($)</label>
-          <input
-            type="number"
-            id="archive-starting-balance"
-            step="any"
-            required
-            placeholder="0.00"
-            class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-base text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
-          />
-        </div>
-        <button
-          type="submit"
-          class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-900 font-semibold py-3 rounded-lg h-12 active:scale-95 transition-all duration-200 text-base"
-        >
-          Arxivlash
-        </button>
-        <button
-          type="button"
-          id="cancel-archive"
-          class="w-full mt-3 bg-slate-700 hover:bg-slate-600 text-slate-200 font-medium py-3 rounded-lg h-12 active:scale-95 transition-all duration-200 text-base"
-        >
-          Bekor qilish
-        </button>
-      </form>
+      </div>
     </div>
-  </div>
 
-  <!-- Archived Periods Section will be inserted here -->
-
-  </div>
     <!-- Transaction Form -->
     <div class="bg-slate-800 border border-slate-700 rounded-xl sm:rounded-2xl p-4 sm:p-6 mb-6 sm:mb-8 shadow-lg">
       <h3 class="text-base sm:text-lg font-semibold text-slate-100 mb-4">Tranzaksiya qo'shish</h3>
-      <form id="expense-form" onsubmit="return false;">
+      <form id="expense-form" onsubmit="event.preventDefault(); return false;">
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
           <div>
             <label class="block text-sm font-medium text-slate-300 mb-1">Summa ($)</label>
@@ -221,7 +251,8 @@
           </div>
         </div>
         <button
-          type="submit"
+          type="button"
+          id="add-transaction-btn"
           class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-900 font-semibold py-3 rounded-lg h-12 active:scale-95 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-base"
         >
           Tranzaksiya qo'shish
@@ -239,16 +270,14 @@
     <!-- History Section -->
     <div class="bg-slate-800 border border-slate-700 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-lg">
       <h3 class="text-base sm:text-lg font-semibold text-slate-100 mb-4">Tranzaksiya tarixi</h3>
-      <ul id="transaction-list" class="space-y-3">
-      </ul>
+      <ul id="transaction-list" class="space-y-3"></ul>
       <p id="empty-state" class="text-slate-500 text-center py-8 hidden">Hali tranzaksiya yo'q. Yuqoridan qo'shing.</p>
     </div>
 
     <!-- Archived Periods Section -->
     <div id="archived-section" class="bg-slate-800 border border-slate-700 rounded-xl sm:rounded-2xl p-4 sm:p-6 mt-4 sm:mt-6 shadow-lg">
       <h3 class="text-base sm:text-lg font-semibold text-slate-100 mb-4">Arxivlangan Davrlar</h3>
-      <div id="archived-list" class="space-y-3">
-      </div>
+      <div id="archived-list" class="space-y-3"></div>
       <p id="archived-empty-state" class="text-slate-500 text-center py-8 hidden">Hozircha arxivlangan davrlar yo'q.</p>
     </div>
 
@@ -268,7 +297,7 @@
       <button
         type="button"
         id="pwa-install-btn"
-        class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-900 font-semibold py-3 rounded-lg h-12 active:scale-95 transition-all duration-200 text-base"
+        class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-900 font-semibold py-3 rounded-lg h-12 active:scale-95 transition-all duration-200 text-base pointer-events:auto cursor:pointer"
       >
         Add to Home Screen &#128241;
       </button>
@@ -282,40 +311,6 @@
     </div>
   </div>
 
-  <!-- Edit Balance Modal -->
-  <div id="edit-balance-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 modal-backdrop">
-    <div class="bg-slate-800 border border-slate-700 rounded-xl sm:rounded-2xl p-6 sm:p-8 w-full max-w-md mx-4 shadow-2xl">
-      <h2 class="text-xl sm:text-2xl font-bold mb-2 text-slate-100">Boshlang'ich pulni tahrirlash</h2>
-      <p class="text-slate-400 mb-6">Boshlang'ich pul miqdorini yangilang. Tranzaksiya tarixi o'zgarmaydi.</p>
-      <form id="edit-balance-form" onsubmit="return false;">
-        <div class="mb-6">
-          <label class="block text-sm font-medium text-slate-300 mb-2">Boshlang'ich pul ($)</label>
-          <input
-            type="number"
-            id="edit-balance-input"
-            step="any"
-            required
-            placeholder="0.00"
-            class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-base text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
-          />
-        </div>
-        <button
-          type="submit"
-          class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-900 font-semibold py-3 rounded-lg h-12 active:scale-95 transition-all duration-200 text-base"
-        >
-          Saqlash
-        </button>
-        <button
-          type="button"
-          id="cancel-edit-balance"
-          class="w-full mt-3 bg-slate-700 hover:bg-slate-600 text-slate-200 font-medium py-3 rounded-lg h-12 active:scale-95 transition-all duration-200 text-base"
-        >
-          Bekor qilish
-        </button>
-      </form>
-    </div>
-  </div>
-
   <script>
     (() => {
       'use strict';
@@ -324,8 +319,7 @@
       let startingBalance = parseFloat(localStorage.getItem('starting_balance')) || 0;
       const STORAGE_KEYS = {
         transactions: 'transactions',
-        startingBalance: 'starting_balance',
-        hasStarted: 'budget_tracker_has_started'
+        startingBalance: 'starting_balance'
       };
 
       function getTransactions() {
@@ -340,34 +334,14 @@
         localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify(txns));
       }
 
-      function getStartingBalance() {
-        const val = localStorage.getItem(STORAGE_KEYS.startingBalance);
-        return val !== null ? parseFloat(val) : 0;
-      }
-
-      function setStartingBalance(val) {
-        localStorage.setItem(STORAGE_KEYS.startingBalance, String(val));
-      }
-
-      function hasStarted() {
-        return localStorage.getItem(STORAGE_KEYS.hasStarted) === 'true';
-      }
-
-      function markStarted() {
-        localStorage.setItem(STORAGE_KEYS.hasStarted, 'true');
-      }
-
       // --- Calculations ---
       function calculateTotals() {
         const txns = getTransactions();
         let totalIncome = 0;
         let totalExpenses = 0;
         for (const t of txns) {
-          if (t.type === 'Income') {
-            totalIncome += t.amount;
-          } else {
-            totalExpenses += t.amount;
-          }
+          if (t.type === 'Income') { totalIncome += t.amount; }
+          else { totalExpenses += t.amount; }
         }
         const currentBalance = startingBalance + totalIncome - totalExpenses;
         return { startingBalance, totalIncome, totalExpenses, currentBalance };
@@ -404,13 +378,18 @@
       const dateInput = $('date');
       const noteInput = $('note');
       const balanceModal = $('balance-modal');
-      const startingBalanceForm = $('starting-balance-form');
       const startingBalanceInput = $('starting-balance-input');
       const editBalanceBtn = $('edit-balance-btn');
       const editBalanceModal = $('edit-balance-modal');
-      const editBalanceForm = $('edit-balance-form');
       const editBalanceInput = $('edit-balance-input');
       const cancelEditBalance = $('cancel-edit-balance');
+      const archiveModal = $('archive-modal');
+      const archiveNameInput = $('archive-name');
+      const archiveStartingBalanceInput = $('archive-starting-balance');
+      const resetArchiveBtn = $('reset-archive-btn');
+      const cancelArchiveBtn = $('cancel-archive');
+      const archiveSubmitBtn = $('archive-submit-btn');
+      const addTransactionBtn = $('add-transaction-btn');
 
       // --- Date Default ---
       dateInput.valueAsDate = new Date();
@@ -514,6 +493,12 @@
         return div.innerHTML;
       }
 
+      function updateDashboard() {
+        updateDisplays();
+        renderTransactions();
+        renderArchivedPeriods();
+      }
+
       function updateUI() {
         updateDisplays();
         renderTransactions();
@@ -559,16 +544,13 @@
         updateUI();
       }
 
-      // --- Event Listeners ---
-      document.getElementById('expense-form').addEventListener('submit', addTransaction);
-
-      // Onboarding modal
+      // --- Onboarding ---
       if (!localStorage.getItem('starting_balance')) {
         balanceModal.classList.remove('hidden');
         startingBalanceInput.focus();
       } else {
         balanceModal.classList.add('hidden');
-        updateUI();
+        updateDashboard();
       }
 
       const startBtn = document.getElementById('onboarding-submit-btn');
@@ -582,6 +564,7 @@
           const val = parseFloat(startInput.value);
           if (!isNaN(val) && val >= 0) {
             localStorage.setItem('starting_balance', val.toString());
+            startingBalance = val;
 
             const modal = document.getElementById('balance-modal');
             if (modal) modal.classList.add('hidden');
@@ -595,37 +578,9 @@
         });
       }
 
-      function closeModal() {
-        balanceModal.classList.add('hidden');
-      }
-
-      function updateDashboard() {
-        let totalIncome = 0;
-        let totalExpenses = 0;
-        const txns = getTransactions();
-        for (const t of txns) {
-          if (t.type === 'Income') { totalIncome += t.amount; }
-          else { totalExpenses += t.amount; }
-        }
-        const currentBalance = startingBalance + totalIncome - totalExpenses;
-        startingBalanceAmount.textContent = formatCurrency(startingBalance);
-        incomeDisplay.textContent = formatCurrency(totalIncome);
-        expenseDisplay.textContent = formatCurrency(totalExpenses);
-        balanceDisplay.textContent = formatCurrency(currentBalance);
-        if (currentBalance < 0) {
-          balanceDisplay.classList.remove('text-slate-100');
-          balanceDisplay.classList.add('text-rose-500', 'animate-pulse-rose');
-        } else {
-          balanceDisplay.classList.remove('text-rose-500', 'animate-pulse-rose');
-          balanceDisplay.classList.add('text-slate-100');
-        }
-        renderTransactions();
-        renderArchivedPeriods();
-      }
-
       // Edit balance via banner icon
       editBalanceBtn.addEventListener('click', () => {
-        editBalanceInput.value = getStartingBalance();
+        editBalanceInput.value = startingBalance;
         editBalanceModal.classList.remove('hidden');
         editBalanceInput.focus();
       });
@@ -640,10 +595,11 @@
         }
       });
 
-      editBalanceForm.addEventListener('submit', (e) => {
+      const editBalanceSubmitBtn = $('edit-balance-submit-btn');
+      editBalanceSubmitBtn.addEventListener('click', function(e) {
         e.preventDefault();
         const val = parseFloat(editBalanceInput.value);
-        if (!isNaN(val)) {
+        if (!isNaN(val) && val >= 0) {
           startingBalance = val;
           localStorage.setItem('starting_balance', startingBalance.toString());
           editBalanceModal.classList.add('hidden');
@@ -674,22 +630,21 @@
       }
 
       function resetPeriod() {
-        let enteredValue = parseFloat(document.getElementById('archive-starting-balance').value);
-        if (isNaN(enteredValue)) {
-          enteredValue = 0;
-        }
-        startingBalance = enteredValue;
-
-        const txns = getTransactions();
-
-        if (txns.length === 0) {
-          alert('Arxivlash uchun tranzaksiyalar mavjud emas.');
+        const enteredValue = parseFloat(archiveStartingBalanceInput.value);
+        if (isNaN(enteredValue) || enteredValue < 0) {
+          archiveStartingBalanceInput.focus();
           return;
         }
 
-        const archivePeriodName = document.getElementById('archive-name').value.trim();
+        const archivePeriodName = archiveNameInput.value.trim();
         if (!archivePeriodName) {
-          alert('Iltimos, davr nomini kiriting.');
+          archiveNameInput.focus();
+          return;
+        }
+
+        const txns = getTransactions();
+        if (txns.length === 0) {
+          alert('Arxivlash uchun tranzaksiyalar mavjud emas.');
           return;
         }
 
@@ -699,16 +654,17 @@
           if (t.type === 'Income') { totalIncome += t.amount; }
           else { totalExpenses += t.amount; }
         }
-        const currentBalance = startingBalance + totalIncome - totalExpenses;
+        const finalBalance = enteredValue + totalIncome - totalExpenses;
+        const now = new Date();
 
         const archive = {
           id: Date.now(),
           periodName: archivePeriodName,
-          startingBalance: startingBalance,
+          startingBalance: enteredValue,
           totalIncome: totalIncome,
           totalExpenses: totalExpenses,
-          finalBalance: currentBalance,
-          date: new Date().toISOString(),
+          finalBalance: finalBalance,
+          date: now.toISOString(),
           transactions: [...txns]
         };
 
@@ -716,25 +672,21 @@
         periods.push(archive);
         setArchivedPeriods(periods);
 
-        localStorage.setItem('transactions', JSON.stringify([]));
+        startingBalance = enteredValue;
         localStorage.setItem('starting_balance', startingBalance.toString());
+        localStorage.setItem('transactions', JSON.stringify([]));
 
-        document.getElementById('archive-modal').classList.add('hidden');
-        document.getElementById('archive-name').value = '';
-        document.getElementById('archive-starting-balance').value = '';
+        archiveModal.classList.add('hidden');
+        archiveNameInput.value = '';
+        archiveStartingBalanceInput.value = '';
 
-        init();
-      }
-
-      function init() {
-        updateUI();
-        renderArchivedPeriods();
+        updateDashboard();
       }
 
       function renderArchivedPeriods() {
         const periods = getArchivedPeriods();
-        const container = document.getElementById('archived-list');
-        const emptyState = document.getElementById('archived-empty-state');
+        const container = $('archived-list');
+        const emptyState = $('archived-empty-state');
         container.innerHTML = '';
 
         if (periods.length === 0) {
@@ -825,31 +777,27 @@
         renderArchivedPeriods();
       }
 
-      document.getElementById('reset-archive-btn').addEventListener('click', () => {
+      resetArchiveBtn.addEventListener('click', () => {
         const { currentBalance } = calculateTotals();
-        document.getElementById('archive-starting-balance').value = currentBalance.toFixed(2);
-        document.getElementById('archive-modal').classList.remove('hidden');
-        document.getElementById('archive-name').focus();
+        archiveStartingBalanceInput.value = currentBalance.toFixed(2);
+        archiveModal.classList.remove('hidden');
+        archiveNameInput.focus();
       });
 
-      const cancelArchive = document.getElementById('cancel-archive');
-
-      cancelArchive.addEventListener('click', () => {
-        document.getElementById('archive-modal').classList.add('hidden');
+      cancelArchiveBtn.addEventListener('click', () => {
+        archiveModal.classList.add('hidden');
       });
 
-      document.getElementById('archive-modal').addEventListener('click', (e) => {
-        if (e.target === document.getElementById('archive-modal')) {
-          document.getElementById('archive-modal').classList.add('hidden');
+      archiveModal.addEventListener('click', (e) => {
+        if (e.target === archiveModal) {
+          archiveModal.classList.add('hidden');
         }
       });
 
-      document.getElementById('archive-form').addEventListener('submit', (e) => {
+      archiveSubmitBtn.addEventListener('click', function(e) {
         e.preventDefault();
         resetPeriod();
       });
-
-      init();
 
       // --- PWA Install ---
       (function initPWA() {
@@ -924,7 +872,6 @@
       })();
 
     })();
-    import { SpeedInsights } from "@vercel/speed-insights/next"
   </script>
 </body>
 </html>
