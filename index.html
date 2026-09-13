@@ -320,6 +320,7 @@
       'use strict';
 
       // --- Data Layer ---
+      let startingBalance = parseFloat(localStorage.getItem('starting_balance')) || 0;
       const STORAGE_KEYS = {
         transactions: 'transactions',
         startingBalance: 'starting_balance',
@@ -358,7 +359,6 @@
       // --- Calculations ---
       function calculateTotals() {
         const txns = getTransactions();
-        const startingBalance = getStartingBalance();
         let totalIncome = 0;
         let totalExpenses = 0;
         for (const t of txns) {
@@ -572,13 +572,44 @@
 
       startingBalanceForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        const val = parseFloat(startingBalanceInput.value);
-        if (!val && val !== 0) return;
-        setStartingBalance(val);
-        markStarted();
-        balanceModal.classList.add('hidden');
-        updateUI();
+        const inputEl = document.getElementById('starting-balance-input');
+        const enteredValue = parseFloat(inputEl.value);
+        if (!isNaN(enteredValue) && inputEl.value.trim() !== "") {
+          startingBalance = enteredValue;
+          localStorage.setItem('starting_balance', startingBalance.toString());
+          markStarted();
+          closeModal();
+          updateDashboard();
+        }
       });
+
+      function closeModal() {
+        balanceModal.classList.add('hidden');
+      }
+
+      function updateDashboard() {
+        let totalIncome = 0;
+        let totalExpenses = 0;
+        const txns = getTransactions();
+        for (const t of txns) {
+          if (t.type === 'Income') { totalIncome += t.amount; }
+          else { totalExpenses += t.amount; }
+        }
+        const currentBalance = startingBalance + totalIncome - totalExpenses;
+        startingBalanceAmount.textContent = formatCurrency(startingBalance);
+        incomeDisplay.textContent = formatCurrency(totalIncome);
+        expenseDisplay.textContent = formatCurrency(totalExpenses);
+        balanceDisplay.textContent = formatCurrency(currentBalance);
+        if (currentBalance < 0) {
+          balanceDisplay.classList.remove('text-slate-100');
+          balanceDisplay.classList.add('text-rose-500', 'animate-pulse-rose');
+        } else {
+          balanceDisplay.classList.remove('text-rose-500', 'animate-pulse-rose');
+          balanceDisplay.classList.add('text-slate-100');
+        }
+        renderTransactions();
+        renderArchivedPeriods();
+      }
 
       // Edit balance via banner icon
       editBalanceBtn.addEventListener('click', () => {
@@ -600,10 +631,12 @@
       editBalanceForm.addEventListener('submit', (e) => {
         e.preventDefault();
         const val = parseFloat(editBalanceInput.value);
-        if (!val && val !== 0) return;
-        setStartingBalance(val);
-        editBalanceModal.classList.add('hidden');
-        updateUI();
+        if (!isNaN(val)) {
+          startingBalance = val;
+          localStorage.setItem('starting_balance', startingBalance.toString());
+          editBalanceModal.classList.add('hidden');
+          updateUI();
+        }
       });
 
       // Close onboarding modal on backdrop click (only if already started)
@@ -629,13 +662,11 @@
       }
 
       function resetPeriod() {
-        let transactions = [];
-        let startingBalance = 0;
-        let newStartingBalance = parseFloat(document.getElementById('archive-starting-balance').value);
-        if (isNaN(newStartingBalance)) {
-          newStartingBalance = 0;
+        let enteredValue = parseFloat(document.getElementById('archive-starting-balance').value);
+        if (isNaN(enteredValue)) {
+          enteredValue = 0;
         }
-        startingBalance = newStartingBalance;
+        startingBalance = enteredValue;
 
         const txns = getTransactions();
 
@@ -673,9 +704,8 @@
         periods.push(archive);
         setArchivedPeriods(periods);
 
-        transactions = [];
-        localStorage.setItem('transactions', JSON.stringify(transactions));
-        localStorage.setItem('starting_balance', startingBalance);
+        localStorage.setItem('transactions', JSON.stringify([]));
+        localStorage.setItem('starting_balance', startingBalance.toString());
 
         document.getElementById('archive-modal').classList.add('hidden');
         document.getElementById('archive-name').value = '';
