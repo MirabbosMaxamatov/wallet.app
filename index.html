@@ -52,7 +52,7 @@
         <button
           type="button"
           id="onboarding-submit-btn"
-          class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-900 font-semibold py-3 rounded-lg h-12 active:scale-95 transition-all duration-200 text-base"
+          class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-900 font-semibold py-3 rounded-lg h-12 active:scale-95 transition-all duration-200 text-base pointer-events:auto cursor:pointer"
         >
           Boshlash
         </button>
@@ -571,17 +571,29 @@
         updateUI();
       }
 
-      document.getElementById('onboarding-submit-btn').addEventListener('click', function(e) {
-        e.preventDefault();
-        const inputEl = document.getElementById('starting-balance-input');
-        const val = parseFloat(inputEl.value);
-        if (!isNaN(val) && val >= 0) {
-          localStorage.setItem('starting_balance', val.toString());
-          startingBalance = val;
-          document.getElementById('balance-modal').classList.add('hidden');
-          updateDashboard();
-        }
-      });
+      const startBtn = document.getElementById('onboarding-submit-btn');
+      const startInput = document.getElementById('starting-balance-input');
+
+      if (startBtn && startInput) {
+        startBtn.disabled = false;
+        startBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+
+          const val = parseFloat(startInput.value);
+          if (!isNaN(val) && val >= 0) {
+            localStorage.setItem('starting_balance', val.toString());
+
+            const modal = document.getElementById('balance-modal');
+            if (modal) modal.classList.add('hidden');
+
+            if (typeof updateDashboard === 'function') {
+              updateDashboard();
+            } else {
+              window.location.reload();
+            }
+          }
+        });
+      }
 
       function closeModal() {
         balanceModal.classList.add('hidden');
@@ -641,7 +653,7 @@
 
       // Close onboarding modal on backdrop click (only if already started)
       balanceModal.addEventListener('click', (e) => {
-        if (e.target === balanceModal && hasStarted()) {
+        if (e.target === balanceModal && localStorage.getItem('starting_balance')) {
           balanceModal.classList.add('hidden');
         }
       });
