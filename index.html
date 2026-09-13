@@ -321,8 +321,8 @@
 
       // --- Data Layer ---
       const STORAGE_KEYS = {
-        transactions: 'budget_tracker_transactions',
-        startingBalance: 'budget_tracker_starting_balance',
+        transactions: 'transactions',
+        startingBalance: 'starting_balance',
         hasStarted: 'budget_tracker_has_started'
       };
 
@@ -629,6 +629,14 @@
       }
 
       function resetPeriod() {
+        let transactions = [];
+        let startingBalance = 0;
+        let newStartingBalance = parseFloat(document.getElementById('archive-starting-balance').value);
+        if (isNaN(newStartingBalance)) {
+          newStartingBalance = 0;
+        }
+        startingBalance = newStartingBalance;
+
         const txns = getTransactions();
 
         if (txns.length === 0) {
@@ -642,17 +650,18 @@
           return;
         }
 
-        let newStartingBalance = parseFloat(document.getElementById('archive-starting-balance').value);
-        if (isNaN(newStartingBalance)) {
-          newStartingBalance = 0;
+        let totalIncome = 0;
+        let totalExpenses = 0;
+        for (const t of txns) {
+          if (t.type === 'Income') { totalIncome += t.amount; }
+          else { totalExpenses += t.amount; }
         }
-
-        const { totalIncome, totalExpenses, currentBalance } = calculateTotals();
+        const currentBalance = startingBalance + totalIncome - totalExpenses;
 
         const archive = {
           id: Date.now(),
           periodName: archivePeriodName,
-          startingBalance: newStartingBalance,
+          startingBalance: startingBalance,
           totalIncome: totalIncome,
           totalExpenses: totalExpenses,
           finalBalance: currentBalance,
@@ -664,8 +673,9 @@
         periods.push(archive);
         setArchivedPeriods(periods);
 
-        setTransactions([]);
-        setStartingBalance(newStartingBalance);
+        transactions = [];
+        localStorage.setItem('transactions', JSON.stringify(transactions));
+        localStorage.setItem('starting_balance', startingBalance);
 
         document.getElementById('archive-modal').classList.add('hidden');
         document.getElementById('archive-name').value = '';
