@@ -37,7 +37,7 @@
     <div class="bg-slate-800 border border-slate-700 rounded-2xl p-6 sm:p-8 w-full max-w-md mx-4 shadow-2xl">
       <h2 class="text-2xl font-bold mb-2 text-slate-100">Xush kelibsiz</h2>
       <p class="text-slate-400 mb-6">Boshlang'ich pul miqdorini kiriting:</p>
-      <form id="starting-balance-form">
+      <div id="starting-balance-form">
         <div class="mb-6">
           <label class="block text-sm font-medium text-slate-300 mb-2">Boshlang'ich pul ($)</label>
           <input
@@ -50,12 +50,13 @@
           />
         </div>
         <button
-          type="submit"
+          type="button"
+          id="onboarding-submit-btn"
           class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-900 font-semibold py-3 rounded-lg h-12 active:scale-95 transition-all duration-200 text-base"
         >
           Boshlash
         </button>
-      </form>
+      </div>
     </div>
   </div>
 
@@ -115,7 +116,7 @@
     <div class="bg-slate-800 border border-slate-700 rounded-xl sm:rounded-2xl p-6 sm:p-8 w-full max-w-md mx-4 shadow-2xl">
       <h2 class="text-xl sm:text-2xl font-bold mb-2 text-slate-100">Davrni arxivlash</h2>
       <p class="text-slate-400 mb-6">Davrni arxivlang va yangi boshlang'ich pulni belgilang.</p>
-      <form id="archive-form">
+      <form id="archive-form" onsubmit="return false;">
         <div class="mb-4">
           <label class="block text-sm font-medium text-slate-300 mb-2">Davr nomi (masalan: Sentyabr 2026)</label>
           <input
@@ -160,7 +161,7 @@
     <!-- Transaction Form -->
     <div class="bg-slate-800 border border-slate-700 rounded-xl sm:rounded-2xl p-4 sm:p-6 mb-6 sm:mb-8 shadow-lg">
       <h3 class="text-base sm:text-lg font-semibold text-slate-100 mb-4">Tranzaksiya qo'shish</h3>
-      <form id="expense-form">
+      <form id="expense-form" onsubmit="return false;">
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
           <div>
             <label class="block text-sm font-medium text-slate-300 mb-1">Summa ($)</label>
@@ -286,7 +287,7 @@
     <div class="bg-slate-800 border border-slate-700 rounded-xl sm:rounded-2xl p-6 sm:p-8 w-full max-w-md mx-4 shadow-2xl">
       <h2 class="text-xl sm:text-2xl font-bold mb-2 text-slate-100">Boshlang'ich pulni tahrirlash</h2>
       <p class="text-slate-400 mb-6">Boshlang'ich pul miqdorini yangilang. Tranzaksiya tarixi o'zgarmaydi.</p>
-      <form id="edit-balance-form">
+      <form id="edit-balance-form" onsubmit="return false;">
         <div class="mb-6">
           <label class="block text-sm font-medium text-slate-300 mb-2">Boshlang'ich pul ($)</label>
           <input
@@ -562,7 +563,7 @@
       document.getElementById('expense-form').addEventListener('submit', addTransaction);
 
       // Onboarding modal
-      if (!hasStarted()) {
+      if (!localStorage.getItem('starting_balance')) {
         balanceModal.classList.remove('hidden');
         startingBalanceInput.focus();
       } else {
@@ -570,15 +571,14 @@
         updateUI();
       }
 
-      startingBalanceForm.addEventListener('submit', (e) => {
+      document.getElementById('onboarding-submit-btn').addEventListener('click', function(e) {
         e.preventDefault();
         const inputEl = document.getElementById('starting-balance-input');
-        const enteredValue = parseFloat(inputEl.value);
-        if (!isNaN(enteredValue) && inputEl.value.trim() !== "") {
-          startingBalance = enteredValue;
-          localStorage.setItem('starting_balance', startingBalance.toString());
-          markStarted();
-          closeModal();
+        const val = parseFloat(inputEl.value);
+        if (!isNaN(val) && val >= 0) {
+          localStorage.setItem('starting_balance', val.toString());
+          startingBalance = val;
+          document.getElementById('balance-modal').classList.add('hidden');
           updateDashboard();
         }
       });
@@ -862,10 +862,8 @@
           self.addEventListener('install', function() { self.skipWaiting(); });
           self.addEventListener('activate', function() { self.clients.claim(); });
         `;
-        const swBlob = new Blob([SW_CODE], { type: 'application/javascript' });
-        const swUrl = URL.createObjectURL(swBlob);
         if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.register(swUrl).catch(function() {});
+          navigator.serviceWorker.register(new Blob([SW_CODE], { type: 'application/javascript' })).catch(function() {});
         }
 
         let deferredPrompt = null;
