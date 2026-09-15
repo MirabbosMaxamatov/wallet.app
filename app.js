@@ -156,14 +156,14 @@
           <!-- LEFT COLUMN: Main title, Category badge & Date -->
           <div class="flex flex-col justify-center flex-1 min-w-0">
             <h4 class="text-base font-semibold text-slate-100 truncate mb-1">
-              ${escapeHtml(mainTitle)}
+              ${mainTitle}
             </h4>
             <div class="flex items-center gap-2 flex-wrap text-xs">
               <span class="bg-slate-700 text-slate-300 px-2 py-0.5 rounded-md font-medium">
-                ${escapeHtml(tx.category)}
+                ${tx.category}
               </span>
               <span class="text-slate-400">
-                📅 ${escapeHtml(dateFormatted)}
+                📅 ${dateFormatted}
               </span>
             </div>
           </div>
@@ -174,10 +174,10 @@
               ${amountSign}${amountFormatted} so'm
             </span>
             <div class="flex items-center gap-1">
-              <button type="button" onclick="editTransaction(${tx.id})" class="p-1.5 text-slate-400 hover:text-emerald-400 transition-colors" title="Tahrirlash">
+              <button onclick="editTransaction(${tx.id})" class="p-1.5 text-slate-400 hover:text-emerald-400 transition-colors" title="Tahrirlash">
                 ✏️
               </button>
-              <button type="button" onclick="deleteTransaction(${tx.id})" class="p-1.5 text-slate-400 hover:text-rose-400 transition-colors" title="O'chirish">
+              <button onclick="deleteTransaction(${tx.id})" class="p-1.5 text-slate-400 hover:text-rose-400 transition-colors" title="O'chirish">
                 🗑️
               </button>
             </div>
