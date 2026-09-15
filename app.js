@@ -2,7 +2,8 @@
   'use strict';
 
   // ==================== DATA LAYER ====================
-  let startingBalance = parseFloat(localStorage.getItem('starting_balance')) || 0;
+  let startingBalance = parseFloat(localStorage.getItem('starting_balance'));
+  if (!Number.isFinite(startingBalance)) startingBalance = 0;
 
   function getTransactions() {
     try { return JSON.parse(localStorage.getItem('transactions')) || []; }
@@ -25,10 +26,14 @@
     let totalIncome = 0;
     let totalExpenses = 0;
     for (const t of txns) {
-      if (t.type === 'income') totalIncome += t.amount;
-      else if (t.type === 'expense') totalExpenses += t.amount;
+      const amt = Number.isFinite(t.amount) ? t.amount : 0;
+      if (t.type === 'income') totalIncome += amt;
+      else if (t.type === 'expense') totalExpenses += amt;
     }
-    const currentBalance = startingBalance + totalIncome - totalExpenses;
+    if (!Number.isFinite(totalIncome)) totalIncome = 0;
+    if (!Number.isFinite(totalExpenses)) totalExpenses = 0;
+    let currentBalance = startingBalance + totalIncome - totalExpenses;
+    if (!Number.isFinite(currentBalance)) currentBalance = startingBalance;
     return { startingBalance, totalIncome, totalExpenses, currentBalance };
   }
 
@@ -124,9 +129,11 @@
 
     const transactions = getTransactions();
     if (transactions.length === 0) {
-      container.innerHTML = `<p class="text-center text-slate-400 py-4">Hozircha tranzaksiyalar yo'q</p>`;
+      container.innerHTML = '';
+      emptyState.classList.remove('hidden');
       return;
     }
+    emptyState.classList.add('hidden');
 
     // Yangidan eskiga qarab tartiblash (sana, keyin ID)
     const sorted = [...transactions].sort((a, b) => {
@@ -222,11 +229,13 @@
     renderTransactions();
     updateDashboard();
   }
+  transactionForm.addEventListener('submit', function (e) { e.preventDefault(); addTransaction(); });
   addTransactionBtn.addEventListener('click', function (e) { e.preventDefault(); addTransaction(); });
 
   // ==================== DELETE TRANSACTION ====================
   function deleteTransaction(id) {
     const transactions = getTransactions().filter((t) => t.id !== id);
+    if (transactions.length === getTransactions().length) return;
     setTransactions(transactions);
     updateDashboard();
   }
@@ -241,7 +250,7 @@
     editTypeSelect.value = t.type;
     editCategorySelect.value = t.category;
     editDateInput.value = t.date;
-    editNoteInput.value = t.description || t.note || '';
+    editNoteInput.value = t.description || '';
     editModal.classList.remove('hidden');
     editModal.classList.add('flex');
   }
@@ -258,10 +267,7 @@
     if (isNaN(amount) || amount <= 0) return alert("Iltimos, to'g'ri summa kiriting!");
     const transactions = getTransactions().map((t) => {
       if (t.id !== id) return t;
-      // Tavsifni `note` emas, `description` sifatida saqlaymiz (addTransaction bilan bir xil shakl)
-      const updated = { ...t, amount, type: editTypeSelect.value, category: editCategorySelect.value, date: editDateInput.value, description: editNoteInput.value.trim() };
-      delete updated.note; // eski `note` maydonini tozalab yuboramiz
-      return updated;
+      return { ...t, amount, type: editTypeSelect.value, category: editCategorySelect.value, date: editDateInput.value, description: editNoteInput.value.trim() };
     });
     setTransactions(transactions);
     closeEditModal();
@@ -290,6 +296,12 @@
       onboardingModal.classList.add('hidden');
       onboardingModal.classList.remove('flex');
       updateDashboard();
+    }
+  });
+  onboardingInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      onboardingStartBtn.click();
     }
   });
   onboardingModal.addEventListener('click', (e) => { if (e.target === onboardingModal && localStorage.getItem('starting_balance')) { onboardingModal.classList.add('hidden'); onboardingModal.classList.remove('flex'); } });
@@ -333,10 +345,11 @@
     if (isNaN(newStartingBalance) || newStartingBalance < 0) return alert("Iltimos, to'g'ri summa kiriting!");
     const txns = getTransactions();
     if (txns.length === 0) return alert('Arxivlash uchun tranzaksiyalar mavjud emas.');
-    let totalIncome = 0, totalExpenses = 0;
-    for (const t of txns) { if (t.type === 'income') totalIncome += t.amount; else if (t.type === 'expense') totalExpenses += t.amount; }
-    const currentBalance = startingBalance + totalIncome - totalExpenses;
-    const archive = { id: Date.now(), name: periodName, startingBalance: newStartingBalance, totalIncome, totalExpenses, finalBalance: currentBalance, date: new Date().toLocaleDateString('uz-UZ'), transactions: [...txns] };
+    const { totalIncome, totalExpenses, currentBalance } = calculateTotals();
+    const safeIncome = Number.isFinite(totalIncome) ? totalIncome : 0;
+    const safeExpenses = Number.isFinite(totalExpenses) ? totalExpenses : 0;
+    const safeBalance = Number.isFinite(currentBalance) ? currentBalance : newStartingBalance;
+    const archive = { id: Date.now(), name: periodName, startingBalance: newStartingBalance, totalIncome: safeIncome, totalExpenses: safeExpenses, finalBalance: safeBalance, date: new Date().toLocaleDateString('uz-UZ'), transactions: [...txns] };
     const periods = getArchivedPeriods();
     periods.push(archive);
     setArchivedPeriods(periods);
@@ -390,7 +403,7 @@
       pwaInstallBtn.addEventListener('click', function () {
         if (deferredPrompt) {
           deferredPrompt.prompt();
-          deferredPrompt.userChoice.then(() => { deferredPrompt = null; hidePWA(); });
+          deferredPrompt.userChoice.then(() => { deferredPrompt = null; hidePWA(); }).catch(() => { hidePWA(); });
         } else { hidePWA(); }
       });
     }
@@ -402,11 +415,22 @@
         installTimer = null;
       });
     }
+    if (iosModal) {
+      iosModal.addEventListener('click', (e) => { if (e.target === iosModal) { iosModal.classList.add('hidden'); iosModal.classList.remove('flex'); } });
+    }
   })();
 
   // ==================== SERVICE WORKER ====================
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+    const swCode = [
+      "const CACHE_NAME='smart-budget-v1';",
+      "const ASSETS=['./','./index.html','./style.css','./app.js','./manifest.json'];",
+      "self.addEventListener('install',(e)=>{e.waitUntil(caches.open(CACHE_NAME).then((c)=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));});",
+      "self.addEventListener('activate',(e)=>{e.waitUntil(caches.keys().then((n)=>Promise.all(n.filter((x)=>x!==CACHE_NAME).map((x)=>caches.delete(x)))).then(()=>self.clients.claim()));});",
+      "self.addEventListener('fetch',(e)=>{e.respondWith(caches.match(e.request).then((r)=>r||fetch(e.request).catch(()=>new Response('Offline',{status:503,statusText:'Service Unavailable'}))));});"
+    ].join('');
+    const blob = new Blob([swCode], { type: 'application/javascript' });
+    navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
   }
 
 })();

@@ -35,7 +35,7 @@
     <div class="modal-card">
       <h2 class="text-xl sm:text-2xl font-bold mb-2 text-slate-100">Davrni arxivlash</h2>
       <p class="text-slate-400 mb-6">Davrni arxivlang va yangi boshlang'ich pulni belgilang.</p>
-      <form id="archive-form">
+      <form id="archive-form" onsubmit="event.preventDefault(); return false;">
         <div class="mb-4">
           <label class="block text-sm font-medium text-slate-300 mb-2">Davr nomi (masalan: Sentyabr 2026)</label>
           <input type="text" id="archive-name" required placeholder="Sentyabr 2026" class="input-base" />
@@ -55,7 +55,7 @@
     <div class="modal-card">
       <h2 class="text-xl sm:text-2xl font-bold mb-2 text-slate-100">Tranzaksiyani tahrirlash</h2>
       <p class="text-slate-400 mb-6">O'zgarishlarni qiling va saqlang.</p>
-      <form id="edit-form">
+      <form id="edit-form" onsubmit="event.preventDefault(); return false;">
         <input type="hidden" id="edit-id" />
         <div class="mb-4">
           <label class="block text-sm font-medium text-slate-300 mb-1">Summa ($)</label>
@@ -98,7 +98,7 @@
     <div class="modal-card">
       <h2 class="text-xl sm:text-2xl font-bold mb-2 text-slate-100">Boshlang'ich pulni tahrirlash</h2>
       <p class="text-slate-400 mb-6">Boshlang'ich pul miqdorini yangilang. Tranzaksiya tarixi o'zgarmaydi.</p>
-      <form id="edit-balance-form">
+      <form id="edit-balance-form" onsubmit="event.preventDefault(); return false;">
         <div class="mb-6">
           <label class="block text-sm font-medium text-slate-300 mb-2">Boshlang'ich pul ($)</label>
           <input type="number" id="edit-balance-input" step="any" required placeholder="0.00" class="input-base" />
