@@ -149,6 +149,11 @@
   const emptyState = $('empty-state');
   const archivedList = $('archived-list');
   const archivedEmptyState = $('archived-empty-state');
+  const moreToggleBtn = $('more-toggle-btn');
+  const moreBody = $('more-body');
+  const moreChevron = $('more-chevron');
+  const themeToggleBtn = $('theme-toggle');
+  const currencySelect = $('currency-select');
 
   dateInput.valueAsDate = new Date();
 
@@ -157,6 +162,34 @@
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', function () { updateAmountPreview(id); });
   });
+
+  // Yana / Profil section toggle
+  if (moreToggleBtn) moreToggleBtn.addEventListener('click', toggleMoreSection);
+
+  // Theme toggle button
+  if (themeToggleBtn) themeToggleBtn.addEventListener('click', toggleTheme);
+
+  // Currency selector
+  if (currencySelect) {
+    currencySelect.value = localStorage.getItem('app_currency') || 'UZS';
+    currencySelect.addEventListener('change', function () {
+      localStorage.setItem('app_currency', currencySelect.value);
+    });
+  }
+
+  // Restore saved theme on load
+  (function restoreTheme() {
+    const saved = localStorage.getItem('app_theme');
+    if (saved === 'light') {
+      document.body.classList.add('light-theme');
+      document.body.classList.remove('dark');
+      if (themeToggleBtn) themeToggleBtn.textContent = '☀️ Light';
+    } else {
+      document.body.classList.remove('light-theme');
+      document.body.classList.add('dark');
+      if (themeToggleBtn) themeToggleBtn.textContent = '🌙 Dark';
+    }
+  })();
 
   // ==================== UPDATE & RENDER ====================
   function updateDashboard() {
@@ -329,6 +362,12 @@
   window.deleteTransaction = deleteTransaction;
   window.appendZeros = appendZeros;
   window.clearAmountInput = clearAmountInput;
+  window.exportToCSV = exportToCSV;
+  window.exportToPDF = exportToPDF;
+  window.exportBackup = exportBackup;
+  window.importBackup = importBackup;
+  window.toggleMoreSection = toggleMoreSection;
+  window.toggleTheme = toggleTheme;
 
   // ==================== ONBOARDING ====================
   const savedBalance = localStorage.getItem('starting_balance');
@@ -428,6 +467,154 @@
     const periods = getArchivedPeriods().filter((p) => p.id !== id);
     setArchivedPeriods(periods);
     renderArchivedPeriods();
+  }
+
+  // ==================== YANA / PROFIL — EXPORT & TOOLS ====================
+  function getTransactionsSafe() {
+    try { return JSON.parse(localStorage.getItem('transactions')) || []; }
+    catch { return []; }
+  }
+  function exportToCSV() {
+    const transactions = getTransactionsSafe();
+    if (transactions.length === 0) {
+      alert("Eksport qilish uchun tranzaksiyalar mavjud emas!");
+      return;
+    }
+
+    let csvContent = "data:text/csv;charset=utf-8,\uFEFFSana,Turi,Kategoriya,Summa,Tavsif\n";
+    transactions.forEach(t => {
+      const row = `"${t.date || ''}","${t.type === 'income' ? 'Kirim' : 'Chiqim'}","${(t.category || '').replace(/"/g, '""')}","${t.amount || 0}","${(t.description || '').replace(/"/g, '""')}"`;
+      csvContent += row + "\n";
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `byudjet_hisobot_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+  function exportToPDF() {
+    const transactions = getTransactionsSafe();
+    if (transactions.length === 0) {
+      alert("Eksport qilish uchun tranzaksiyalar mavjud emas!");
+      return;
+    }
+
+    const { totalIncome, totalExpenses, currentBalance } = calculateTotals();
+    const tableRows = transactions.map(t => `
+      <tr>
+        <td style="padding:8px;border:1px solid #ddd;">${t.date || ''}</td>
+        <td style="padding:8px;border:1px solid #ddd;">${t.type === 'income' ? 'Kirim' : 'Chiqim'}</td>
+        <td style="padding:8px;border:1px solid #ddd;">${t.category || '-'}</td>
+        <td style="padding:8px;border:1px solid #ddd;font-weight:bold;">${(Number(t.amount) || 0).toLocaleString('uz-UZ')} so'm</td>
+        <td style="padding:8px;border:1px solid #ddd;">${(t.description || '').replace(/</g, '&lt;')}</td>
+      </tr>
+    `).join('');
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Smart Byudjet Tracker - Hisobot</title>
+          <style>
+            body { font-family: sans-serif; padding: 20px; color: #0f172a; }
+            h2 { color: #0f172a; text-align: center; margin-bottom: 4px; }
+            .summary { text-align: center; margin-bottom: 20px; font-size: 14px; color: #475569; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 12px; }
+            th { background-color: #1e293b; color: white; padding: 10px; border: 1px solid #ddd; text-align: left; }
+            td { border: 1px solid #ddd; }
+          </style>
+        </head>
+        <body>
+          <h2>Smart Byudjet Tracker — Moliyaviy Hisobot</h2>
+          <div class="summary">
+            Jami Kirim: ${(totalIncome || 0).toLocaleString('uz-UZ')} so'm &nbsp;|&nbsp;
+            Jami Chiqim: ${(totalExpenses || 0).toLocaleString('uz-UZ')} so'm &nbsp;|&nbsp;
+            Qoldiq: ${(currentBalance || 0).toLocaleString('uz-UZ')} so'm
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Sana</th>
+                <th>Turi</th>
+                <th>Kategoriya</th>
+                <th>Summa</th>
+                <th>Tavsif</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRows}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); }, 500);
+  }
+  function exportBackup() {
+    const data = {
+      version: '1.2.1',
+      exportedAt: new Date().toISOString(),
+      startingBalance: localStorage.getItem('starting_balance'),
+      transactions: getTransactionsSafe(),
+      archivedPeriods: getArchivedPeriods()
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `smart_byudjet_backup_${new Date().toISOString().slice(0, 10)}.json`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+  function importBackup() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json';
+    input.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const data = JSON.parse(ev.target.result);
+          if (data.transactions) setTransactions(data.transactions);
+          if (data.archivedPeriods) setArchivedPeriods(data.archivedPeriods);
+          if (data.startingBalance !== undefined && data.startingBalance !== null) {
+            localStorage.setItem('starting_balance', data.startingBalance);
+            startingBalance = parseFloat(data.startingBalance) || 0;
+          }
+          alert("Zaxira nusqa muvaffaqiyatli yuklandi!");
+          updateDashboard();
+        } catch (err) {
+          alert("Xatolik: nusqa fayli noto'g'ri formatda.");
+        }
+      };
+      reader.readAsText(file);
+    });
+    input.click();
+  }
+  function toggleMoreSection() {
+    const body = $('more-body');
+    const chevron = $('more-chevron');
+    if (!body) return;
+    body.classList.toggle('hidden');
+    if (chevron) chevron.style.transform = body.classList.contains('hidden') ? '' : 'rotate(180deg)';
+  }
+  function toggleTheme() {
+    const btn = $('theme-toggle');
+    if (!btn) return;
+    const isLight = document.body.classList.toggle('light-theme');
+    document.body.classList.toggle('dark', !isLight);
+    localStorage.setItem('app_theme', isLight ? 'light' : 'dark');
+    btn.textContent = isLight ? '☀️ Light' : '🌙 Dark';
   }
 
   // ==================== PWA INSTALL ====================

@@ -282,6 +282,68 @@
       <p id="archived-empty-state" class="text-slate-500 text-center py-8 hidden">Hozircha arxivlangan davrlar yo'q.</p>
     </div>
 
+    <!-- YANA / PROFIL SECTION -->
+    <div id="more-section" class="mt-4">
+      <button type="button" id="more-toggle-btn" class="w-full flex items-center justify-between bg-slate-800/80 border border-slate-700/60 rounded-xl px-4 py-3 text-left shadow-sm hover:bg-slate-700/40 transition-colors">
+        <span class="text-base font-semibold text-slate-100 flex items-center gap-2">
+          <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 010 4m-6 8h12a2 2 0 002-2V8a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+          Yana / Profil
+        </span>
+        <svg id="more-chevron" class="w-4 h-4 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <div id="more-body" class="hidden space-y-4 mt-4">
+
+        <!-- Hisobotlar & Eksport -->
+        <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-4 shadow-sm">
+          <h4 class="text-sm font-semibold text-slate-100 mb-3 flex items-center gap-2">📊 Hisobotlar &amp; Eksport</h4>
+          <div class="flex flex-col sm:flex-row gap-2">
+            <button type="button" onclick="exportToPDF()" class="flex-1 bg-emerald-600/90 hover:bg-emerald-500 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors">📄 PDF Hisobot</button>
+            <button type="button" onclick="exportToCSV()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-100 text-xs font-medium px-3 py-2 rounded-lg transition-colors">📋 Excel (CSV)</button>
+          </div>
+        </div>
+
+        <!-- Xavfsizlik -->
+        <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-4 shadow-sm">
+          <h4 class="text-sm font-semibold text-slate-100 mb-3 flex items-center gap-2">🔒 Xavfsizlik</h4>
+          <div class="flex flex-col sm:flex-row gap-2">
+            <button type="button" onclick="alert('4-xonali PIN-kod sozlamalari tez orada qo\'shiladi.')" class="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-100 text-xs font-medium px-3 py-2 rounded-lg transition-colors">🔐 PIN-kod o\'rnatish</button>
+          </div>
+        </div>
+
+        <!-- Valyuta & Sozlamalar -->
+        <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-4 shadow-sm">
+          <h4 class="text-sm font-semibold text-slate-100 mb-3 flex items-center gap-2">💱 Valyuta &amp; Sozlamalar</h4>
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-slate-300">Asosiy valyuta:</span>
+            <select id="currency-select" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500">
+              <option value="UZS">UZS (so'm)</option>
+              <option value="USD">USD ($)</option>
+              <option value="RUB">RUB (₽)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Mavzu (Theme) -->
+        <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-4 shadow-sm">
+          <h4 class="text-sm font-semibold text-slate-100 mb-3 flex items-center gap-2">🌙 Mavzu (Theme)</h4>
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-slate-300">Qorong'u / Yoriq:</span>
+            <button type="button" id="theme-toggle" class="bg-slate-700 hover:bg-slate-600 text-slate-100 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors" onclick="toggleTheme()">🌙 Dark</button>
+          </div>
+        </div>
+
+        <!-- Zaxira Nusha (Backup) -->
+        <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-4 shadow-sm">
+          <h4 class="text-sm font-semibold text-slate-100 mb-3 flex items-center gap-2">💾 Zaxira Nusha (Backup)</h4>
+          <div class="flex flex-col sm:flex-row gap-2">
+            <button type="button" onclick="exportBackup()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-100 text-xs font-medium px-3 py-2 rounded-lg transition-colors">⬇️ JSON Eksport</button>
+            <button type="button" onclick="importBackup()" class="flex-1 bg-emerald-600/90 hover:bg-emerald-500 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors">⬆️ JSON Import</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
     <footer class="text-center text-slate-600 text-xs mt-8 mb-4">Smart Byudjet Tracker &copy; 2026</footer>
   </div>
 

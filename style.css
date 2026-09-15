@@ -344,3 +344,65 @@ input[type="number"] {
   ring: 2px;
   ring-color: #10b981;
 }
+
+/* ==================== THEME TOGGLE (Light / Dark) ==================== */
+body.light-theme {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+
+body.light-theme .bg-slate-900,
+body.light-theme .bg-slate-900/50,
+body.light-theme .bg-slate-900/60,
+body.light-theme .bg-slate-900/80,
+body.light-theme .bg-slate-900/90,
+body.light-theme .bg-slate-800,
+body.light-theme .bg-slate-800/60,
+body.light-theme .bg-slate-800/80,
+body.light-theme .bg-slate-800/90,
+body.light-theme .bg-slate-800/50 {
+  background-color: #ffffff;
+}
+
+body.light-theme .border-slate-700,
+body.light-theme .border-slate-700/50,
+body.light-theme .border-slate-700/60,
+body.light-theme .border-slate-700/70,
+body.light-theme .border-slate-700/80 {
+  border-color: #cbd5e1;
+}
+
+body.light-theme .text-slate-100,
+body.light-theme .text-slate-200,
+body.light-theme .text-slate-300 {
+  color: #0f172a;
+}
+
+body.light-theme .text-slate-400,
+body.light-theme .text-slate-500,
+body.light-theme .text-slate-600 {
+  color: #64748b;
+}
+
+body.light-theme .text-slate-900 {
+  color: #0f172a;
+}
+
+body.light-theme .modal-card,
+body.light-theme .banner,
+body.light-theme .hero-card,
+body.light-theme .card-income,
+body.light-theme .card-expense,
+body.light-theme .form-section,
+body.light-theme .history-section,
+body.light-theme .archive-section,
+body.light-theme .container {
+  background-color: #ffffff;
+  border-color: #cbd5e1;
+}
+
+body.light-theme .input-base {
+  background-color: #ffffff;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
