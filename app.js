@@ -119,27 +119,65 @@
   }
 
   function renderTransactions() {
-    const txns = getTransactions();
-    transactionList.innerHTML = '';
-    if (txns.length === 0) { emptyState.classList.remove('hidden'); return; }
-    emptyState.classList.add('hidden');
-    const sorted = [...txns].sort((a, b) => { const dd = new Date(b.date) - new Date(a.date); return dd !== 0 ? dd : b.id - a.id; });
-    for (const t of sorted) {
-      const isIncome = t.type === 'income';
-      const amountStr = formatSignedAmount(t.amount);
-      const amtColor = isIncome ? 'text-emerald-400' : 'text-rose-400';
-      const catLabel = getCategoryLabel(t.category);
-      const primaryText = t.description || t.category;
-      const dateStr = formatDate(t.date);
-      const li = document.createElement('li');
-      li.className = 'bg-slate-900/50 border border-slate-700/50 rounded-xl p-4 flex items-center justify-between gap-3 hover:border-slate-600 transition-all duration-200';
-      li.style.minHeight = '72px';
-      li.dataset.id = t.id;
-      li.innerHTML = '<div class="flex items-center gap-3 min-w-0 flex-1"><span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium shrink-0 ' + (isIncome ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400') + '">' + escapeHtml(catLabel) + '</span><div class="min-w-0"><p class="text-slate-100 text-sm font-semibold truncate">' + escapeHtml(primaryText) + '</p><p class="text-slate-400 text-xs mt-0.5">' + dateStr + '</p></div></div><div class="flex items-center gap-2 shrink-0"><span class="text-sm font-bold ' + amtColor + '">' + amountStr + '</span><button type="button" class="edit-btn text-slate-500 hover:text-emerald-400 p-2 rounded-lg hover:bg-emerald-500/10 transition-all duration-200 active:scale-90 min-h-[40px] min-w-[40px]" title="Tahrirlash"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /><path stroke-linecap="round" stroke-linejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3" /></svg></button><button type="button" class="delete-btn text-slate-500 hover:text-rose-400 p-2 rounded-lg hover:bg-rose-500/10 transition-all duration-200 active:scale-90 min-h-[40px] min-w-[40px]" title="O\'chirish"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button></div>';
-      li.querySelector('.delete-btn').addEventListener('click', () => deleteTransaction(t.id));
-      li.querySelector('.edit-btn').addEventListener('click', () => openEditModal(t.id));
-      transactionList.appendChild(li);
+    const container = document.getElementById('transaction-list');
+    if (!container) return;
+
+    const transactions = getTransactions();
+    if (transactions.length === 0) {
+      container.innerHTML = `<p class="text-center text-slate-400 py-4">Hozircha tranzaksiyalar yo'q</p>`;
+      return;
     }
+
+    // Yangidan eskiga qarab tartiblash (sana, keyin ID)
+    const sorted = [...transactions].sort((a, b) => {
+      const dd = new Date(b.date) - new Date(a.date);
+      return dd !== 0 ? dd : b.id - a.id;
+    });
+
+    container.innerHTML = sorted.map(tx => {
+      const isIncome = tx.type === 'income';
+      const amountSign = isIncome ? '+' : '-';
+      const amountColor = isIncome ? 'text-emerald-400' : 'text-rose-400';
+      const amountFormatted = parseFloat(tx.amount).toLocaleString('uz-UZ');
+
+      // Priority text logic: Use description if available, else category name
+      const mainTitle = tx.description && tx.description.trim() !== '' ? tx.description : tx.category;
+      const dateFormatted = tx.date || new Date().toLocaleDateString('uz-UZ');
+
+      return `
+        <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-4 mb-3 flex items-center justify-between gap-3 shadow-sm min-h-[80px]">
+          <!-- LEFT COLUMN: Main title, Category badge & Date -->
+          <div class="flex flex-col justify-center flex-1 min-w-0">
+            <h4 class="text-base font-semibold text-slate-100 truncate mb-1">
+              ${escapeHtml(mainTitle)}
+            </h4>
+            <div class="flex items-center gap-2 flex-wrap text-xs">
+              <span class="bg-slate-700 text-slate-300 px-2 py-0.5 rounded-md font-medium">
+                ${escapeHtml(tx.category)}
+              </span>
+              <span class="text-slate-400">
+                📅 ${escapeHtml(dateFormatted)}
+              </span>
+            </div>
+          </div>
+
+          <!-- RIGHT COLUMN: Amount & Action Buttons -->
+          <div class="flex items-center gap-3 shrink-0">
+            <span class="text-base sm:text-lg font-bold ${amountColor} whitespace-nowrap">
+              ${amountSign}${amountFormatted} so'm
+            </span>
+            <div class="flex items-center gap-1">
+              <button type="button" onclick="editTransaction(${tx.id})" class="p-1.5 text-slate-400 hover:text-emerald-400 transition-colors" title="Tahrirlash">
+                ✏️
+              </button>
+              <button type="button" onclick="deleteTransaction(${tx.id})" class="p-1.5 text-slate-400 hover:text-rose-400 transition-colors" title="O'chirish">
+                🗑️
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
   }
 
   function renderArchivedPeriods() {
@@ -153,7 +191,7 @@
       const div = document.createElement('div');
       div.className = 'bg-slate-900/50 border border-slate-700/50 rounded-xl overflow-hidden';
       div.dataset.archiveId = period.id;
-      div.innerHTML = `<div class="archive-header flex items-center justify-between p-4 cursor-pointer hover:bg-slate-700/30 transition-all duration-200 active:scale-[0.99]"><div class="flex items-center gap-3 min-w-0 flex-1"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-400 shrink-0 transition-transform duration-200 archive-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg><div class="min-w-0"><p class="text-slate-100 text-sm font-semibold truncate">${escapeHtml(period.name || period.periodName || '')}</p><p class="text-slate-500 text-xs">${dateStr}</p></div></div><div class="flex items-center gap-2 sm:gap-3 shrink-0"><span class="text-sm font-bold ${balanceColor}">${formatCurrency(period.finalBalance || 0)}</span><button type="button" class="archive-delete-btn text-slate-500 hover:text-rose-400 p-1.5 rounded-lg hover:bg-rose-500/10 transition-all duration-200 active:scale-90 min-h-[36px] min-w-[36px]" title="Arxivni o'chirish"><svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button></div></div><div class="archive-body hidden px-4 pb-4"><div class="border-t border-slate-700/50 pt-3"><p class="text-xs text-slate-500 mb-2">Tranzaksiyalar (${(period.transactions || []).length} ta):</p><div class="space-y-2 max-h-64 overflow-y-auto pr-1">${(period.transactions || []).map(t => { const isInc = t.type === 'income'; const amtColor = isInc ? 'text-emerald-400' : 'text-rose-400'; const catLabel = getCategoryLabel(t.category); return `<div class="flex items-center justify-between bg-slate-800/60 rounded-lg p-2.5"><div class="flex items-center gap-2 min-w-0"><span class="text-xs px-2 py-0.5 rounded-full shrink-0 ${isInc ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}">${catLabel}</span><span class="text-slate-300 text-xs truncate">${escapeHtml(t.note || '')}</span></div><span class="text-xs font-bold ${amtColor} shrink-0">${formatSignedAmount(t.amount || 0)}</span></div>`; }).join('')}</div></div></div>`;
+      div.innerHTML = `<div class="archive-header flex items-center justify-between p-4 cursor-pointer hover:bg-slate-700/30 transition-all duration-200 active:scale-[0.99]"><div class="flex items-center gap-3 min-w-0 flex-1"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-400 shrink-0 transition-transform duration-200 archive-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg><div class="min-w-0"><p class="text-slate-100 text-sm font-semibold truncate">${escapeHtml(period.name || period.periodName || '')}</p><p class="text-slate-500 text-xs">${dateStr}</p></div></div><div class="flex items-center gap-2 sm:gap-3 shrink-0"><span class="text-sm font-bold ${balanceColor}">${formatCurrency(period.finalBalance || 0)}</span><button type="button" class="archive-delete-btn text-slate-500 hover:text-rose-400 p-1.5 rounded-lg hover:bg-rose-500/10 transition-all duration-200 active:scale-90 min-h-[36px] min-w-[36px]" title="Arxivni o'chirish"><svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button></div></div><div class="archive-body hidden px-4 pb-4"><div class="border-t border-slate-700/50 pt-3"><p class="text-xs text-slate-500 mb-2">Tranzaksiyalar (${(period.transactions || []).length} ta):</p><div class="space-y-2 max-h-64 overflow-y-auto pr-1">${(period.transactions || []).map(t => { const isInc = t.type === 'income'; const amtColor = isInc ? 'text-emerald-400' : 'text-rose-400'; const catLabel = getCategoryLabel(t.category); return `<div class="flex items-center justify-between bg-slate-800/60 rounded-lg p-2.5"><div class="flex items-center gap-2 min-w-0"><span class="text-xs px-2 py-0.5 rounded-full shrink-0 ${isInc ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}">${catLabel}</span><span class="text-slate-300 text-xs truncate">${escapeHtml(t.description || t.note || '')}</span></div><span class="text-xs font-bold ${amtColor} shrink-0">${formatSignedAmount(t.amount || 0)}</span></div>`; }).join('')}</div></div></div>`;
       const header = div.querySelector('.archive-header');
       const body = div.querySelector('.archive-body');
       const chevron = div.querySelector('.archive-chevron');
@@ -203,7 +241,7 @@
     editTypeSelect.value = t.type;
     editCategorySelect.value = t.category;
     editDateInput.value = t.date;
-    editNoteInput.value = t.note || '';
+    editNoteInput.value = t.description || t.note || '';
     editModal.classList.remove('hidden');
     editModal.classList.add('flex');
   }
@@ -218,11 +256,21 @@
     const id = Number(editIdInput.value);
     const amount = parseFloat(editAmountInput.value);
     if (isNaN(amount) || amount <= 0) return alert("Iltimos, to'g'ri summa kiriting!");
-    const transactions = getTransactions().map((t) => t.id === id ? { ...t, amount, type: editTypeSelect.value, category: editCategorySelect.value, date: editDateInput.value, note: editNoteInput.value.trim() } : t);
+    const transactions = getTransactions().map((t) => {
+      if (t.id !== id) return t;
+      // Tavsifni `note` emas, `description` sifatida saqlaymiz (addTransaction bilan bir xil shakl)
+      const updated = { ...t, amount, type: editTypeSelect.value, category: editCategorySelect.value, date: editDateInput.value, description: editNoteInput.value.trim() };
+      delete updated.note; // eski `note` maydonini tozalab yuboramiz
+      return updated;
+    });
     setTransactions(transactions);
     closeEditModal();
     updateDashboard();
   });
+
+  // Inline onclick tugmalari (renderTransactions ichidagi HTML) global ishlashi uchun kerak:
+  window.editTransaction = (id) => openEditModal(id);
+  window.deleteTransaction = deleteTransaction;
 
   // ==================== ONBOARDING ====================
   const savedBalance = localStorage.getItem('starting_balance');
