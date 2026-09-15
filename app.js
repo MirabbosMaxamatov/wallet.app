@@ -128,36 +128,28 @@
     if (!container) return;
 
     const transactions = getTransactions();
-    if (transactions.length === 0) {
-      container.innerHTML = '';
-      emptyState.classList.remove('hidden');
+    if (!transactions || transactions.length === 0) {
+      container.innerHTML = `<p class="text-center text-slate-400 py-4">Hozircha tranzaksiyalar yo'q</p>`;
       return;
     }
-    emptyState.classList.add('hidden');
 
-    // Yangidan eskiga qarab tartiblash (sana, keyin ID)
-    const sorted = [...transactions].sort((a, b) => {
-      const dd = new Date(b.date) - new Date(a.date);
-      return dd !== 0 ? dd : b.id - a.id;
-    });
-
-    container.innerHTML = sorted.map(tx => {
+    container.innerHTML = transactions.map(tx => {
       const isIncome = tx.type === 'income';
       const amountSign = isIncome ? '+' : '-';
       const amountColor = isIncome ? 'text-emerald-400' : 'text-rose-400';
-      const amountFormatted = parseFloat(tx.amount).toLocaleString('uz-UZ');
+      const amountFormatted = parseFloat(tx.amount || 0).toLocaleString('uz-UZ');
 
-      // Priority text logic: Use description if available, else category name
-      const mainTitle = tx.description && tx.description.trim() !== '' ? tx.description : tx.category;
+      // Description is PRIMARY. If empty, fall back to Category name
+      const mainTitle = (tx.description && tx.description.trim() !== '') ? tx.description : tx.category;
       const dateFormatted = tx.date || new Date().toLocaleDateString('uz-UZ');
 
       return `
-        <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-4 mb-3 flex items-center justify-between gap-3 shadow-sm min-h-[80px]">
-          <!-- LEFT COLUMN: Main title, Category badge & Date -->
-          <div class="flex flex-col justify-center flex-1 min-w-0">
-            <h4 class="text-base font-semibold text-slate-100 truncate mb-1">
+        <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-3.5 mb-3 flex items-center justify-between gap-3 shadow-sm min-h-[76px]">
+          <!-- LEFT COLUMN: Main Title, Category Badge & Date -->
+          <div class="flex flex-col gap-1 flex-1 min-w-0">
+            <div class="text-sm sm:text-base font-semibold text-slate-100 truncate">
               ${mainTitle}
-            </h4>
+            </div>
             <div class="flex items-center gap-2 flex-wrap text-xs">
               <span class="bg-slate-700 text-slate-300 px-2 py-0.5 rounded-md font-medium">
                 ${tx.category}
@@ -169,17 +161,13 @@
           </div>
 
           <!-- RIGHT COLUMN: Amount & Action Buttons -->
-          <div class="flex items-center gap-3 shrink-0">
-            <span class="text-base sm:text-lg font-bold ${amountColor} whitespace-nowrap">
+          <div class="flex items-center gap-2.5 shrink-0">
+            <span class="text-sm sm:text-base font-bold ${amountColor} whitespace-nowrap">
               ${amountSign}${amountFormatted} so'm
             </span>
             <div class="flex items-center gap-1">
-              <button onclick="editTransaction(${tx.id})" class="p-1.5 text-slate-400 hover:text-emerald-400 transition-colors" title="Tahrirlash">
-                ✏️
-              </button>
-              <button onclick="deleteTransaction(${tx.id})" class="p-1.5 text-slate-400 hover:text-rose-400 transition-colors" title="O'chirish">
-                🗑️
-              </button>
+              <button onclick="editTransaction(${tx.id})" class="p-1 text-slate-400 hover:text-emerald-400 transition-colors" title="Tahrirlash">✏️</button>
+              <button onclick="deleteTransaction(${tx.id})" class="p-1 text-slate-400 hover:text-rose-400 transition-colors" title="O'chirish">🗑️</button>
             </div>
           </div>
         </div>
