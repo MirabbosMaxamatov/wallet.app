@@ -498,16 +498,20 @@
 
   // ==================== SERVICE WORKER & AUTO-UPDATE ====================
   if ('serviceWorker' in navigator) {
-    const swCode = [
-      "const CACHE_NAME='smart-budget-v1';",
-      "const ASSETS=['./','./index.html','./style.css','./app.js','./manifest.json'];",
-      "self.addEventListener('install',(e)=>{e.waitUntil(caches.open(CACHE_NAME).then((c)=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));});",
-      "self.addEventListener('activate',(e)=>{e.waitUntil(caches.keys().then((n)=>Promise.all(n.filter((x)=>x!==CACHE_NAME).map((x)=>caches.delete(x)))).then(()=>self.clients.claim()));});",
-      "self.addEventListener('fetch',(e)=>{e.respondWith(caches.match(e.request).then((r)=>r||fetch(e.request).catch(()=>new Response('Offline',{status:503,statusText:'Service Unavailable'}))));});"
-    ].join('');
-    const blob = new Blob([swCode], { type: 'application/javascript' });
     let refreshing = false;
-    navigator.serviceWorker.register(URL.createObjectURL(blob)).then((registration) => {
+
+    // Reload once when a new SW takes control of the page (controllerchange)
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!refreshing) {
+        refreshing = true;
+        window.location.reload();
+      }
+    });
+
+    navigator.serviceWorker.register('sw.js?v=1.2.1').then((registration) => {
+      // Force an immediate update check on every page load
+      registration.update();
+
       // Detect a new SW that finished installing while the page is open
       registration.addEventListener('updatefound', () => {
         const newSW = registration.active;
@@ -521,7 +525,7 @@
           }
         });
       });
-    }).catch(() => {});
+    }).catch((err) => { console.warn('[SW] Registration failed:', err); });
   }
 
 })();
