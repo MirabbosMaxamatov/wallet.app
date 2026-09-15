@@ -129,11 +129,12 @@
   const editBalanceInput = $('edit-balance-input');
   const editBalanceSubmitBtn = $('edit-balance-submit-btn');
   const cancelEditBalance = $('cancel-edit-balance');
-  const pwaModal = $('pwa-install-modal');
+  const pwaModal = $('pwa-install-banner');
   const pwaInstallBtn = $('pwa-install-btn');
-  const pwaDismissBtn = $('pwa-install-dismiss');
-  const iosModal = $('ios-install-modal');
-  const iosDismissBtn = $('ios-install-dismiss');
+  const pwaDismissBtn = $('pwa-dismiss-btn');
+  const iosInstructions = $('ios-instructions');
+  const pwaBannerTitle = $('pwa-banner-title');
+  const pwaBannerDesc = $('pwa-banner-desc');
   const editBalanceBtn = $('edit-balance-btn');
   const addTransactionBtn = $('add-transaction-btn');
   const resetArchiveBtn = $('reset-archive-btn');
@@ -431,55 +432,71 @@
 
   // ==================== PWA INSTALL ====================
   (function initPWA() {
+    // If already installed (standalone mode), never show any prompt
     if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) return;
-    if (localStorage.getItem('pwa_dismissed') && (Date.now() - parseInt(localStorage.getItem('pwa_dismissed'))) < 86400000) return;
+
+    // If user dismissed the banner recently (24h), don't re-show
+    if (localStorage.getItem('pwa_install_dismissed') && (Date.now() - parseInt(localStorage.getItem('pwa_install_dismissed'))) < 86400000) return;
+
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
+    function showBanner() { if (pwaModal) pwaModal.classList.remove('hidden'); }
+    function hideBanner() { if (pwaModal) pwaModal.classList.add('hidden'); }
+
+    // iOS: show step-by-step guidance banner (no beforeinstallprompt on Safari)
     if (isIOS) {
-      if (iosModal) { iosModal.classList.remove('hidden'); iosModal.classList.add('flex'); }
-      if (iosDismissBtn) {
-        iosDismissBtn.addEventListener('click', () => { iosModal.classList.add('hidden'); iosModal.classList.remove('flex'); });
-        iosModal.addEventListener('click', (e) => { if (e.target === iosModal) { iosModal.classList.add('hidden'); iosModal.classList.remove('flex'); } });
+      if (pwaBannerTitle) pwaBannerTitle.textContent = 'Bosh ekranga qo\'shish';
+      if (pwaBannerDesc) pwaBannerDesc.innerHTML = 'Ilovani o\'rnatish uchun Safari menyusidagi \'Ulashish\' (Share) tugmasini bosing va \'Bosh ekranga qo\'shish\' ni tanlang.';
+      if (iosInstructions) iosInstructions.classList.remove('hidden');
+      if (pwaInstallBtn) pwaInstallBtn.classList.add('hidden');
+      showBanner();
+      if (pwaDismissBtn) {
+        pwaDismissBtn.addEventListener('click', function () {
+          localStorage.setItem('pwa_install_dismissed', Date.now().toString());
+          hideBanner();
+        });
       }
       return;
     }
 
+    // Android / Chrome: wait for beforeinstallprompt
     let deferredPrompt = null;
     let installTimer = null;
-
-    function hidePWA() { if (pwaModal) { pwaModal.classList.add('hidden'); pwaModal.classList.remove('flex'); } }
 
     window.addEventListener('beforeinstallprompt', function (e) {
       e.preventDefault();
       deferredPrompt = e;
       if (installTimer) clearTimeout(installTimer);
-      installTimer = setTimeout(() => { if (pwaModal) { pwaModal.classList.remove('hidden'); pwaModal.classList.add('flex'); } }, 2000);
+      installTimer = setTimeout(showBanner, 2000);
     });
 
-    window.addEventListener('appinstalled', () => { hidePWA(); if (installTimer) clearTimeout(installTimer); installTimer = null; });
+    window.addEventListener('appinstalled', () => {
+      hideBanner();
+      if (installTimer) clearTimeout(installTimer);
+      installTimer = null;
+      deferredPrompt = null;
+    });
 
     if (pwaInstallBtn) {
       pwaInstallBtn.addEventListener('click', function () {
         if (deferredPrompt) {
           deferredPrompt.prompt();
-          deferredPrompt.userChoice.then(() => { deferredPrompt = null; hidePWA(); }).catch(() => { hidePWA(); });
-        } else { hidePWA(); }
+          deferredPrompt.userChoice.then(() => { deferredPrompt = null; hideBanner(); }).catch(() => { hideBanner(); });
+        } else { hideBanner(); }
       });
     }
+
     if (pwaDismissBtn) {
       pwaDismissBtn.addEventListener('click', function () {
-        localStorage.setItem('pwa_dismissed', Date.now().toString());
-        hidePWA();
+        localStorage.setItem('pwa_install_dismissed', Date.now().toString());
+        hideBanner();
         if (installTimer) clearTimeout(installTimer);
         installTimer = null;
       });
     }
-    if (iosModal) {
-      iosModal.addEventListener('click', (e) => { if (e.target === iosModal) { iosModal.classList.add('hidden'); iosModal.classList.remove('flex'); } });
-    }
   })();
 
-  // ==================== SERVICE WORKER ====================
+  // ==================== SERVICE WORKER & AUTO-UPDATE ====================
   if ('serviceWorker' in navigator) {
     const swCode = [
       "const CACHE_NAME='smart-budget-v1';",
@@ -489,7 +506,22 @@
       "self.addEventListener('fetch',(e)=>{e.respondWith(caches.match(e.request).then((r)=>r||fetch(e.request).catch(()=>new Response('Offline',{status:503,statusText:'Service Unavailable'}))));});"
     ].join('');
     const blob = new Blob([swCode], { type: 'application/javascript' });
-    navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
+    let refreshing = false;
+    navigator.serviceWorker.register(URL.createObjectURL(blob)).then((registration) => {
+      // Detect a new SW that finished installing while the page is open
+      registration.addEventListener('updatefound', () => {
+        const newSW = registration.active;
+        if (!newSW) return;
+        newSW.addEventListener('statechange', () => {
+          // When the new SW reaches 'activated', force a silent reload so the
+          // user never serves stale code from the old cache
+          if (newSW.state === 'activated' && !refreshing) {
+            refreshing = true;
+            window.location.reload();
+          }
+        });
+      });
+    }).catch(() => {});
   }
 
 })();

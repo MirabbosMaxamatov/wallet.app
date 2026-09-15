@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=1.0.1" />
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen">
@@ -285,7 +285,34 @@
     <footer class="text-center text-slate-600 text-xs mt-8 mb-4">Smart Byudjet Tracker &copy; 2026</footer>
   </div>
 
-  <script src="app.js"></script>
-  <script src="updates.js"></script>
+  <!-- PWA Installation Banner -->
+  <div id="pwa-install-banner" class="hidden fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 bg-slate-900 border border-emerald-500/40 rounded-2xl p-4 shadow-2xl z-50 transition-all duration-300">
+    <div class="flex items-start gap-3">
+      <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shrink-0 text-emerald-400">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+      </div>
+      <div class="flex-1">
+        <h4 class="text-sm font-semibold text-slate-100" id="pwa-banner-title">Ekranga qo'shish</h4>
+        <p class="text-xs text-slate-400 mt-0.5 leading-relaxed" id="pwa-banner-desc">Ilovaning barcha imkoniyatlaridan tez va qulay foydalanish uchun bosh ekranga qo'shing.</p>
+
+        <!-- iOS Instruction helper (hidden by default) -->
+        <div id="ios-instructions" class="hidden mt-2 p-2 bg-slate-800/80 rounded-lg text-xs text-amber-300 border border-amber-500/20">
+          📌 Safari pastki menyusidagi <strong>Ulashish (Share)</strong> tugmasini bosing va <strong>"Bosh ekranga qo'shish"</strong>ni tanlang.
+        </div>
+
+        <div class="flex items-center gap-2 mt-3">
+          <button id="pwa-install-btn" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">
+            O'rnatish
+          </button>
+          <button id="pwa-dismiss-btn" class="text-xs text-slate-400 hover:text-slate-200 px-2 py-1.5 transition-colors">
+            Keyinroq
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js?v=1.0.1" defer></script>
+  <script src="updates.js?v=1.0.1"></script>
 </body>
 </html>

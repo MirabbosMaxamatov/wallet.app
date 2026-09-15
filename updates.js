@@ -23,8 +23,8 @@
       title: 'Tranzaksiya kartochkalari ro\'yxat ko\'rinishiga o\'tkazildi',
       date: '15/09/2026',
       description: 'Mobil ekranda matnlar ustma-ust tushmasligi uchun kartochkalar 2 qatorli va ro\'yxat shakliga keltirildi.',
-      beforeImage: 'assets/before-card.svg',
-      afterImage: 'assets/after-card.svg'
+      beforeImage: 'assets/before-card.png',
+      afterImage: 'assets/after-card.png'
     },
     {
       id: 2,
