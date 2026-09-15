@@ -129,7 +129,7 @@
 
     const transactions = getTransactions();
     if (!transactions || transactions.length === 0) {
-      container.innerHTML = `<p class="text-center text-slate-400 py-4 text-sm">Hozircha tranzaksiyalar yo'q</p>`;
+      container.innerHTML = `<p class="text-center text-slate-400 py-6 text-sm">Hozircha tranzaksiyalar yo'q</p>`;
       return;
     }
 
@@ -139,32 +139,34 @@
       const amountColor = isIncome ? 'text-emerald-400' : 'text-rose-400';
       const amountFormatted = parseFloat(tx.amount || 0).toLocaleString('uz-UZ');
 
-      // Priority: User description -> Category name
+      // Priority: Description first. Fallback to Category
       const mainTitle = (tx.description && tx.description.trim() !== '') ? tx.description : tx.category;
       const dateFormatted = tx.date || new Date().toLocaleDateString('uz-UZ');
 
       return `
-        <div class="bg-slate-800/90 border border-slate-700/70 rounded-xl p-3.5 mb-3 shadow-md flex flex-col gap-2">
-          <!-- ROW 1: Main Title (Left) & Amount + Actions (Right) -->
-          <div class="flex items-center justify-between gap-2 w-full">
-            <div class="text-sm font-semibold text-slate-100 truncate flex-1 min-w-0">
+        <div class="bg-slate-800/90 border border-slate-700/70 rounded-xl p-4 mb-3.5 shadow-md flex flex-col justify-between min-h-[96px] gap-2.5">
+          <!-- ROW 1: Main Title / Description (Left) & Amount + Buttons (Right) -->
+          <div class="flex items-center justify-between gap-3 w-full">
+            <div class="text-base font-semibold text-slate-100 truncate flex-1 min-w-0">
               ${mainTitle}
             </div>
             <div class="flex items-center gap-2 shrink-0">
-              <span class="text-sm font-bold ${amountColor} whitespace-nowrap">
+              <span class="text-base font-bold ${amountColor} whitespace-nowrap">
                 ${amountSign}${amountFormatted} so'm
               </span>
-              <button onclick="editTransaction(${tx.id})" class="text-slate-400 hover:text-emerald-400 text-xs p-1" title="Tahrirlash">✏️</button>
-              <button onclick="deleteTransaction(${tx.id})" class="text-slate-400 hover:text-rose-400 text-xs p-1" title="O'chirish">🗑️</button>
+              <div class="flex items-center gap-1">
+                <button onclick="editTransaction(${tx.id})" class="text-slate-400 hover:text-emerald-400 text-sm p-1 transition-colors" title="Tahrirlash">✏️</button>
+                <button onclick="deleteTransaction(${tx.id})" class="text-slate-400 hover:text-rose-400 text-sm p-1 transition-colors" title="O'chirish">🗑️</button>
+              </div>
             </div>
           </div>
 
-          <!-- ROW 2: Category Badge & Date (Clean Bottom Alignment) -->
-          <div class="flex items-center gap-2.5 text-xs">
-            <span class="bg-slate-700/80 text-slate-300 px-2 py-0.5 rounded-md font-medium text-[11px]">
+          <!-- ROW 2: Category Badge & Full Date (Spacious & Clear) -->
+          <div class="flex items-center gap-3 text-xs pt-1 border-t border-slate-700/40">
+            <span class="bg-slate-700 text-slate-200 px-2.5 py-0.5 rounded-md font-medium text-xs">
               ${tx.category}
             </span>
-            <span class="text-slate-400 text-[11px]">
+            <span class="text-slate-400 text-xs flex items-center gap-1">
               📅 ${dateFormatted}
             </span>
           </div>
