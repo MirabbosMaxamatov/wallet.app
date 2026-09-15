@@ -42,6 +42,37 @@
     const num = Number.isFinite(value) ? Math.abs(value) : 0;
     return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " so'm";
   }
+  function formatAmountPreview(value) {
+    const num = parseFloat(value);
+    if (!Number.isFinite(num) || num === 0) return '';
+    const formatted = num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    return '👉 ' + formatted + " so'm";
+  }
+  function updateAmountPreview(inputId) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const previewId = inputId + '-preview';
+    const preview = document.getElementById(previewId);
+    if (!preview) return;
+    preview.textContent = formatAmountPreview(input.value);
+  }
+  function appendZeros(inputId, zeros) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const factor = zeros.length === 3 ? 1000 : 1000000;
+    const current = parseFloat(input.value);
+    const base = Number.isFinite(current) && current > 0 ? current : 1;
+    input.value = (base * factor).toString();
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    updateAmountPreview(inputId);
+  }
+  function clearAmountInput(inputId) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    input.value = '';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    updateAmountPreview(inputId);
+  }
   function formatSignedAmount(value) {
     const sign = value >= 0 ? '+' : '-';
     return sign + formatCurrency(value);
@@ -53,6 +84,21 @@
   function formatDate(dateStr) {
     const d = new Date(dateStr + 'T00:00:00');
     return d.toLocaleDateString('uz-UZ', { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+  function formatDateToUZ(dateString) {
+    if (!dateString) return '';
+
+    // If date is already in DD/MM/YYYY format
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateString)) return dateString;
+
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return dateString; // Fallback if invalid date
+
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+
+    return `${day}/${month}/${year}`;
   }
   function escapeHtml(str) {
     const div = document.createElement('div');
@@ -105,6 +151,12 @@
 
   dateInput.valueAsDate = new Date();
 
+  // Live amount preview wiring for all amount inputs
+  ['onboarding-input', 'amount', 'edit-amount'].forEach(function (id) {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', function () { updateAmountPreview(id); });
+  });
+
   // ==================== UPDATE & RENDER ====================
   function updateDashboard() {
     const { startingBalance, totalIncome, totalExpenses, currentBalance } = calculateTotals();
@@ -140,26 +192,26 @@
       const amountFormatted = parseFloat(tx.amount || 0).toLocaleString('uz-UZ');
 
       const descriptionText = (tx.description && tx.description.trim() !== '') ? tx.description : 'Izoh kiritilmagan';
-      const dateFormatted = tx.date || new Date().toLocaleDateString('uz-UZ');
+      const dateFormatted = formatDateToUZ(tx.date) || formatDateToUZ(new Date().toISOString().split('T')[0]);
 
       return `
-        <div class="bg-slate-800/90 border border-slate-700/80 rounded-xl p-4 mb-3.5 shadow-md flex flex-col gap-3">
-          <!-- TOP: Price & Action Buttons -->
-          <div class="flex items-center justify-between border-b border-slate-700/60 pb-2.5">
-            <span class="text-lg font-bold ${amountColor}">
+        <li class="bg-slate-900/50 border border-slate-700/50 rounded-xl p-3 sm:p-4 flex flex-col gap-3 shadow-md mb-3">
+          <!-- TOP ROW: Price & Actions -->
+          <div class="flex items-center justify-between border-b border-slate-700/50 pb-2.5">
+            <span class="text-base sm:text-lg font-bold ${amountColor}">
               ${amountSign}${amountFormatted} so'm
             </span>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1.5">
               <button onclick="editTransaction(${tx.id})" class="text-slate-400 hover:text-emerald-400 text-sm p-1 transition-colors" title="Tahrirlash">✏️</button>
               <button onclick="deleteTransaction(${tx.id})" class="text-slate-400 hover:text-rose-400 text-sm p-1 transition-colors" title="O'chirish">🗑️</button>
             </div>
           </div>
 
-          <!-- LIST DETAILS -->
-          <div class="flex flex-col gap-1.5 text-xs sm:text-sm">
+          <!-- LIST DETAILS BODY -->
+          <div class="flex flex-col gap-2 text-xs sm:text-sm">
             <div class="flex items-center justify-between">
               <span class="text-slate-400 font-medium">Kategoriya:</span>
-              <span class="bg-slate-700 text-slate-200 px-2.5 py-0.5 rounded-md font-semibold text-xs">
+              <span class="bg-slate-800 text-slate-200 px-2 py-0.5 rounded-md font-semibold text-xs border border-slate-700/60">
                 ${tx.category}
               </span>
             </div>
@@ -171,14 +223,14 @@
               </span>
             </div>
 
-            <div class="flex items-center justify-between pt-1">
+            <div class="flex items-center justify-between pt-0.5">
               <span class="text-slate-400 font-medium">Sana:</span>
-              <span class="text-slate-300">
+              <span class="text-slate-300 font-mono text-xs">
                 📅 ${dateFormatted}
               </span>
             </div>
           </div>
-        </div>
+        </li>
       `;
     }).join('');
   }
@@ -189,7 +241,7 @@
     if (periods.length === 0) { archivedEmptyState.classList.remove('hidden'); return; }
     archivedEmptyState.classList.add('hidden');
     for (const period of periods) {
-      const dateStr = period.date || new Date(period.createdAt || Date.now()).toLocaleDateString('uz-UZ', { year: 'numeric', month: 'short', day: 'numeric' });
+      const dateStr = formatDateToUZ(period.date) || formatDateToUZ(new Date(period.createdAt || Date.now()).toISOString().split('T')[0]);
       const balanceColor = (Number(period.finalBalance) || 0) < 0 ? 'text-rose-400' : 'text-emerald-400';
       const div = document.createElement('div');
       div.className = 'bg-slate-900/50 border border-slate-700/50 rounded-xl overflow-hidden';
@@ -249,6 +301,7 @@
     editNoteInput.value = t.description || '';
     editModal.classList.remove('hidden');
     editModal.classList.add('flex');
+    updateAmountPreview('edit-amount');
   }
   function closeEditModal() {
     editModal.classList.add('hidden');
@@ -273,10 +326,14 @@
   // Inline onclick tugmalari (renderTransactions ichidagi HTML) global ishlashi uchun kerak:
   window.editTransaction = (id) => openEditModal(id);
   window.deleteTransaction = deleteTransaction;
+  window.appendZeros = appendZeros;
+  window.clearAmountInput = clearAmountInput;
 
   // ==================== ONBOARDING ====================
   const savedBalance = localStorage.getItem('starting_balance');
-  if (savedBalance === null || savedBalance === undefined || savedBalance === '') {
+  const balanceNum = parseFloat(savedBalance);
+  const shouldShowOnboarding = (savedBalance === null) || (savedBalance === '') || (savedBalance === '0') || (balanceNum === 0);
+  if (shouldShowOnboarding) {
     onboardingModal.classList.remove('hidden');
     onboardingModal.classList.add('flex');
     onboardingInput.focus();
@@ -345,7 +402,7 @@
     const safeIncome = Number.isFinite(totalIncome) ? totalIncome : 0;
     const safeExpenses = Number.isFinite(totalExpenses) ? totalExpenses : 0;
     const safeBalance = Number.isFinite(currentBalance) ? currentBalance : newStartingBalance;
-    const archive = { id: Date.now(), name: periodName, startingBalance: newStartingBalance, totalIncome: safeIncome, totalExpenses: safeExpenses, finalBalance: safeBalance, date: new Date().toLocaleDateString('uz-UZ'), transactions: [...txns] };
+    const archive = { id: Date.now(), name: periodName, startingBalance: newStartingBalance, totalIncome: safeIncome, totalExpenses: safeExpenses, finalBalance: safeBalance, date: formatDateToUZ(new Date().toISOString().split('T')[0]), transactions: [...txns] };
     const periods = getArchivedPeriods();
     periods.push(archive);
     setArchivedPeriods(periods);
@@ -357,6 +414,12 @@
     archiveNameInput.value = '';
     archiveStartingBalanceInput.value = '';
     updateDashboard();
+    // If the user reset the starting balance to 0, re-open onboarding
+    if (newStartingBalance === 0) {
+      onboardingModal.classList.remove('hidden');
+      onboardingModal.classList.add('flex');
+      onboardingInput.focus();
+    }
   });
 
   // ==================== DELETE ARCHIVE ====================

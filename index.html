@@ -23,6 +23,22 @@
           <label class="block text-sm font-medium text-slate-300 mb-2">Boshlang'ich pul ($)</label>
           <input type="number" id="onboarding-input" step="any" required placeholder="0.00"
             class="input-base" />
+
+          <!-- Dynamic Live Preview -->
+          <div id="onboarding-input-preview" class="text-xs font-medium text-emerald-400 mt-1.5 min-h-[18px]"></div>
+
+          <!-- Quick Zero Buttons -->
+          <div class="flex items-center gap-2 pt-1.5">
+            <button type="button" onclick="appendZeros('onboarding-input', '000')" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 rounded px-2 py-1 text-xs font-semibold transition-colors">
+              +000 (Ming)
+            </button>
+            <button type="button" onclick="appendZeros('onboarding-input', '000000')" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 rounded px-2 py-1 text-xs font-semibold transition-colors">
+              +000 000 (Mln)
+            </button>
+            <button type="button" onclick="clearAmountInput('onboarding-input')" class="bg-rose-900/40 hover:bg-rose-800/60 text-rose-300 border border-rose-700/50 rounded px-2 py-1 text-xs font-medium transition-colors">
+              C
+            </button>
+          </div>
         </div>
         <button type="button" id="onboarding-start-btn"
           class="btn-primary">Boshlash</button>
@@ -60,6 +76,22 @@
         <div class="mb-4">
           <label class="block text-sm font-medium text-slate-300 mb-1">Summa ($)</label>
           <input type="number" id="edit-amount" step="any" required placeholder="0.00" class="input-base" />
+
+          <!-- Dynamic Live Preview -->
+          <div id="edit-amount-preview" class="text-xs font-medium text-emerald-400 mt-1.5 min-h-[18px]"></div>
+
+          <!-- Quick Zero Buttons -->
+          <div class="flex items-center gap-2 pt-1.5">
+            <button type="button" onclick="appendZeros('edit-amount', '000')" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 rounded px-2 py-1 text-xs font-semibold transition-colors">
+              +000 (Ming)
+            </button>
+            <button type="button" onclick="appendZeros('edit-amount', '000000')" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 rounded px-2 py-1 text-xs font-semibold transition-colors">
+              +000 000 (Mln)
+            </button>
+            <button type="button" onclick="clearAmountInput('edit-amount')" class="bg-rose-900/40 hover:bg-rose-800/60 text-rose-300 border border-rose-700/50 rounded px-2 py-1 text-xs font-medium transition-colors">
+              C
+            </button>
+          </div>
         </div>
         <div class="mb-4">
           <label class="block text-sm font-medium text-slate-300 mb-1">Tur</label>
@@ -185,6 +217,22 @@
           <div>
             <label class="block text-sm font-medium text-slate-300 mb-1">Summa ($)</label>
             <input type="number" id="amount" step="any" required placeholder="0.00" class="input-base" />
+
+            <!-- Dynamic Live Preview -->
+            <div id="amount-preview" class="text-xs font-medium text-emerald-400 mt-1.5 min-h-[18px]"></div>
+
+            <!-- Quick Zero Buttons -->
+            <div class="flex items-center gap-2 pt-1.5">
+              <button type="button" onclick="appendZeros('amount', '000')" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 rounded px-2 py-1 text-xs font-semibold transition-colors">
+                +000 (Ming)
+              </button>
+              <button type="button" onclick="appendZeros('amount', '000000')" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 rounded px-2 py-1 text-xs font-semibold transition-colors">
+                +000 000 (Mln)
+              </button>
+              <button type="button" onclick="clearAmountInput('amount')" class="bg-rose-900/40 hover:bg-rose-800/60 text-rose-300 border border-rose-700/50 rounded px-2 py-1 text-xs font-medium transition-colors">
+                C
+              </button>
+            </div>
           </div>
           <div>
             <label class="block text-sm font-medium text-slate-300 mb-1">Tur</label>
