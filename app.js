@@ -930,6 +930,7 @@ function renderArchivedPeriods() {
   let deferredPrompt = null;
   window.addEventListener('beforeinstallprompt', function (e) {
     e.preventDefault();
+    window.deferredPrompt = e;
     deferredPrompt = e;
   });
 
@@ -940,11 +941,8 @@ function renderArchivedPeriods() {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
     if (isIOS) {
-      // iOS Safari: show the dedicated iOS install modal with step-by-step guidance
-      if (iosModal) {
-        iosModal.classList.remove('hidden');
-        iosModal.classList.add('flex');
-      }
+      // iOS Safari: show step-by-step guidance (no beforeinstallprompt on Safari)
+      alert("iOS Safari'da o'rnatish uchun: Pastki panelda 'Ulashish' (Share - \ud83d\udce4) tugmasini bosing va 'Bosh ekranga qo'shish' (Add to Home Screen) tanlovini bosing.");
       return;
     }
 
@@ -952,11 +950,19 @@ function renderArchivedPeriods() {
     if (deferredPrompt) {
       deferredPrompt.prompt();
       deferredPrompt.userChoice.then(function (choice) {
+        if (choice.outcome === 'accepted') {
+          const banner = document.getElementById('pwa-install-banner');
+          if (banner) banner.style.display = 'none';
+        }
         deferredPrompt = null;
-      }).catch(function () {});
+        window.deferredPrompt = null;
+      }).catch(function () {
+        deferredPrompt = null;
+        window.deferredPrompt = null;
+      });
     } else {
-      // Fallback: show the custom banner if no native prompt is available
-      if (pwaModal) pwaModal.classList.remove('hidden');
+      // Fallback if browser doesn't support programmatic prompt or event already fired
+      alert("O'rnatish uchun brauzeringiz menyusidagi (3 ta nuqta) 'Ekran / Bosh ekranga qo'shish' (Add to Home screen) tugmasini bosing.");
     }
   }
   window.installPWA = installPWA;
@@ -996,6 +1002,7 @@ function renderArchivedPeriods() {
     window.addEventListener('beforeinstallprompt', function (e) {
       e.preventDefault();
       deferredPrompt = e;
+      window.deferredPrompt = e;
       if (installTimer) clearTimeout(installTimer);
       installTimer = setTimeout(showBanner, 2000);
     });
