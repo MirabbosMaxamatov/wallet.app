@@ -193,20 +193,24 @@
 
   // ==================== UPDATE & RENDER ====================
   function updateDashboard() {
-    const { startingBalance, totalIncome, totalExpenses, currentBalance } = calculateTotals();
-    startingBalanceAmount.textContent = formatCurrency(startingBalance);
-    incomeDisplay.textContent = formatCurrency(totalIncome);
-    expenseDisplay.textContent = formatCurrency(totalExpenses);
-    balanceDisplay.textContent = formatCurrency(currentBalance);
-    if (currentBalance < 0) {
-      balanceDisplay.classList.remove('text-slate-100');
-      balanceDisplay.classList.add('text-rose-500', 'animate-pulse-rose');
-    } else {
-      balanceDisplay.classList.remove('text-rose-500', 'animate-pulse-rose');
-      balanceDisplay.classList.add('text-slate-100');
-    }
-    renderTransactions();
-    renderArchivedPeriods();
+    try {
+      const { startingBalance, totalIncome, totalExpenses, currentBalance } = calculateTotals();
+      if (startingBalanceAmount) startingBalanceAmount.textContent = formatCurrency(startingBalance);
+      if (incomeDisplay) incomeDisplay.textContent = formatCurrency(totalIncome);
+      if (expenseDisplay) expenseDisplay.textContent = formatCurrency(totalExpenses);
+      if (balanceDisplay) {
+        balanceDisplay.textContent = formatCurrency(currentBalance);
+        if (currentBalance < 0) {
+          balanceDisplay.classList.remove('text-slate-100');
+          balanceDisplay.classList.add('text-rose-500', 'animate-pulse-rose');
+        } else {
+          balanceDisplay.classList.remove('text-rose-500', 'animate-pulse-rose');
+          balanceDisplay.classList.add('text-slate-100');
+        }
+      }
+      renderTransactions();
+      renderArchivedPeriods();
+    } catch (e) { console.error('[dashboard] updateDashboard:', e); }
   }
 
   function renderTransactions() {
@@ -269,29 +273,33 @@
     }).join('');
   }
 
-  function renderArchivedPeriods() {
-    const periods = getArchivedPeriods();
-    archivedList.innerHTML = '';
-    if (periods.length === 0) { archivedEmptyState.classList.remove('hidden'); return; }
-    archivedEmptyState.classList.add('hidden');
-    for (const period of periods) {
-      const dateStr = formatDateToUZ(period.date) || formatDateToUZ(new Date(period.createdAt || Date.now()).toISOString().split('T')[0]);
-      const balanceColor = (Number(period.finalBalance) || 0) < 0 ? 'text-rose-400' : 'text-emerald-400';
-      const div = document.createElement('div');
-      div.className = 'bg-slate-900/50 border border-slate-700/50 rounded-xl overflow-hidden';
-      div.dataset.archiveId = period.id;
-      div.innerHTML = `<div class="archive-header flex items-center justify-between p-4 cursor-pointer hover:bg-slate-700/30 transition-all duration-200 active:scale-[0.99]"><div class="flex items-center gap-3 min-w-0 flex-1"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-400 shrink-0 transition-transform duration-200 archive-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg><div class="min-w-0"><p class="text-slate-100 text-sm font-semibold truncate">${escapeHtml(period.name || period.periodName || '')}</p><p class="text-slate-500 text-xs">${dateStr}</p></div></div><div class="flex items-center gap-2 sm:gap-3 shrink-0"><span class="text-sm font-bold ${balanceColor}">${formatCurrency(period.finalBalance || 0)}</span><button type="button" class="archive-delete-btn text-slate-500 hover:text-rose-400 p-1.5 rounded-lg hover:bg-rose-500/10 transition-all duration-200 active:scale-90 min-h-[36px] min-w-[36px]" title="Arxivni o'chirish"><svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button></div></div><div class="archive-body hidden px-4 pb-4"><div class="border-t border-slate-700/50 pt-3"><p class="text-xs text-slate-500 mb-2">Tranzaksiyalar (${(period.transactions || []).length} ta):</p><div class="space-y-2 max-h-64 overflow-y-auto pr-1">${(period.transactions || []).map(t => { const isInc = t.type === 'income'; const amtColor = isInc ? 'text-emerald-400' : 'text-rose-400'; const catLabel = getCategoryLabel(t.category); return `<div class="flex items-center justify-between bg-slate-800/60 rounded-lg p-2.5"><div class="flex items-center gap-2 min-w-0"><span class="text-xs px-2 py-0.5 rounded-full shrink-0 ${isInc ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}">${catLabel}</span><span class="text-slate-300 text-xs truncate">${escapeHtml(t.description || t.note || '')}</span></div><span class="text-xs font-bold ${amtColor} shrink-0">${formatSignedAmount(t.amount || 0)}</span></div>`; }).join('')}</div></div></div>`;
+function renderArchivedPeriods() {
+    if (!archivedList || !archivedEmptyState) return;
+    try {
+      const periods = getArchivedPeriods();
+      archivedList.innerHTML = '';
+      if (periods.length === 0) { archivedEmptyState.classList.remove('hidden'); return; }
+      archivedEmptyState.classList.add('hidden');
+      for (const period of periods) {
+        const dateStr = formatDateToUZ(period.date) || formatDateToUZ(new Date(period.createdAt || Date.now()).toISOString().split('T')[0]);
+        const balanceColor = (Number(period.finalBalance) || 0) < 0 ? 'text-rose-400' : 'text-emerald-400';
+        const div = document.createElement('div');
+        div.className = 'bg-slate-900/50 border border-slate-700/50 rounded-xl overflow-hidden';
+        div.dataset.archiveId = period.id;
+        div.innerHTML = `<div class="archive-header flex items-center justify-between p-4 cursor-pointer hover:bg-slate-700/30 transition-all duration-200 active:scale-[0.99]"><div class="flex items-center gap-3 min-w-0 flex-1"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-400 shrink-0 transition-transform duration-200 archive-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg><div class="min-w-0"><p class="text-slate-100 text-sm font-semibold truncate">${escapeHtml(period.name || period.periodName || '')}</p><p class="text-slate-500 text-xs">${dateStr}</p></div></div><div class="flex items-center gap-2 sm:gap-3 shrink-0"><span class="text-sm font-bold ${balanceColor}">${formatCurrency(period.finalBalance || 0)}</span><button type="button" class="archive-delete-btn text-slate-500 hover:text-rose-400 p-1.5 rounded-lg hover:bg-rose-500/10 transition-all duration-200 active:scale-90 min-h-[36px] min-w-[36px]" title="Arxivni o'chirish"><svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button></div></div><div class="archive-body hidden px-4 pb-4"><div class="border-t border-slate-700/50 pt-3"><p class="text-xs text-slate-500 mb-2">Tranzaksiyalar (${(period.transactions || []).length} ta):</p><div class="space-y-2 max-h-64 overflow-y-auto pr-1">${(period.transactions || []).map(t => { const isInc = t.type === 'income'; const amtColor = isInc ? 'text-emerald-400' : 'text-rose-400'; const catLabel = getCategoryLabel(t.category); return `<div class="flex items-center justify-between bg-slate-800/60 rounded-lg p-2.5"><div class="flex items-center gap-2 min-w-0"><span class="text-xs p... (line truncated to 2000 chars)
       const header = div.querySelector('.archive-header');
       const body = div.querySelector('.archive-body');
       const chevron = div.querySelector('.archive-chevron');
-      header.addEventListener('click', (e) => {
+      if (header) header.addEventListener('click', (e) => {
         if (e.target.closest('.archive-delete-btn')) return;
-        body.classList.toggle('hidden');
-        chevron.style.transform = body.classList.contains('hidden') ? '' : 'rotate(180deg)';
+        if (body) body.classList.toggle('hidden');
+        if (chevron) chevron.style.transform = body && body.classList.contains('hidden') ? '' : 'rotate(180deg)';
       });
-      div.querySelector('.archive-delete-btn').addEventListener('click', (e) => { e.stopPropagation(); deleteArchive(period.id); });
+      const delBtn = div.querySelector('.archive-delete-btn');
+      if (delBtn) delBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteArchive(period.id); });
       archivedList.appendChild(div);
-    }
+    } catch (e) { console.error('[archive] renderArchivedPeriods:', e); }
+  }
   }
 
   // ==================== ADD TRANSACTION ====================
@@ -825,8 +833,6 @@
   }
   window.toggleMoreSection = toggleMoreSection;
 
-  // ==================== PWA INSTALL ====================
-  }
   function toggleTheme() {
     const btn = $('theme-toggle');
     if (!btn) return;
@@ -835,6 +841,7 @@
     localStorage.setItem('app_theme', isLight ? 'light' : 'dark');
     btn.textContent = isLight ? '☀️ Light' : '🌙 Dark';
   }
+  window.toggleTheme = toggleTheme;
 
   // ==================== PWA INSTALL ====================
   (function initPWA() {
@@ -934,8 +941,17 @@
     }).catch((err) => { console.warn('[SW] Registration failed:', err); });
   }
 
-  // PIN lock check on page load
+  // PIN lock check + full UI re-initialization on page load
   document.addEventListener('DOMContentLoaded', function () {
+    // Re-read starting_balance from localStorage to ensure fresh state
+    const saved = localStorage.getItem('starting_balance');
+    const parsed = parseFloat(saved);
+    startingBalance = Number.isFinite(parsed) ? parsed : 0;
+
+    // Render full UI immediately
+    updateDashboard();
+
+    // Then check PIN lock (may overlay on top if a PIN is set)
     checkPinLock();
   });
 })();
