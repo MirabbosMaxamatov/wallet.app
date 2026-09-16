@@ -10,6 +10,7 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="stylesheet" href="style.css?v=1.2.1" />
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="i18n.js?v=1.0.0" defer></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen">
 
@@ -314,11 +315,24 @@
         <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-4 shadow-sm">
           <h4 class="text-sm font-semibold text-slate-100 mb-3 flex items-center gap-2">💱 Valyuta &amp; Sozlamalar</h4>
           <div class="flex items-center justify-between">
-            <span class="text-xs text-slate-300">Asosiy valyuta:</span>
+            <span class="text-xs text-slate-300" data-i18n="currencySelector">Asosiy valyuta:</span>
             <select id="currency-select" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500">
               <option value="UZS">UZS (so'm)</option>
               <option value="USD">USD ($)</option>
               <option value="RUB">RUB (₽)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Til (Language) -->
+        <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-4 shadow-sm">
+          <h4 class="text-sm font-semibold text-slate-100 mb-3 flex items-center gap-2">🌐 Til (Language)</h4>
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-slate-300" data-i18n="languageSelector">Tanlang:</span>
+            <select id="language-select" onchange="setLanguage(this.value)" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500">
+              <option value="uz">Oʻzbekcha (UZ)</option>
+              <option value="ru">Русский (RU)</option>
+              <option value="en">English (EN)</option>
             </select>
           </div>
         </div>
