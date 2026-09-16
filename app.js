@@ -926,7 +926,41 @@ function renderArchivedPeriods() {
   }
   window.toggleTheme = toggleTheme;
 
-  // ==================== PWA INSTALL ====================
+  // ==================== PWA INSTALL (cross-platform) ====================
+  let deferredPrompt = null;
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    deferredPrompt = e;
+  });
+
+  function installPWA() {
+    // If already installed (standalone mode), do nothing
+    if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) return;
+
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+    if (isIOS) {
+      // iOS Safari: show the dedicated iOS install modal with step-by-step guidance
+      if (iosModal) {
+        iosModal.classList.remove('hidden');
+        iosModal.classList.add('flex');
+      }
+      return;
+    }
+
+    // Android / Chromium: trigger the native beforeinstallprompt
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(function (choice) {
+        deferredPrompt = null;
+      }).catch(function () {});
+    } else {
+      // Fallback: show the custom banner if no native prompt is available
+      if (pwaModal) pwaModal.classList.remove('hidden');
+    }
+  }
+  window.installPWA = installPWA;
+
   (function initPWA() {
     // If already installed (standalone mode), never show any prompt
     if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) return;
@@ -956,7 +990,7 @@ function renderArchivedPeriods() {
     }
 
     // Android / Chrome: wait for beforeinstallprompt
-    let deferredPrompt = null;
+    let deferredPromptLocal = null;
     let installTimer = null;
 
     window.addEventListener('beforeinstallprompt', function (e) {
