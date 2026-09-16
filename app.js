@@ -282,56 +282,86 @@ function renderArchivedPeriods() {
       archivedEmptyState.classList.add('hidden');
       for (const period of periods) {
         const dateStr = formatDateToUZ(period.date) || formatDateToUZ(new Date(period.createdAt || Date.now()).toISOString().split('T')[0]);
-        const balanceColor = (Number(period.finalBalance) || 0) < 0 ? 'text-rose-400' : 'text-emerald-400';
+        const balanceNum = Number(period.finalBalance) || 0;
+        const balanceColor = balanceNum < 0 ? 'text-rose-400' : 'text-emerald-400';
+        const balanceSign = balanceNum < 0 ? '' : '+';
         const div = document.createElement('div');
-        div.className = 'bg-slate-900/50 border border-slate-700/50 rounded-xl overflow-hidden';
+        div.className = 'bg-slate-900/50 border border-slate-700/50 rounded-xl p-3 sm:p-4 flex flex-col gap-3 shadow-md mb-3';
         div.dataset.archiveId = period.id;
 
-        // Build inner transaction rows WITHOUT nested template literals
+        // Build inner transaction rows matching the active transaction card style
         const txRows = (period.transactions || []).map(function (t) {
           const isInc = t.type === 'income';
+          const amtSign = isInc ? '+' : '-';
           const amtColor = isInc ? 'text-emerald-400' : 'text-rose-400';
-          const catLabel = getCategoryLabel(t.category);
+          const catLabel = escapeHtml(getCategoryLabel(t.category));
           const amt = (Number(t.amount) || 0).toLocaleString('uz-UZ');
-          const desc = escapeHtml(t.description || '');
-          return '<div class="flex items-center justify-between bg-slate-800/60 rounded-lg p-2.5">' +
-            '<div class="flex items-center gap-2 min-w-0">' +
-            '<span class="text-xs p-1 rounded ' + amtColor + '">' + (isInc ? 'Kirim' : 'Chiqim') + '</span>' +
-            '<span class="text-xs text-slate-300 truncate">' + escapeHtml(catLabel) + '</span>' +
+          const desc = escapeHtml(t.description || 'Izoh kiritilmagan');
+          const tDate = formatDateToUZ(t.date) || '';
+          return '<div class="bg-slate-800/60 border border-slate-700/50 rounded-lg p-2.5 flex flex-col gap-1.5">' +
+            '<div class="flex items-center justify-between border-b border-slate-700/40 pb-1.5">' +
+            '<span class="text-xs sm:text-sm font-bold ' + amtColor + '">' + amtSign + amt + " so'm</span>" +
+            '<span class="text-[10px] px-1.5 py-0.5 rounded font-semibold ' + (isInc ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400') + '">' + (isInc ? 'Kirim' : 'Chiqim') + '</span>' +
             '</div>' +
-            '<span class="text-xs font-bold ' + amtColor + '">' + amt + " so'm</span>" +
-            '<span class="text-xs text-slate-500 truncate max-w-[120px]">' + desc + '</span>' +
+            '<div class="flex items-center justify-between text-[11px]">' +
+            '<span class="bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded font-medium">' + catLabel + '</span>' +
+            '<span class="text-slate-400">📅 ' + tDate + '</span>' +
+            '</div>' +
+            '<div class="text-[11px] text-slate-400 truncate">' + desc + '</div>' +
             '</div>';
         }).join('');
 
         div.innerHTML =
-          '<div class="archive-header flex items-center justify-between p-4 cursor-pointer hover:bg-slate-700/30 transition-all duration-200 active:scale-[0.99]">' +
-          '<div class="flex items-center gap-3 min-w-0 flex-1">' +
-          '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-400 shrink-0 transition-transform duration-200 archive-chevron" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">' +
-          '<path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg>' +
-          '<div class="min-w-0">' +
-          '<p class="text-slate-100 text-sm font-semibold truncate">' + escapeHtml(period.name || period.periodName || '') + '</p>' +
-          '<p class="text-slate-500 text-xs">' + dateStr + '</p>' +
+          '<div class="archive-header flex items-center justify-between border-b border-slate-700/50 pb-2.5">' +
+          '<div class="flex flex-col gap-1 flex-1 min-w-0">' +
+          '<span class="text-base sm:text-lg font-bold ' + balanceColor + '">' + balanceSign + (Math.abs(balanceNum)).toLocaleString('uz-UZ') + " so'm</span>" +
+          '<div class="flex items-center gap-2 text-xs flex-wrap">' +
+          '<span class="bg-slate-800 text-slate-200 px-2 py-0.5 rounded-md font-semibold text-xs border border-slate-700/60">Arxiv</span>' +
+          '<span class="text-slate-400">📅 ' + dateStr + '</span>' +
           '</div></div>' +
-          '<div class="flex items-center gap-2 sm:gap-3 shrink-0">' +
-          '<span class="text-sm font-bold ' + balanceColor + '">' + formatCurrency(period.finalBalance || 0) + '</span>' +
-          '<button type="button" class="archive-delete-btn text-slate-500 hover:text-rose-400 p-1.5 rounded-lg hover:bg-rose-500/10 transition-all duration-200 active:scale-90 min-h-[36px] min-w-[36px]" title="Arxivni o\'chirish">' +
-          '<svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">' +
-          '<path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>' +
-          '</button></div></div>' +
-          '<div class="archive-body hidden px-4 pb-4">' +
-          '<div class="border-t border-slate-700/50 pt-3">' +
+          '<div class="flex items-center gap-1.5 shrink-0">' +
+          '<button type="button" class="archive-chevron-btn text-slate-400 hover:text-emerald-400 text-sm p-1 transition-colors" title="Yopish/Ko\'rish">▸</button>' +
+          '<button type="button" class="archive-delete-btn text-slate-400 hover:text-rose-400 text-sm p-1 transition-colors" title="Arxivni o\'chirish">🗑️</button>' +
+          '</div></div>' +
+          '<div class="archive-body hidden flex flex-col gap-2">' +
+          '<div class="flex items-center justify-between text-xs pt-1">' +
+          '<span class="text-slate-400 font-medium">Davr:</span>' +
+          '<span class="text-slate-200 font-medium">' + escapeHtml(period.name || period.periodName || '') + '</span>' +
+          '</div>' +
+          '<div class="flex items-center justify-between text-xs">' +
+          '<span class="text-slate-400 font-medium">Boshlang\'ich:</span>' +
+          '<span class="text-slate-200">' + formatCurrency(period.startingBalance || 0) + '</span>' +
+          '</div>' +
+          '<div class="flex items-center justify-between text-xs">' +
+          '<span class="text-slate-400 font-medium">Jami kirim:</span>' +
+          '<span class="text-emerald-400 font-semibold">+' + formatCurrency(period.totalIncome || 0) + '</span>' +
+          '</div>' +
+          '<div class="flex items-center justify-between text-xs">' +
+          '<span class="text-slate-400 font-medium">Jami chiqim:</span>' +
+          '<span class="text-rose-400 font-semibold">-' + formatCurrency(period.totalExpenses || 0) + '</span>' +
+          '</div>' +
+          '<div class="border-t border-slate-700/50 pt-2">' +
           '<p class="text-xs text-slate-500 mb-2">Tranzaksiyalar (' + (period.transactions || []).length + ' ta):</p>' +
           '<div class="space-y-2 max-h-64 overflow-y-auto pr-1">' + txRows + '</div>' +
           '</div></div>';
 
         const header = div.querySelector('.archive-header');
         const body = div.querySelector('.archive-body');
-        const chevron = div.querySelector('.archive-chevron');
+        const chevron = div.querySelector('.archive-chevron-btn');
         if (header) header.addEventListener('click', (e) => {
           if (e.target.closest('.archive-delete-btn')) return;
+          if (e.target.closest('.archive-chevron-btn')) return;
           if (body) body.classList.toggle('hidden');
-          if (chevron) chevron.style.transform = body && body.classList.contains('hidden') ? '' : 'rotate(180deg)';
+          if (chevron) {
+            chevron.style.transform = body && body.classList.contains('hidden') ? '' : 'rotate(90deg)';
+            chevron.textContent = body && body.classList.contains('hidden') ? '▸' : '▾';
+          }
+        });
+        if (chevron) chevron.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (body) body.classList.toggle('hidden');
+          chevron.style.transform = body && body.classList.contains('hidden') ? '' : 'rotate(90deg)';
+          chevron.textContent = body && body.classList.contains('hidden') ? '▸' : '▾';
         });
         const delBtn = div.querySelector('.archive-delete-btn');
         if (delBtn) delBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteArchive(period.id); });
