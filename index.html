@@ -306,7 +306,7 @@
         <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-4 shadow-sm">
           <h4 class="text-sm font-semibold text-slate-100 mb-3 flex items-center gap-2">🔒 Xavfsizlik</h4>
           <div class="flex flex-col sm:flex-row gap-2">
-            <button type="button" onclick="alert('4-xonali PIN-kod sozlamalari tez orada qo\'shiladi.')" class="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-100 text-xs font-medium px-3 py-2 rounded-lg transition-colors">🔐 PIN-kod o\'rnatish</button>
+            <button type="button" onclick="openPinModal()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-100 text-xs font-medium px-3 py-2 rounded-lg transition-colors">🔐 PIN-kod o'rnatish</button>
           </div>
         </div>
 
@@ -339,6 +339,7 @@
             <button type="button" onclick="exportBackup()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-100 text-xs font-medium px-3 py-2 rounded-lg transition-colors">⬇️ JSON Eksport</button>
             <button type="button" onclick="importBackup()" class="flex-1 bg-emerald-600/90 hover:bg-emerald-500 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors">⬆️ JSON Import</button>
           </div>
+          <button type="button" onclick="resetAllData()" class="w-full mt-3 bg-rose-600/90 hover:bg-rose-500 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors">🗑️ Ma'lumotlarni tozalash (Reset)</button>
         </div>
 
       </div>
@@ -347,7 +348,43 @@
     <footer class="text-center text-slate-600 text-xs mt-8 mb-4">Smart Byudjet Tracker &copy; 2026</footer>
   </div>
 
-  <!-- PWA Installation Banner -->
+  <!-- PIN Lock Modal -->
+    <div id="pin-lock-modal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <h2 class="text-2xl font-bold mb-2 text-slate-100" id="pin-modal-title">PIN-kod kiriting</h2>
+        <p class="text-slate-400 mb-6" id="pin-modal-subtitle">4 xonali PIN-kodingizni kiriting</p>
+
+        <!-- PIN Dots -->
+        <div class="flex items-center justify-center gap-3 mb-6">
+          <span class="pin-dot w-4 h-4 rounded-full bg-slate-700 border-2 border-slate-600"></span>
+          <span class="pin-dot w-4 h-4 rounded-full bg-slate-700 border-2 border-slate-600"></span>
+          <span class="pin-dot w-4 h-4 rounded-full bg-slate-700 border-2 border-slate-600"></span>
+          <span class="pin-dot w-4 h-4 rounded-full bg-slate-700 border-2 border-slate-600"></span>
+        </div>
+
+        <!-- Numpad -->
+        <div class="grid grid-cols-3 gap-3 mb-4">
+          <button type="button" onclick="pressPinNum(1)" class="bg-slate-800 hover:bg-slate-700 text-slate-100 text-xl font-semibold py-3 rounded-lg transition-colors">1</button>
+          <button type="button" onclick="pressPinNum(2)" class="bg-slate-800 hover:bg-slate-700 text-slate-100 text-xl font-semibold py-3 rounded-lg transition-colors">2</button>
+          <button type="button" onclick="pressPinNum(3)" class="bg-slate-800 hover:bg-slate-700 text-slate-100 text-xl font-semibold py-3 rounded-lg transition-colors">3</button>
+          <button type="button" onclick="pressPinNum(4)" class="bg-slate-800 hover:bg-slate-700 text-slate-100 text-xl font-semibold py-3 rounded-lg transition-colors">4</button>
+          <button type="button" onclick="pressPinNum(5)" class="bg-slate-800 hover:bg-slate-700 text-slate-100 text-xl font-semibold py-3 rounded-lg transition-colors">5</button>
+          <button type="button" onclick="pressPinNum(6)" class="bg-slate-800 hover:bg-slate-700 text-slate-100 text-xl font-semibold py-3 rounded-lg transition-colors">6</button>
+          <button type="button" onclick="pressPinNum(7)" class="bg-slate-800 hover:bg-slate-700 text-slate-100 text-xl font-semibold py-3 rounded-lg transition-colors">7</button>
+          <button type="button" onclick="pressPinNum(8)" class="bg-slate-800 hover:bg-slate-700 text-slate-100 text-xl font-semibold py-3 rounded-lg transition-colors">8</button>
+          <button type="button" onclick="pressPinNum(9)" class="bg-slate-800 hover:bg-slate-700 text-slate-100 text-xl font-semibold py-3 rounded-lg transition-colors">9</button>
+          <button type="button" onclick="backspacePin()" class="bg-slate-800 hover:bg-slate-700 text-slate-100 text-xl font-semibold py-3 rounded-lg transition-colors">⌫</button>
+          <button type="button" onclick="pressPinNum(0)" class="bg-slate-800 hover:bg-slate-700 text-slate-100 text-xl font-semibold py-3 rounded-lg transition-colors">0</button>
+          <button type="button" onclick="clearPin()" class="bg-slate-800 hover:bg-slate-700 text-slate-100 text-xl font-semibold py-3 rounded-lg transition-colors">C</button>
+        </div>
+
+        <div class="flex items-center justify-between">
+          <button type="button" onclick="removeSavedPin()" class="text-xs text-slate-400 hover:text-rose-400 transition-colors">PIN-kodni o'chirish</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PWA Installation Banner -->
   <div id="pwa-install-banner" class="hidden fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 bg-slate-900 border border-emerald-500/40 rounded-2xl p-4 shadow-2xl z-50 transition-all duration-300">
     <div class="flex items-start gap-3">
       <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shrink-0 text-emerald-400">

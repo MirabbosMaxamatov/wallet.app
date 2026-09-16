@@ -601,12 +601,184 @@
     });
     input.click();
   }
+
+  // ==================== DATA RESET (TOZALASH) ====================
+  function resetAllData() {
+    const confirmed = confirm(
+      "⚠️ DIQQAT! Barcha tranzaksiyalar va boshlang'ich pul miqdori (balans) butunlay o'chib ketadi.\n\n" +
+      "Tozalashdan oldin ma'lumotlarni fayl sifatida yuklab olishni (Backup/CSV) tavsiya etamiz.\n\n" +
+      "Davom etishni xohlaysizmi?"
+    );
+    if (!confirmed) return;
+
+    // Explicitly remove ALL stored budget data
+    localStorage.removeItem('starting_balance');
+    localStorage.removeItem('transactions');
+    localStorage.removeItem('app_pin_code');
+
+    // Reset in-memory state
+    startingBalance = 0;
+    setTransactions([]);
+    setArchivedPeriods([]);
+
+    // Clear form inputs
+    ['amount', 'note', 'category', 'type'].forEach(function (id) {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    if (dateInput) dateInput.valueAsDate = new Date();
+
+    // Hide any open modals
+    [archiveModal, editModal, editBalanceModal].forEach(function (m) {
+      if (m) { m.classList.add('hidden'); m.classList.remove('flex'); }
+    });
+
+    // Re-open onboarding modal so the user can re-enter their starting balance
+    if (onboardingModal) {
+      onboardingModal.classList.remove('hidden');
+      onboardingModal.classList.add('flex');
+      if (onboardingInput) onboardingInput.focus();
+    }
+
+    // Success toast
+    showToast("Barcha ma'lumotlar va boshlang'ich pul muvaffaqiyatli tozalandi.", "success");
+  }
+  function showToast(message, type) {
+    type = type || 'info';
+    let toast = document.getElementById('global-toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'global-toast';
+      toast.className = 'fixed bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-lg shadow-2xl z-50 text-sm font-medium transition-all duration-300';
+      document.body.appendChild(toast);
+    }
+    const palette = {
+      success: 'bg-emerald-600 text-white',
+      error: 'bg-rose-600 text-white',
+      info: 'bg-slate-700 text-slate-100'
+    };
+    toast.className = toast.className.split(' ').filter(function (c) { return c.indexOf('bg-') !== 0 && c.indexOf('text-') !== 0; }).join(' ') + ' ' + (palette[type] || palette.info);
+    toast.textContent = message;
+    toast.classList.remove('opacity-0', 'translate-y-2');
+    toast.classList.add('opacity-100');
+    setTimeout(function () {
+      toast.classList.add('opacity-0', 'translate-y-2');
+    }, 2600);
+  }
+
+  // ==================== PIN-CODE AUTHENTICATION ====================
+  let currentPinInput = '';
+
+  async function hashPin(pin) {
+    const msgUint8 = new TextEncoder().encode(pin);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+  }
+
+  function updatePinDots() {
+    const dots = document.querySelectorAll('.pin-dot');
+    dots.forEach(function (dot, idx) {
+      if (idx < currentPinInput.length) {
+        dot.classList.add('bg-emerald-500', 'border-emerald-500');
+      } else {
+        dot.classList.remove('bg-emerald-500', 'border-emerald-500');
+      }
+    });
+  }
+
+  function clearPin() {
+    currentPinInput = '';
+    updatePinDots();
+  }
+
+  function backspacePin() {
+    currentPinInput = currentPinInput.slice(0, -1);
+    updatePinDots();
+  }
+
+  async function pressPinNum(num) {
+    if (currentPinInput.length < 4) {
+      currentPinInput += num;
+      updatePinDots();
+    }
+
+    if (currentPinInput.length === 4) {
+      const enteredHash = await hashPin(currentPinInput);
+      const savedHash = localStorage.getItem('app_pin_code');
+      const pinModal = document.getElementById('pin-lock-modal');
+
+      if (!savedHash) {
+        // First-time PIN setup
+        localStorage.setItem('app_pin_code', enteredHash);
+        showToast("✅ PIN-kod muvaffaqiyatli o'rnatildi!", "success");
+        if (pinModal) pinModal.classList.add('hidden');
+      } else if (enteredHash === savedHash) {
+        // Correct PIN
+        if (pinModal) pinModal.classList.add('hidden');
+      } else {
+        // Incorrect PIN
+        showToast("❌ PIN-kod noto'g'ri! Qayta urinib ko'ring.", "error");
+      }
+      currentPinInput = '';
+      updatePinDots();
+    }
+  }
+
+  function checkPinLock() {
+    const savedPinHash = localStorage.getItem('app_pin_code');
+    const pinModal = document.getElementById('pin-lock-modal');
+    if (savedPinHash && pinModal) {
+      pinModal.classList.remove('hidden');
+      currentPinInput = '';
+      updatePinDots();
+    }
+  }
+
+  function removeSavedPin() {
+    localStorage.removeItem('app_pin_code');
+    showToast("PIN-kod o'chirildi.", "info");
+  }
+
+  function openPinModal() {
+    const pinModal = document.getElementById('pin-lock-modal');
+    if (!pinModal) return;
+    // Entering a NEW PIN (no saved hash yet)
+    if (!localStorage.getItem('app_pin_code')) {
+      const titleEl = document.getElementById('pin-modal-title');
+      const subEl = document.getElementById('pin-modal-subtitle');
+      if (titleEl) titleEl.textContent = 'PIN-kod o\'rnatish';
+      if (subEl) subEl.textContent = '4 xonali PIN-kodingizni o\'rnating (masalan: 1234)';
+    } else {
+      const titleEl = document.getElementById('pin-modal-title');
+      const subEl = document.getElementById('pin-modal-subtitle');
+      if (titleEl) titleEl.textContent = 'PIN-kod kiriting';
+      if (subEl) subEl.textContent = '4 xonali PIN-kodingizni kiriting';
+    }
+    currentPinInput = '';
+    updatePinDots();
+    pinModal.classList.remove('hidden');
+    pinModal.classList.add('flex');
+  }
+  window.openPinModal = openPinModal;
+
+  // Expose for inline onclick handlers
+  window.resetAllData = resetAllData;
+  window.pressPinNum = pressPinNum;
+  window.clearPin = clearPin;
+  window.backspacePin = backspacePin;
+  window.removeSavedPin = removeSavedPin;
+
   function toggleMoreSection() {
     const body = $('more-body');
     const chevron = $('more-chevron');
     if (!body) return;
     body.classList.toggle('hidden');
     if (chevron) chevron.style.transform = body.classList.contains('hidden') ? '' : 'rotate(180deg)';
+  }
+  window.toggleMoreSection = toggleMoreSection;
+
+  // ==================== PWA INSTALL ====================
   }
   function toggleTheme() {
     const btn = $('theme-toggle');
@@ -715,4 +887,8 @@
     }).catch((err) => { console.warn('[SW] Registration failed:', err); });
   }
 
+  // PIN lock check on page load
+  document.addEventListener('DOMContentLoaded', function () {
+    checkPinLock();
+  });
 })();
