@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const APP_VERSION = '1.2.0';
+  const APP_VERSION = '1.2.1';
   const STORAGE_KEY = 'app_seen_version';
 
   // ==================== UPDATE DATA ====================
@@ -40,9 +40,9 @@
     },
     {
       id: 4,
-      title: 'Yangi updates.js bildirishnoma tizimi yo\'lga qo\'yildi',
-      date: '15/09/2026',
-      description: 'Endi yangilanishlar oldingi va keyingi holatlarni solishtirib ko\'rish mumkin.'
+      title: 'Interfeys va dizayn yaxshilandi',
+      date: '16/09/2026',
+      description: 'interfeys va dizayn yaxshilandi. Yangi UI/UX tarmogi bilan ishlash osonlashdi. Foydalanuvchi tajribasi sezilarli darajada yaxshilandi.',
     }
   ];
 

@@ -285,6 +285,11 @@ function renderArchivedPeriods() {
         const balanceNum = Number(period.finalBalance) || 0;
         const balanceColor = balanceNum < 0 ? 'text-rose-400' : 'text-emerald-400';
         const balanceSign = balanceNum < 0 ? '' : '+';
+        // Strict formula: Final Balance = Starting Balance + Total Income - Total Expense
+        const safeStarting = Number.isFinite(Number(period.startingBalance)) ? Number(period.startingBalance) : 0;
+        const safeIncome = Number.isFinite(Number(period.totalIncome)) ? Number(period.totalIncome) : 0;
+        const safeExpense = Number.isFinite(Number(period.totalExpenses)) ? Number(period.totalExpenses) : 0;
+        const finalBalance = safeStarting + safeIncome - safeExpense;
         const div = document.createElement('div');
         div.className = 'bg-slate-900/50 border border-slate-700/50 rounded-xl p-3 sm:p-4 flex flex-col gap-3 shadow-md mb-3';
         div.dataset.archiveId = period.id;
@@ -314,7 +319,7 @@ function renderArchivedPeriods() {
         div.innerHTML =
           '<div class="archive-header flex items-center justify-between border-b border-slate-700/50 pb-2.5">' +
           '<div class="flex flex-col gap-1 flex-1 min-w-0">' +
-          '<span class="text-base sm:text-lg font-bold ' + balanceColor + '">' + balanceSign + (Math.abs(balanceNum)).toLocaleString('uz-UZ') + " so'm</span>" +
+          '<span class="text-base sm:text-lg font-bold ' + balanceColor + '">' + (finalBalance < 0 ? '' : '+') + (Math.abs(finalBalance)).toLocaleString('uz-UZ') + " so'm</span>" +
           '<div class="flex items-center gap-2 text-xs flex-wrap">' +
           '<span class="bg-slate-800 text-slate-200 px-2 py-0.5 rounded-md font-semibold text-xs border border-slate-700/60">Arxiv</span>' +
           '<span class="text-slate-400">📅 ' + dateStr + '</span>' +
@@ -339,6 +344,10 @@ function renderArchivedPeriods() {
           '<div class="flex items-center justify-between text-xs">' +
           '<span class="text-slate-400 font-medium">Jami chiqim:</span>' +
           '<span class="text-rose-400 font-semibold">-' + formatCurrency(period.totalExpenses || 0) + '</span>' +
+          '</div>' +
+          '<div class="flex items-center justify-between text-xs border-t border-slate-700/50 pt-2">' +
+          '<span class="text-slate-300 font-bold" data-i18n="remainingBalance">Qoldiq:</span>' +
+          '<span class="text-emerald-400 font-bold text-sm">' + (Number.isFinite(finalBalance) && finalBalance >= 0 ? '+' : '') + formatCurrency(finalBalance) + '</span>' +
           '</div>' +
           '<div class="border-t border-slate-700/50 pt-2">' +
           '<p class="text-xs text-slate-500 mb-2">Tranzaksiyalar (' + (period.transactions || []).length + ' ta):</p>' +
