@@ -311,8 +311,8 @@
     renderTransactions();
     updateDashboard();
   }
-  transactionForm.addEventListener('submit', function (e) { e.preventDefault(); addTransaction(); });
-  addTransactionBtn.addEventListener('click', function (e) { e.preventDefault(); addTransaction(); });
+  if (transactionForm) transactionForm.addEventListener('submit', function (e) { e.preventDefault(); addTransaction(); });
+  if (addTransactionBtn) addTransactionBtn.addEventListener('click', function (e) { e.preventDefault(); addTransaction(); });
 
   // ==================== DELETE TRANSACTION ====================
   function deleteTransaction(id) {
@@ -341,9 +341,9 @@
     editModal.classList.add('hidden');
     editModal.classList.remove('flex');
   }
-  editCancelBtn.addEventListener('click', closeEditModal);
-  editModal.addEventListener('click', (e) => { if (e.target === editModal) closeEditModal(); });
-  editSaveBtn.addEventListener('click', function (e) {
+  if (editCancelBtn) editCancelBtn.addEventListener('click', closeEditModal);
+  if (editModal) editModal.addEventListener('click', (e) => { if (e.target === editModal) closeEditModal(); });
+  if (editSaveBtn) editSaveBtn.addEventListener('click', function (e) {
     e.preventDefault();
     const id = Number(editIdInput.value);
     const amount = parseFloat(editAmountInput.value);
@@ -374,92 +374,124 @@
   const balanceNum = parseFloat(savedBalance);
   const shouldShowOnboarding = (savedBalance === null) || (savedBalance === '') || (savedBalance === '0') || (balanceNum === 0);
   if (shouldShowOnboarding) {
-    onboardingModal.classList.remove('hidden');
-    onboardingModal.classList.add('flex');
-    onboardingInput.focus();
+    if (onboardingModal) {
+      onboardingModal.classList.remove('hidden');
+      onboardingModal.classList.add('flex');
+    }
+    if (onboardingInput) onboardingInput.focus();
   } else {
     updateDashboard();
   }
-  onboardingStartBtn.addEventListener('click', function (e) {
+
+  // Default modal title (restored after editing)
+  const onboardingTitle = $('onboarding-modal-title');
+
+  if (onboardingStartBtn) onboardingStartBtn.addEventListener('click', function (e) {
     e.preventDefault();
+    if (!onboardingInput) return;
     const val = parseFloat(onboardingInput.value);
     if (!isNaN(val) && val >= 0) {
       startingBalance = val;
       localStorage.setItem('starting_balance', val.toString());
-      onboardingModal.classList.add('hidden');
-      onboardingModal.classList.remove('flex');
+      if (onboardingModal) {
+        onboardingModal.classList.add('hidden');
+        onboardingModal.classList.remove('flex');
+      }
+      // Reset title back to the welcome greeting
+      if (onboardingTitle) onboardingTitle.textContent = "Xush kelibsiz";
       updateDashboard();
     }
   });
-  onboardingInput.addEventListener('keydown', function (e) {
+
+  if (onboardingInput) onboardingInput.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') {
       e.preventDefault();
-      onboardingStartBtn.click();
+      if (onboardingStartBtn) onboardingStartBtn.click();
     }
   });
-  onboardingModal.addEventListener('click', (e) => { if (e.target === onboardingModal && localStorage.getItem('starting_balance')) { onboardingModal.classList.add('hidden'); onboardingModal.classList.remove('flex'); } });
 
-  // ==================== EDIT STARTING BALANCE ====================
-  editBalanceBtn.addEventListener('click', () => {
-    editBalanceInput.value = startingBalance;
-    editBalanceModal.classList.remove('hidden');
-    editBalanceModal.classList.add('flex');
-    editBalanceInput.focus();
-  });
-  cancelEditBalance.addEventListener('click', () => { editBalanceModal.classList.add('hidden'); editBalanceModal.classList.remove('flex'); });
-  editBalanceModal.addEventListener('click', (e) => { if (e.target === editBalanceModal) { editBalanceModal.classList.add('hidden'); editBalanceModal.classList.remove('flex'); } });
-  editBalanceSubmitBtn.addEventListener('click', function (e) {
-    e.preventDefault();
-    const val = parseFloat(editBalanceInput.value);
-    if (!isNaN(val) && val >= 0) {
-      startingBalance = val;
-      localStorage.setItem('starting_balance', val.toString());
-      editBalanceModal.classList.add('hidden');
-      editBalanceModal.classList.remove('flex');
-      updateDashboard();
+  if (onboardingModal) onboardingModal.addEventListener('click', (e) => { if (e.target === onboardingModal && localStorage.getItem('starting_balance')) { onboardingModal.classList.add('hidden'); onboardingModal.classList.remove('flex'); } });
+
+  // ==================== EDIT STARTING BALANCE (Desktop & Mobile) ====================
+  function openEditBalanceModal() {
+    const modal = document.getElementById('onboarding-modal');
+    const amountInput = document.getElementById('onboarding-input');
+    const modalTitle = document.getElementById('onboarding-modal-title');
+
+    if (!modal || !amountInput) return;
+
+    const currentBalance = localStorage.getItem('starting_balance') || '0';
+
+    // Pre-fill input with the current saved balance
+    amountInput.value = currentBalance;
+
+    // Trigger the live preview so it displays immediately (e.g. 👉 5 000 000 so'm)
+    amountInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+    // Update the modal title to reflect editing mode
+    if (modalTitle) {
+      modalTitle.textContent = "Boshlang'ich pulni tahrirlash";
     }
+
+    // Show the modal
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    amountInput.focus();
+  }
+  window.openEditBalanceModal = openEditBalanceModal;
+
+  // Attach listeners to both desktop and mobile edit buttons
+  if (editBalanceBtn) editBalanceBtn.addEventListener('click', openEditBalanceModal);
+  ['desktop-edit-balance-btn', 'mobile-edit-balance-btn'].forEach(function (id) {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('click', openEditBalanceModal);
   });
 
   // ==================== ARCHIVE & RESET ====================
-  resetArchiveBtn.addEventListener('click', () => {
-    const { currentBalance } = calculateTotals();
-    archiveStartingBalanceInput.value = currentBalance.toFixed(2);
-    archiveModal.classList.remove('hidden');
-    archiveModal.classList.add('flex');
-    archiveNameInput.focus();
+  if (resetArchiveBtn) resetArchiveBtn.addEventListener('click', () => {
+    try {
+      const { currentBalance } = calculateTotals();
+      if (archiveStartingBalanceInput) archiveStartingBalanceInput.value = currentBalance.toFixed(2);
+      if (archiveModal) {
+        archiveModal.classList.remove('hidden');
+        archiveModal.classList.add('flex');
+      }
+      if (archiveNameInput) archiveNameInput.focus();
+    } catch (e) { console.error('[archive] resetArchiveBtn:', e); }
   });
-  cancelArchiveBtn.addEventListener('click', () => { archiveModal.classList.add('hidden'); archiveModal.classList.remove('flex'); });
-  archiveModal.addEventListener('click', (e) => { if (e.target === archiveModal) { archiveModal.classList.add('hidden'); archiveModal.classList.remove('flex'); } });
-  archiveSubmitBtn.addEventListener('click', function (e) {
+  if (cancelArchiveBtn) cancelArchiveBtn.addEventListener('click', () => { if (archiveModal) { archiveModal.classList.add('hidden'); archiveModal.classList.remove('flex'); } });
+  if (archiveModal) archiveModal.addEventListener('click', (e) => { if (e.target === archiveModal) { archiveModal.classList.add('hidden'); archiveModal.classList.remove('flex'); } });
+  if (archiveSubmitBtn) archiveSubmitBtn.addEventListener('click', function (e) {
     e.preventDefault();
-    const periodName = archiveNameInput.value.trim();
-    if (!periodName) return alert("Iltimos, davr nomini kiriting!");
-    const newStartingBalance = parseFloat(archiveStartingBalanceInput.value);
-    if (isNaN(newStartingBalance) || newStartingBalance < 0) return alert("Iltimos, to'g'ri summa kiriting!");
-    const txns = getTransactions();
-    if (txns.length === 0) return alert('Arxivlash uchun tranzaksiyalar mavjud emas.');
-    const { totalIncome, totalExpenses, currentBalance } = calculateTotals();
-    const safeIncome = Number.isFinite(totalIncome) ? totalIncome : 0;
-    const safeExpenses = Number.isFinite(totalExpenses) ? totalExpenses : 0;
-    const safeBalance = Number.isFinite(currentBalance) ? currentBalance : newStartingBalance;
-    const archive = { id: Date.now(), name: periodName, startingBalance: newStartingBalance, totalIncome: safeIncome, totalExpenses: safeExpenses, finalBalance: safeBalance, date: formatDateToUZ(new Date().toISOString().split('T')[0]), transactions: [...txns] };
-    const periods = getArchivedPeriods();
-    periods.push(archive);
-    setArchivedPeriods(periods);
-    startingBalance = newStartingBalance;
-    setTransactions([]);
-    localStorage.setItem('starting_balance', startingBalance.toString());
-    archiveModal.classList.add('hidden');
-    archiveModal.classList.remove('flex');
-    archiveNameInput.value = '';
-    archiveStartingBalanceInput.value = '';
-    updateDashboard();
-    // If the user reset the starting balance to 0, re-open onboarding
-    if (newStartingBalance === 0) {
-      onboardingModal.classList.remove('hidden');
-      onboardingModal.classList.add('flex');
-      onboardingInput.focus();
-    }
+    try {
+      const periodName = archiveNameInput ? archiveNameInput.value.trim() : '';
+      if (!periodName) return alert("Iltimos, davr nomini kiriting!");
+      const newStartingBalance = parseFloat(archiveStartingBalanceInput.value);
+      if (isNaN(newStartingBalance) || newStartingBalance < 0) return alert("Iltimos, to'g'ri summa kiriting!");
+      const txns = getTransactions();
+      if (txns.length === 0) return alert('Arxivlash uchun tranzaksiyalar mavjud emas.');
+      const { totalIncome, totalExpenses, currentBalance } = calculateTotals();
+      const safeIncome = Number.isFinite(totalIncome) ? totalIncome : 0;
+      const safeExpenses = Number.isFinite(totalExpenses) ? totalExpenses : 0;
+      const safeBalance = Number.isFinite(currentBalance) ? currentBalance : newStartingBalance;
+      const archive = { id: Date.now(), name: periodName, startingBalance: newStartingBalance, totalIncome: safeIncome, totalExpenses: safeExpenses, finalBalance: safeBalance, date: formatDateToUZ(new Date().toISOString().split('T')[0]), transactions: [...txns] };
+      const periods = getArchivedPeriods();
+      periods.push(archive);
+      setArchivedPeriods(periods);
+      startingBalance = newStartingBalance;
+      setTransactions([]);
+      localStorage.setItem('starting_balance', startingBalance.toString());
+      if (archiveModal) { archiveModal.classList.add('hidden'); archiveModal.classList.remove('flex'); }
+      if (archiveNameInput) archiveNameInput.value = '';
+      if (archiveStartingBalanceInput) archiveStartingBalanceInput.value = '';
+      updateDashboard();
+      // If the user reset the starting balance to 0, re-open onboarding
+      if (newStartingBalance === 0 && onboardingModal) {
+        onboardingModal.classList.remove('hidden');
+        onboardingModal.classList.add('flex');
+        if (onboardingInput) onboardingInput.focus();
+      }
+    } catch (err) { console.error('[archive] submit:', err); }
   });
 
   // ==================== DELETE ARCHIVE ====================
@@ -759,6 +791,21 @@
     updatePinDots();
     pinModal.classList.remove('hidden');
     pinModal.classList.add('flex');
+    // Physical keyboard support (0-9, Backspace, Enter) for desktop users
+    if (!pinModal._pinKeydownBound) {
+      pinModal._pinKeydownBound = true;
+      pinModal.addEventListener('keydown', function (e) {
+        if (e.key >= '0' && e.key <= '9') {
+          e.preventDefault();
+          pressPinNum(Number(e.key));
+        } else if (e.key === 'Backspace') {
+          e.preventDefault();
+          backspacePin();
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+        }
+      });
+    }
   }
   window.openPinModal = openPinModal;
 
