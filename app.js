@@ -12,8 +12,16 @@
   const FUNDRAISING_KEYS = {
     target: 'fundraising_target',
     transactions: 'fundraising_transactions',
-    title: 'fundraising_title'
+    title: 'fundraising_title',
+    archivedPeriods: 'fundraising_archived_periods'
   };
+
+  function getStorageKey(key) {
+    if (currentMode === 'fundraising' && FUNDRAISING_KEYS[key]) {
+      return FUNDRAISING_KEYS[key];
+    }
+    return key;
+  }
 
   function getFundraisingTarget() {
     try { return parseFloat(localStorage.getItem(FUNDRAISING_KEYS.target)) || 0; }
@@ -49,11 +57,13 @@
     localStorage.setItem('transactions', JSON.stringify(txns));
   }
   function getArchivedPeriods() {
-    try { return JSON.parse(localStorage.getItem('archived_periods')) || []; }
+    const key = getStorageKey('archivedPeriods');
+    try { return JSON.parse(localStorage.getItem(key)) || []; }
     catch { return []; }
   }
   function setArchivedPeriods(periods) {
-    localStorage.setItem('archived_periods', JSON.stringify(periods));
+    const key = getStorageKey('archivedPeriods');
+    localStorage.setItem(key, JSON.stringify(periods));
   }
 
   // ==================== CALCULATIONS ====================
@@ -221,10 +231,16 @@
   dateInput.valueAsDate = new Date();
 
   // Live amount preview wiring for all amount inputs
-  ['onboarding-input', 'amount', 'edit-amount'].forEach(function (id) {
+  ['onboarding-input', 'amount', 'edit-amount', 'fundraising-target-input'].forEach(function (id) {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', function () { updateAmountPreview(id); });
   });
+
+  // Split calculator people count input
+  const peopleCountInput = document.getElementById('people-count-input');
+  if (peopleCountInput) {
+    peopleCountInput.addEventListener('input', updateSplitCalculator);
+  }
 
   // Yana / Profil section toggle
   if (moreToggleBtn) moreToggleBtn.addEventListener('click', toggleMoreSection);
@@ -365,9 +381,104 @@
           balanceDisplay.classList.add('text-slate-100');
         }
       }
+
+      // Update starting balance banner label dynamically based on mode
+      updateStartingBalanceBanner();
+
+      // Update fundraising progress and target cards
+      updateFundraisingCards();
+
+      // Update split calculator
+      updateSplitCalculator();
+
       renderTransactions();
       renderArchivedPeriods();
     } catch (e) { console.error('[dashboard] updateDashboard:', e); }
+  }
+
+  function updateStartingBalanceBanner() {
+    const labelEl = document.querySelector('#starting-balance-banner [data-i18n="startingBalance"]');
+    if (!labelEl) return;
+    
+    const isFundraising = currentMode === 'fundraising';
+    if (isFundraising) {
+      const title = getFundraisingTitle();
+      const target = getFundraisingTarget();
+      labelEl.textContent = title 
+        ? `${t('fundraisingTargetCard') || 'Maqsad'}: ${title} | ${formatCurrency(target)}`
+        : `${t('targetAmount') || 'Maqsad'}: ${formatCurrency(target)}`;
+    } else {
+      labelEl.textContent = `${t('startingBalance') || 'Boshlang\'ich Pul'}: ${formatCurrency(startingBalance)}`;
+    }
+  }
+
+  function updateFundraisingCards() {
+    const progressCard = document.getElementById('fundraising-progress-card');
+    const targetCard = document.getElementById('fundraising-target-card');
+    const isFundraising = currentMode === 'fundraising';
+    
+    if (!isFundraising) {
+      if (progressCard) progressCard.classList.add('hidden');
+      if (targetCard) targetCard.classList.add('hidden');
+      return;
+    }
+    
+    if (progressCard) progressCard.classList.remove('hidden');
+    if (targetCard) targetCard.classList.remove('hidden');
+    
+    const target = getFundraisingTarget();
+    const title = getFundraisingTitle();
+    const { totalIncome, totalExpenses, currentBalance } = calculateTotals();
+    const collected = totalIncome - totalExpenses;
+    const percent = target > 0 ? Math.min(100, Math.round((collected / target) * 100)) : 0;
+    
+    const progressPercentEl = document.getElementById('fundraising-progress-percent');
+    const progressBarEl = document.getElementById('fundraising-progress-bar');
+    const targetTitleEl = document.getElementById('fundraising-target-title');
+    const targetAmountEl = document.getElementById('fundraising-target-amount');
+    const currentBalanceEl = document.getElementById('fundraising-current-balance');
+    
+    if (progressPercentEl) progressPercentEl.textContent = `${percent}%`;
+    if (progressBarEl) progressBarEl.style.width = `${percent}%`;
+    if (targetTitleEl) targetTitleEl.textContent = title || '-';
+    if (targetAmountEl) targetAmountEl.textContent = formatCurrency(target);
+    if (currentBalanceEl) currentBalanceEl.textContent = formatCurrency(currentBalance);
+  }
+
+  // ==================== SPLIT CALCULATOR (Fundraising only) ====================
+  function updateSplitCalculator() {
+    const splitCard = document.getElementById('split-calculator-card');
+    const isFundraising = currentMode === 'fundraising';
+    
+    if (!isFundraising) {
+      if (splitCard) splitCard.classList.add('hidden');
+      return;
+    }
+    if (splitCard) splitCard.classList.remove('hidden');
+    
+    const target = getFundraisingTarget();
+    const peopleInput = document.getElementById('people-count-input');
+    const resultEl = document.getElementById('split-result');
+    
+    if (!peopleInput || !resultEl) return;
+    
+    const peopleCount = parseInt(peopleInput.value) || 0;
+    if (peopleCount > 0 && target > 0) {
+      const perPerson = target / peopleCount;
+      resultEl.textContent = `${t('perPerson') || 'Har bir kishidan'}: ${formatCurrency(perPerson)}`;
+      resultEl.style.cursor = 'pointer';
+      resultEl.onclick = () => {
+        const amountInput = document.getElementById('amount');
+        if (amountInput) {
+          amountInput.value = perPerson.toFixed(2);
+          amountInput.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      };
+    } else {
+      resultEl.textContent = t('enterPeopleCount') || 'Odamlar sonini kiriting';
+      resultEl.style.cursor = 'default';
+      resultEl.onclick = null;
+    }
   }
 
   function renderTransactions() {

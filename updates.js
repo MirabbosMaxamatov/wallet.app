@@ -3,6 +3,18 @@
 
   window.APP_UPDATES = [
     {
+      version: "v6.2.0",
+      date: "17.09.2026",
+      title: "Mode-Isolated Archives, Dynamic Header & Split Calculator",
+      changes: [
+        "Arxiv ma'lumotlari rejimga (Shaxsiy Byudjet / Pul Yig'ish) qarab to'liq izolyatsiya qilindi",
+        "Yuqori baner dinamik: Shaxsiy rejimda 'BOSHLANG'ICH PUL', Pul Yig'ish rejimida 'MAQSAD (NOTE): [Title] | [Target]'",
+        "Pul Yig'ish rejimiga 'Teng Bo'lish Kalkulyatori' vidgeti qo'shildi: odamlar soni kiritilganda har bir kishidan qancha to'lash kerakligi hisoblanadi",
+        "Kalkulyator natijasini bosganda 'Summa' maydoniga avtomatik kiritiladi",
+        "Til resurslariga yangi kalitlar qo'shildi: perPerson, enterPeopleCount"
+      ]
+    },
+    {
       version: "v6.0.0",
       date: "17.09.2026",
       title: "Dual-Mode (Pul Yig'ish) va Sanalar bo'yicha Guruhlash Yangilanishi",
