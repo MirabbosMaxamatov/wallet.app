@@ -3,6 +3,21 @@
 
   window.APP_UPDATES = [
     {
+      version: "v7.5.0",
+      date: "18.09.2026",
+      title: "Modal Binding Fix, Cascade Categories & 3-Tier Hierarchical Grouping",
+      changes: [
+        "Modal binding fixed: 'Tahrirlash' in Fundraising Mode now opens fundraising target modal (not personal balance modal)",
+        "Target amount & scope persistence with mode-scoped localStorage keys (getStorageKey('target_amount'), getStorageKey('target_scope'))",
+        "Immediate UI update of header and card target elements on save without page reload",
+        "Cascade category selectors in transaction form: Target Scope dropdown (Personal, Oila, Guruh, Hammasi)",
+        "Dynamic category options per scope: Personal (disabled 'Shaxsiy'), Oila (family members), Guruh (Erkak/Ayol), Hammasi (2-tier cascade)",
+        "3-tier hierarchical transaction grouping for 'Hammasi': Main Type (OILA/GURUH/SHAXSIY) -> Sub-Category -> Date",
+        "2-tier grouping for single scopes (Oila/Guruh): Category/Member -> Date",
+        "Script versions bumped to v=7.5.0 to clear browser cache"
+      ]
+    },
+    {
       version: "v6.7.0",
       date: "17.09.2026",
       title: "Target Amount Persistence Fix & Category Type Selector",

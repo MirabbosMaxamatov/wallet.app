@@ -16,6 +16,7 @@
     targetTitle: 'fundraising_target_title',
     targetAmount: 'fundraising_target_amount',
     targetType: 'fundraising_target_type',
+    targetScope: 'fundraising_target_scope',
     archivedPeriods: 'fundraising_archived_periods'
   };
 
@@ -67,6 +68,13 @@
   }
   function setFundraisingTargetType(val) {
     localStorage.setItem(FUNDRAISING_KEYS.targetType, val);
+  }
+  function getFundraisingTargetScope() {
+    try { return localStorage.getItem(FUNDRAISING_KEYS.targetScope) || 'hammasi'; }
+    catch { return 'hammasi'; }
+  }
+  function setFundraisingTargetScope(val) {
+    localStorage.setItem(FUNDRAISING_KEYS.targetScope, val);
   }
 
   function getTransactions() {
@@ -204,15 +212,19 @@
   }
 
   // ==================== DYNAMIC CATEGORY LOGIC (Fundraising) ====================
-  const PERSONAL_CATEGORIES = [
-    { value: 'Oziq-ovqat', label: t('food') || 'Oziq-ovqat' },
-    { value: 'Transport', label: t('transport') || 'Transport' },
-    { value: 'Kommunal', label: t('utilities') || 'Kommunal' },
-    { value: "Ko'ngilochar", label: t('entertainment') || "Ko'ngilochar" },
-    { value: 'Boshqa', label: t('other') || 'Boshqa' }
+  // Level 1: Main categories (for hammasi scope)
+  const MAIN_CATEGORIES = [
+    { value: 'personal', label: t('personal') || 'Shaxsiy' },
+    { value: 'oila', label: t('family') || 'Oila' },
+    { value: 'guruh', label: t('group') || 'Guruh' }
   ];
 
-  const FAMILY_CATEGORIES = [
+  // Level 2: Sub-categories for each main category
+  const PERSONAL_SUB_CATEGORIES = [
+    { value: 'Shaxsiy', label: t('personal') || 'Shaxsiy' }
+  ];
+
+  const OILA_SUB_CATEGORIES = [
     { value: 'Ota', label: t('father') || 'Ota' },
     { value: 'Ona', label: t('mother') || 'Ona' },
     { value: 'Aka', label: t('olderBrother') || 'Aka' },
@@ -222,36 +234,41 @@
     { value: 'Boshqa', label: t('other') || 'Boshqa' }
   ];
 
-  const GROUP_CATEGORIES = [
+  const GURUH_SUB_CATEGORIES = [
     { value: 'Erkak', label: t('male') || 'Erkak' },
     { value: 'Ayol', label: t('female') || 'Ayol' }
   ];
 
+  // Legacy single-scope categories (for backward compatibility)
   const FUNDRAISING_PERSONAL_CATEGORIES = [
     { value: 'Umumiy', label: 'Umumiy' }
   ];
 
-  function getCategoriesForTargetGroup(groupType) {
-    switch (groupType) {
-      case 'family': return FAMILY_CATEGORIES;
-      case 'group': return GROUP_CATEGORIES;
+  const FAMILY_CATEGORIES = OILA_SUB_CATEGORIES;
+  const GROUP_CATEGORIES = GURUH_SUB_CATEGORIES;
+
+  function getSubCategoriesForMainCategory(mainCategory) {
+    switch (mainCategory) {
+      case 'oila': return OILA_SUB_CATEGORIES;
+      case 'guruh': return GURUH_SUB_CATEGORIES;
       case 'personal':
-      default: return PERSONAL_CATEGORIES;
+      default: return PERSONAL_SUB_CATEGORIES;
     }
   }
 
-  function getFundraisingCategoriesForTargetGroup(groupType) {
-    switch (groupType) {
-      case 'oila': return FAMILY_CATEGORIES;
+  function getCategoriesForTargetScope(scope) {
+    switch (scope) {
+      case 'personal': return FUNDRAISING_PERSONAL_CATEGORIES;
+      case 'oila': return OILA_SUB_CATEGORIES;
       case 'guruh': return GROUP_CATEGORIES;
-      case 'personal':
-      default: return FUNDRAISING_PERSONAL_CATEGORIES;
+      case 'hammasi': return MAIN_CATEGORIES; // Level 1 categories
+      default: return MAIN_CATEGORIES;
     }
   }
 
-  function populateCategorySelect(selectElement, groupType, isFundraising = false) {
+  function populateCategorySelect(selectElement, scope, isFundraising = false) {
     if (!selectElement) return;
-    const categories = isFundraising ? getFundraisingCategoriesForTargetGroup(groupType) : getCategoriesForTargetGroup(groupType);
+    const categories = getCategoriesForTargetScope(scope);
     const currentValue = selectElement.value;
     selectElement.innerHTML = '';
     categories.forEach(cat => {
@@ -266,29 +283,87 @@
     } else if (categories.length > 0) {
       selectElement.value = categories[0].value;
     }
-    // Disable for fundraising personal type
-    selectElement.disabled = isFundraising && groupType === 'personal';
+    // Disable for personal scope
+    selectElement.disabled = isFundraising && scope === 'personal';
+  }
+
+  function populateSubCategorySelect(selectElement, mainCategory, isFundraising = false) {
+    if (!selectElement) return;
+    const categories = getSubCategoriesForMainCategory(mainCategory);
+    const currentValue = selectElement.value;
+    selectElement.innerHTML = '';
+    categories.forEach(cat => {
+      const option = document.createElement('option');
+      option.value = cat.value;
+      option.textContent = cat.label;
+      selectElement.appendChild(option);
+    });
+    if (categories.some(c => c.value === currentValue)) {
+      selectElement.value = currentValue;
+    } else if (categories.length > 0) {
+      selectElement.value = categories[0].value;
+    }
+    selectElement.disabled = isFundraising && mainCategory === 'personal';
   }
 
   function updateCategorySelectsForMode() {
     const isFundraising = currentMode === 'fundraising';
-    const groupType = isFundraising ? getFundraisingTargetType() : 'personal';
+    const scope = isFundraising ? getFundraisingTargetScope() : 'personal';
     
     // Update main transaction form category select
     const categorySelect = document.getElementById('category');
-    populateCategorySelect(categorySelect, groupType, isFundraising);
+    populateCategorySelect(categorySelect, scope, isFundraising);
     
     // Update edit modal category select
     const editCategorySelect = document.getElementById('edit-category');
-    populateCategorySelect(editCategorySelect, groupType, isFundraising);
+    populateCategorySelect(editCategorySelect, scope, isFundraising);
     
-    // Show/hide category label based on mode
-    const categoryLabels = document.querySelectorAll('label[for="category"], label[for="edit-category"]');
-    categoryLabels.forEach(label => {
-      if (isFundraising && groupType === 'personal') {
-        label.textContent = t('category') || 'Kategoriya';
+    // Handle cascade selects for hammasi scope
+    const isHammasi = isFundraising && scope === 'hammasi';
+    const mainCategorySelect = document.getElementById('category-main');
+    const subCategorySelect = document.getElementById('category-sub');
+    const editMainCategorySelect = document.getElementById('edit-category-main');
+    const editSubCategorySelect = document.getElementById('edit-category-sub');
+    
+    if (isHammasi) {
+      if (mainCategorySelect) {
+        mainCategorySelect.style.display = '';
+        populateCategorySelect(mainCategorySelect, 'hammasi', true);
+        // Set up change listener
+        mainCategorySelect.onchange = function() {
+          populateSubCategorySelect(subCategorySelect, this.value, true);
+        };
+        // Initialize sub-category
+        populateSubCategorySelect(subCategorySelect, mainCategorySelect.value, true);
       }
-    });
+      if (subCategorySelect) subCategorySelect.style.display = '';
+      if (categorySelect) categorySelect.style.display = 'none';
+      
+      // Edit modal cascade
+      const editCascadeWrapper = document.getElementById('edit-category-cascade-wrapper');
+      if (editCascadeWrapper) editCascadeWrapper.style.display = '';
+      if (editCategorySelect) editCategorySelect.style.display = 'none';
+      
+      if (editMainCategorySelect) {
+        populateCategorySelect(editMainCategorySelect, 'hammasi', true);
+        editMainCategorySelect.onchange = function() {
+          populateSubCategorySelect(editSubCategorySelect, this.value, true);
+        };
+        populateSubCategorySelect(editSubCategorySelect, editMainCategorySelect.value, true);
+      }
+      if (editSubCategorySelect) editSubCategorySelect.style.display = '';
+    } else {
+      if (mainCategorySelect) mainCategorySelect.style.display = 'none';
+      if (subCategorySelect) subCategorySelect.style.display = 'none';
+      if (categorySelect) categorySelect.style.display = '';
+      
+      // Edit modal single select
+      const editCascadeWrapper = document.getElementById('edit-category-cascade-wrapper');
+      if (editCascadeWrapper) editCascadeWrapper.style.display = 'none';
+      if (editCategorySelect) editCategorySelect.style.display = '';
+      if (editMainCategorySelect) editMainCategorySelect.style.display = 'none';
+      if (editSubCategorySelect) editSubCategorySelect.style.display = 'none';
+    }
   }
 
   window.updateCategorySelectsForMode = updateCategorySelectsForMode;
@@ -634,80 +709,371 @@
       return (b.id || 0) - (a.id || 0);
     });
 
-    // Group by date
-    const groups = {};
-    const order = [];
-    for (const tx of sorted) {
-      const key = tx.date;
-      if (!groups[key]) { groups[key] = []; order.push(key); }
-      groups[key].push(tx);
-    }
+    const isFundraising = currentMode === 'fundraising';
+    const scope = isFundraising ? getFundraisingTargetScope() : 'personal';
 
     let html = '';
-    for (const key of order) {
-      const txs = groups[key];
-      let dayIncome = 0, dayExpense = 0;
-      for (const t of txs) {
-        const amt = Number.isFinite(t.amount) ? t.amount : 0;
-        if (t.type === 'income') dayIncome += amt;
-        else if (t.type === 'expense') dayExpense += amt;
-      }
-      const dayNet = dayIncome - dayExpense;
-      const dateStr = formatDateToUZ(key) || formatDateToUZ(new Date().toISOString().split('T')[0]);
-      const netColor = dayNet >= 0 ? 'text-emerald-400' : 'text-rose-400';
-      const netSign = dayNet >= 0 ? '+' : '';
-      const netLabel = t('dailyNet');
 
-      html += `<div class="mb-4">
-        <div class="flex items-center justify-between bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-2 mb-2">
-          <span class="text-sm font-semibold text-slate-200">📅 ${dateStr}</span>
-          <span class="text-xs font-medium ${netColor}">${netLabel}: ${netSign}${Math.abs(dayNet).toLocaleString('uz-UZ')} so'm</span>
-        </div>
-        <ul class="space-y-2">`;
+    if (isFundraising) {
+      // Fundraising mode: hierarchical grouping based on scope
+      if (scope === 'hammasi') {
+        // 3-tier hierarchy: Main Type -> Sub-Category -> Date
+        const mainGroups = {};
+        const mainOrder = [];
+        
+        for (const tx of sorted) {
+          const mainCategory = tx.category?.main || 'personal';
+          if (!mainGroups[mainCategory]) {
+            mainGroups[mainCategory] = {};
+            mainOrder.push(mainCategory);
+          }
+          
+          const subCategory = tx.category?.sub || tx.category || 'Boshqa';
+          if (!mainGroups[mainCategory][subCategory]) {
+            mainGroups[mainCategory][subCategory] = {};
+          }
+          
+          const dateKey = tx.date;
+          if (!mainGroups[mainCategory][subCategory][dateKey]) {
+            mainGroups[mainCategory][subCategory][dateKey] = [];
+          }
+          mainGroups[mainCategory][subCategory][dateKey].push(tx);
+        }
 
-      for (const tx of txs) {
-        const isIncome = tx.type === 'income';
-        const amountSign = isIncome ? '+' : '-';
-        const amountColor = isIncome ? 'text-emerald-400' : 'text-rose-400';
-        const amountFormatted = parseFloat(tx.amount || 0).toLocaleString('uz-UZ');
-        const descriptionText = (tx.description && tx.description.trim() !== '') ? tx.description : 'Izoh kiritilmagan';
-        const dateFormatted = formatDateToUZ(tx.date) || formatDateToUZ(new Date().toISOString().split('T')[0]);
-
-        html += `
-          <li class="bg-slate-900/50 border border-slate-700/50 rounded-xl p-3 sm:p-4 flex flex-col gap-3 shadow-md">
-            <div class="flex items-center justify-between border-b border-slate-700/50 pb-2.5">
-              <span class="text-base sm:text-lg font-bold ${amountColor}">
-                ${amountSign}${amountFormatted} so'm
-              </span>
-              <div class="flex items-center gap-1.5">
-                <button onclick="editTransaction(${tx.id})" class="text-slate-400 hover:text-emerald-400 text-sm p-1 transition-colors" title="Tahrirlash">✏️</button>
-                <button onclick="deleteTransaction(${tx.id})" class="text-slate-400 hover:text-rose-400 text-sm p-1 transition-colors" title="O'chirish">🗑️</button>
-              </div>
+        const mainLabels = { 'oila': 'OILA', 'guruh': 'GURUH', 'personal': 'SHAXSIY' };
+        
+        for (const mainCategory of mainOrder) {
+          const subGroups = mainGroups[mainCategory];
+          const mainLabel = mainLabels[mainCategory] || mainCategory.toUpperCase();
+          
+          html += `<div class="mb-4">
+            <div class="bg-slate-800/80 border border-emerald-500/30 rounded-xl px-4 py-3 mb-3">
+              <span class="text-base font-bold text-emerald-400 uppercase tracking-wider">${mainLabel}</span>
+            </div>`;
+          
+          const subLabels = {
+            'Dada': '👨 Dada', 'Ona': '👩 Ona', 'Aka': '👨 Aka', 'Uka': '👦 Uka',
+            'Opa': '👩 Opa', 'Singil': '👧 Singil', 'Boshqa': '❓ Boshqa',
+            'Erkak': '👨 Erkak', 'Ayol': '👩 Ayol',
+            'Shaxsiy': '👤 Shaxsiy'
+          };
+          
+          for (const subCategory of Object.keys(subGroups)) {
+            const dateGroups = subGroups[subCategory];
+            const subLabel = subLabels[subCategory] || subCategory;
+            
+            html += `<div class="ml-4 mb-3 border-l-2 border-slate-700/50 pl-3">
+              <div class="text-sm font-semibold text-slate-300 mb-2">${subLabel}</div>`;
+            
+            for (const dateKey of Object.keys(dateGroups).sort().reverse()) {
+              const txs = dateGroups[dateKey];
+              let dayIncome = 0, dayExpense = 0;
+              for (const t of txs) {
+                const amt = Number.isFinite(t.amount) ? t.amount : 0;
+                if (t.type === 'income') dayIncome += amt;
+                else if (t.type === 'expense') dayExpense += amt;
+              }
+              const dayNet = dayIncome - dayExpense;
+              const dateStr = formatDateToUZ(dateKey) || formatDateToUZ(new Date().toISOString().split('T')[0]);
+              const netColor = dayNet >= 0 ? 'text-emerald-400' : 'text-rose-400';
+              const netSign = dayNet >= 0 ? '+' : '';
+              
+              html += `<div class="ml-2 mb-2">
+                <div class="flex items-center justify-between bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-2 mb-2">
+                  <span class="text-sm font-semibold text-slate-200">📅 ${dateStr}</span>
+                  <span class="text-xs font-medium ${netColor}">Kunlik: ${netSign}${Math.abs(dayNet).toLocaleString('uz-UZ')} so'm</span>
+                </div>
+                <ul class="space-y-2 ml-2">`;
+              
+              for (const tx of txs) {
+                const isIncome = tx.type === 'income';
+                const amountSign = isIncome ? '+' : '-';
+                const amountColor = isIncome ? 'text-emerald-400' : 'text-rose-400';
+                const amountFormatted = parseFloat(tx.amount || 0).toLocaleString('uz-UZ');
+                const descriptionText = (tx.description && tx.description.trim() !== '') ? tx.description : 'Izoh kiritilmagan';
+                const dateFormatted = formatDateToUZ(tx.date) || formatDateToUZ(new Date().toISOString().split('T')[0]);
+                
+                html += `
+                  <li class="bg-slate-900/50 border border-slate-700/50 rounded-xl p-3 sm:p-4 flex flex-col gap-3 shadow-md">
+                    <div class="flex items-center justify-between border-b border-slate-700/50 pb-2.5">
+                      <span class="text-base sm:text-lg font-bold ${amountColor}">
+                        ${amountSign}${amountFormatted} so'm
+                      </span>
+                      <div class="flex items-center gap-1.5">
+                        <button onclick="editTransaction(${tx.id})" class="text-slate-400 hover:text-emerald-400 text-sm p-1 transition-colors" title="Tahrirlash">✏️</button>
+                        <button onclick="deleteTransaction(${tx.id})" class="text-slate-400 hover:text-rose-400 text-sm p-1 transition-colors" title="O'chirish">🗑️</button>
+                      </div>
+                    </div>
+                    <div class="flex flex-col gap-2 text-xs sm:text-sm">
+                      <div class="flex items-center justify-between">
+                        <span class="text-slate-400 font-medium">Turi:</span>
+                        <span class="bg-slate-800 text-slate-200 px-2 py-0.5 rounded-md font-semibold text-xs border border-slate-700/60">
+                          ${tx.type === 'income' ? 'Kirim' : 'Chiqim'}
+                        </span>
+                      </div>
+                      <div class="flex items-start justify-between gap-2">
+                        <span class="text-slate-400 font-medium shrink-0">Tavsif:</span>
+                        <span class="text-slate-200 text-right font-normal break-words">
+                          ${descriptionText}
+                        </span>
+                      </div>
+                    </div>
+                  </li>`;
+              }
+              
+              html += `</ul></div>`;
+            }
+            
+            html += `</div>`;
+          }
+          
+          html += `</div>`;
+        }
+      } else if (scope === 'personal') {
+        // Single scope: Group by Date only (since category is always 'Umumiy')
+        const groups = {};
+        const order = [];
+        for (const tx of sorted) {
+          const key = tx.date;
+          if (!groups[key]) { groups[key] = []; order.push(key); }
+          groups[key].push(tx);
+        }
+        
+        for (const key of order) {
+          const txs = groups[key];
+          let dayIncome = 0, dayExpense = 0;
+          for (const t of txs) {
+            const amt = Number.isFinite(t.amount) ? t.amount : 0;
+            if (t.type === 'income') dayIncome += amt;
+            else if (t.type === 'expense') dayExpense += amt;
+          }
+          const dayNet = dayIncome - dayExpense;
+          const dateStr = formatDateToUZ(key) || formatDateToUZ(new Date().toISOString().split('T')[0]);
+          const netColor = dayNet >= 0 ? 'text-emerald-400' : 'text-rose-400';
+          const netSign = dayNet >= 0 ? '+' : '';
+          
+          html += `<div class="mb-4">
+            <div class="flex items-center justify-between bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-2 mb-2">
+              <span class="text-sm font-semibold text-slate-200">📅 ${dateStr}</span>
+              <span class="text-xs font-medium ${netColor}">Kunlik: ${netSign}${Math.abs(dayNet).toLocaleString('uz-UZ')} so'm</span>
             </div>
-            <div class="flex flex-col gap-2 text-xs sm:text-sm">
-              <div class="flex items-center justify-between">
-                <span class="text-slate-400 font-medium">Kategoriya:</span>
-                <span class="bg-slate-800 text-slate-200 px-2 py-0.5 rounded-md font-semibold text-xs border border-slate-700/60">
-                  ${tx.category}
-                </span>
+            <ul class="space-y-2">`;
+          
+          for (const tx of txs) {
+            const isIncome = tx.type === 'income';
+            const amountSign = isIncome ? '+' : '-';
+            const amountColor = isIncome ? 'text-emerald-400' : 'text-rose-400';
+            const amountFormatted = parseFloat(tx.amount || 0).toLocaleString('uz-UZ');
+            const descriptionText = (tx.description && tx.description.trim() !== '') ? tx.description : 'Izoh kiritilmagan';
+            const dateFormatted = formatDateToUZ(tx.date) || formatDateToUZ(new Date().toISOString().split('T')[0]);
+            
+            html += `
+              <li class="bg-slate-900/50 border border-slate-700/50 rounded-xl p-3 sm:p-4 flex flex-col gap-3 shadow-md">
+                <div class="flex items-center justify-between border-b border-slate-700/50 pb-2.5">
+                  <span class="text-base sm:text-lg font-bold ${amountColor}">
+                    ${amountSign}${amountFormatted} so'm
+                  </span>
+                  <div class="flex items-center gap-1.5">
+                    <button onclick="editTransaction(${tx.id})" class="text-slate-400 hover:text-emerald-400 text-sm p-1 transition-colors" title="Tahrirlash">✏️</button>
+                    <button onclick="deleteTransaction(${tx.id})" class="text-slate-400 hover:text-rose-400 text-sm p-1 transition-colors" title="O'chirish">🗑️</button>
+                  </div>
+                </div>
+                <div class="flex flex-col gap-2 text-xs sm:text-sm">
+                  <div class="flex items-center justify-between">
+                    <span class="text-slate-400 font-medium">Turi:</span>
+                    <span class="bg-slate-800 text-slate-200 px-2 py-0.5 rounded-md font-semibold text-xs border border-slate-700/60">
+                      ${tx.type === 'income' ? 'Kirim' : 'Chiqim'}
+                    </span>
+                  </div>
+                  <div class="flex items-start justify-between gap-2">
+                    <span class="text-slate-400 font-medium shrink-0">Tavsif:</span>
+                    <span class="text-slate-200 text-right font-normal break-words">
+                      ${descriptionText}
+                    </span>
+                  </div>
+                  <div class="flex items-center justify-between pt-0.5">
+                    <span class="text-slate-400 font-medium">Sana:</span>
+                    <span class="text-slate-300 font-mono text-xs">
+                      📅 ${dateFormatted}
+                    </span>
+                  </div>
+                </div>
+              </li>`;
+          }
+          
+          html += `</ul></div>`;
+        }
+      } else {
+        // oila or guruh scope: Group 1: Category/Member, Group 2: Date
+        const categoryGroups = {};
+        const categoryOrder = [];
+        
+        for (const tx of sorted) {
+          const cat = tx.category?.sub || tx.category || 'Boshqa';
+          if (!categoryGroups[cat]) {
+            categoryGroups[cat] = {};
+            categoryOrder.push(cat);
+          }
+          
+          const dateKey = tx.date;
+          if (!categoryGroups[cat][dateKey]) {
+            categoryGroups[cat][dateKey] = [];
+          }
+          categoryGroups[cat][dateKey].push(tx);
+        }
+        
+        const subLabels = {
+          'Dada': '👨 Dada', 'Ona': '👩 Ona', 'Aka': '👨 Aka', 'Uka': '👦 Uka',
+          'Opa': '👩 Opa', 'Singil': '👧 Singil', 'Boshqa': '❓ Boshqa',
+          'Erkak': '👨 Erkak', 'Ayol': '👩 Ayol'
+        };
+        
+        for (const cat of categoryOrder) {
+          const dateGroups = categoryGroups[cat];
+          const catLabel = subLabels[cat] || cat;
+          
+          html += `<div class="mb-4">
+            <div class="bg-slate-800/80 border border-amber-500/30 rounded-xl px-4 py-3 mb-3">
+              <span class="text-base font-bold text-amber-400">${catLabel}</span>
+            </div>`;
+          
+          for (const dateKey of Object.keys(dateGroups).sort().reverse()) {
+            const txs = dateGroups[dateKey];
+            let dayIncome = 0, dayExpense = 0;
+            for (const t of txs) {
+              const amt = Number.isFinite(t.amount) ? t.amount : 0;
+              if (t.type === 'income') dayIncome += amt;
+              else if (t.type === 'expense') dayExpense += amt;
+            }
+            const dayNet = dayIncome - dayExpense;
+            const dateStr = formatDateToUZ(dateKey) || formatDateToUZ(new Date().toISOString().split('T')[0]);
+            const netColor = dayNet >= 0 ? 'text-emerald-400' : 'text-rose-400';
+            const netSign = dayNet >= 0 ? '+' : '';
+            
+            html += `<div class="ml-4 mb-3 border-l-2 border-slate-700/50 pl-3">
+              <div class="flex items-center justify-between bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-2 mb-2">
+                <span class="text-sm font-semibold text-slate-200">📅 ${dateStr}</span>
+                <span class="text-xs font-medium ${netColor}">Kunlik: ${netSign}${Math.abs(dayNet).toLocaleString('uz-UZ')} so'm</span>
               </div>
-              <div class="flex items-start justify-between gap-2">
-                <span class="text-slate-400 font-medium shrink-0">Tavsif:</span>
-                <span class="text-slate-200 text-right font-normal break-words">
-                  ${descriptionText}
-                </span>
-              </div>
-              <div class="flex items-center justify-between pt-0.5">
-                <span class="text-slate-400 font-medium">Sana:</span>
-                <span class="text-slate-300 font-mono text-xs">
-                  📅 ${dateFormatted}
-                </span>
-              </div>
-            </div>
-          </li>`;
+              <ul class="space-y-2 ml-2">`;
+            
+            for (const tx of txs) {
+              const isIncome = tx.type === 'income';
+              const amountSign = isIncome ? '+' : '-';
+              const amountColor = isIncome ? 'text-emerald-400' : 'text-rose-400';
+              const amountFormatted = parseFloat(tx.amount || 0).toLocaleString('uz-UZ');
+              const descriptionText = (tx.description && tx.description.trim() !== '') ? tx.description : 'Izoh kiritilmagan';
+              const dateFormatted = formatDateToUZ(tx.date) || formatDateToUZ(new Date().toISOString().split('T')[0]);
+              
+              html += `
+                <li class="bg-slate-900/50 border border-slate-700/50 rounded-xl p-3 sm:p-4 flex flex-col gap-3 shadow-md">
+                  <div class="flex items-center justify-between border-b border-slate-700/50 pb-2.5">
+                    <span class="text-base sm:text-lg font-bold ${amountColor}">
+                      ${amountSign}${amountFormatted} so'm
+                    </span>
+                    <div class="flex items-center gap-1.5">
+                      <button onclick="editTransaction(${tx.id})" class="text-slate-400 hover:text-emerald-400 text-sm p-1 transition-colors" title="Tahrirlash">✏️</button>
+                      <button onclick="deleteTransaction(${tx.id})" class="text-slate-400 hover:text-rose-400 text-sm p-1 transition-colors" title="O'chirish">🗑️</button>
+                    </div>
+                  </div>
+                  <div class="flex flex-col gap-2 text-xs sm:text-sm">
+                    <div class="flex items-center justify-between">
+                      <span class="text-slate-400 font-medium">Turi:</span>
+                      <span class="bg-slate-800 text-slate-200 px-2 py-0.5 rounded-md font-semibold text-xs border border-slate-700/60">
+                        ${tx.type === 'income' ? 'Kirim' : 'Chiqim'}
+                      </span>
+                    </div>
+                    <div class="flex items-start justify-between gap-2">
+                      <span class="text-slate-400 font-medium shrink-0">Tavsif:</span>
+                      <span class="text-slate-200 text-right font-normal break-words">
+                        ${descriptionText}
+                      </span>
+                    </div>
+                  </div>
+                </li>`;
+            }
+            
+            html += `</ul></div>`;
+          }
+          
+          html += `</div>`;
+        }
       }
-
-      html += `</ul></div>`;
+    } else {
+      // Personal/Smart wallet mode: Original grouping by date
+      const groups = {};
+      const order = [];
+      for (const tx of sorted) {
+        const key = tx.date;
+        if (!groups[key]) { groups[key] = []; order.push(key); }
+        groups[key].push(tx);
+      }
+      
+      for (const key of order) {
+        const txs = groups[key];
+        let dayIncome = 0, dayExpense = 0;
+        for (const t of txs) {
+          const amt = Number.isFinite(t.amount) ? t.amount : 0;
+          if (t.type === 'income') dayIncome += amt;
+          else if (t.type === 'expense') dayExpense += amt;
+        }
+        const dayNet = dayIncome - dayExpense;
+        const dateStr = formatDateToUZ(key) || formatDateToUZ(new Date().toISOString().split('T')[0]);
+        const netColor = dayNet >= 0 ? 'text-emerald-400' : 'text-rose-400';
+        const netSign = dayNet >= 0 ? '+' : '';
+        const netLabel = t('dailyNet');
+        
+        html += `<div class="mb-4">
+          <div class="flex items-center justify-between bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-2 mb-2">
+            <span class="text-sm font-semibold text-slate-200">📅 ${dateStr}</span>
+            <span class="text-xs font-medium ${netColor}">${netLabel}: ${netSign}${Math.abs(dayNet).toLocaleString('uz-UZ')} so'm</span>
+          </div>
+          <ul class="space-y-2">`;
+        
+        for (const tx of txs) {
+          const isIncome = tx.type === 'income';
+          const amountSign = isIncome ? '+' : '-';
+          const amountColor = isIncome ? 'text-emerald-400' : 'text-rose-400';
+          const amountFormatted = parseFloat(tx.amount || 0).toLocaleString('uz-UZ');
+          const descriptionText = (tx.description && tx.description.trim() !== '') ? tx.description : 'Izoh kiritilmagan';
+          const dateFormatted = formatDateToUZ(tx.date) || formatDateToUZ(new Date().toISOString().split('T')[0]);
+          
+          html += `
+            <li class="bg-slate-900/50 border border-slate-700/50 rounded-xl p-3 sm:p-4 flex flex-col gap-3 shadow-md">
+              <div class="flex items-center justify-between border-b border-slate-700/50 pb-2.5">
+                <span class="text-base sm:text-lg font-bold ${amountColor}">
+                  ${amountSign}${amountFormatted} so'm
+                </span>
+                <div class="flex items-center gap-1.5">
+                  <button onclick="editTransaction(${tx.id})" class="text-slate-400 hover:text-emerald-400 text-sm p-1 transition-colors" title="Tahrirlash">✏️</button>
+                  <button onclick="deleteTransaction(${tx.id})" class="text-slate-400 hover:text-rose-400 text-sm p-1 transition-colors" title="O'chirish">🗑️</button>
+                </div>
+              </div>
+              <div class="flex flex-col gap-2 text-xs sm:text-sm">
+                <div class="flex items-center justify-between">
+                  <span class="text-slate-400 font-medium">Kategoriya:</span>
+                  <span class="bg-slate-800 text-slate-200 px-2 py-0.5 rounded-md font-semibold text-xs border border-slate-700/60">
+                    ${tx.category}
+                  </span>
+                </div>
+                <div class="flex items-start justify-between gap-2">
+                  <span class="text-slate-400 font-medium shrink-0">Tavsif:</span>
+                  <span class="text-slate-200 text-right font-normal break-words">
+                    ${descriptionText}
+                  </span>
+                </div>
+                <div class="flex items-center justify-between pt-0.5">
+                  <span class="text-slate-400 font-medium">Sana:</span>
+                  <span class="text-slate-300 font-mono text-xs">
+                    📅 ${dateFormatted}
+                  </span>
+                </div>
+              </div>
+            </li>`;
+        }
+        
+        html += `</ul></div>`;
+      }
     }
 
     container.innerHTML = html;
@@ -837,9 +1203,29 @@ function renderArchivedPeriods() {
     const description = document.getElementById('note').value.trim();
     if (isNaN(amount) || amount <= 0) return alert("Iltimos, to'g'ri summa kiriting!");
     
-    // In fundraising mode with personal type, force category to 'Umumiy'
-    if (currentMode === 'fundraising' && getFundraisingTargetType() === 'personal') {
-      category = 'Umumiy';
+    const isFundraising = currentMode === 'fundraising';
+    if (isFundraising) {
+      const scope = getFundraisingTargetScope();
+      if (scope === 'personal') {
+        category = 'Umumiy';
+      } else if (scope === 'hammasi') {
+        // For hammasi scope, get category from cascade selects
+        const mainCategorySelect = document.getElementById('category-main');
+        const subCategorySelect = document.getElementById('category-sub');
+        const mainCategory = mainCategorySelect ? mainCategorySelect.value : 'personal';
+        
+        if (mainCategory === 'personal') {
+          category = { main: 'personal', sub: 'Shaxsiy' };
+        } else {
+          category = { main: mainCategory, sub: subCategorySelect ? subCategorySelect.value : 'Boshqa' };
+        }
+      } else if (scope === 'oila') {
+        // Category is already selected from OILA_SUB_CATEGORIES
+        category = { main: 'oila', sub: category };
+      } else if (scope === 'guruh') {
+        // Category is already selected from GROUP_CATEGORIES
+        category = { main: 'guruh', sub: category };
+      }
     }
     
     const newTx = { id: Date.now(), amount, type, category, date, description };
@@ -870,7 +1256,31 @@ function renderArchivedPeriods() {
     editIdInput.value = t.id;
     editAmountInput.value = t.amount;
     editTypeSelect.value = t.type;
-    editCategorySelect.value = t.category;
+    
+    const isFundraising = currentMode === 'fundraising';
+    if (isFundraising) {
+      const scope = getFundraisingTargetScope();
+      if (scope === 'hammasi') {
+        // Handle cascade categories
+        const mainCategory = t.category?.main || 'personal';
+        const subCategory = t.category?.sub || t.category || 'Shaxsiy';
+        const mainSelect = document.getElementById('edit-category-main');
+        const subSelect = document.getElementById('edit-category-sub');
+        if (mainSelect) mainSelect.value = mainCategory;
+        if (subSelect) populateSubCategorySelect(subSelect, mainCategory, true), subSelect.value = subCategory;
+        if (document.getElementById('edit-category-cascade-wrapper')) document.getElementById('edit-category-cascade-wrapper').style.display = '';
+        if (document.getElementById('edit-category')) document.getElementById('edit-category').style.display = 'none';
+      } else {
+        // Single category select - show sub-category as category
+        const subCategory = t.category?.sub || t.category || '';
+        editCategorySelect.value = subCategory;
+        if (document.getElementById('edit-category-cascade-wrapper')) document.getElementById('edit-category-cascade-wrapper').style.display = 'none';
+        if (document.getElementById('edit-category')) document.getElementById('edit-category').style.display = '';
+      }
+    } else {
+      editCategorySelect.value = t.category || '';
+    }
+    
     editDateInput.value = t.date;
     editNoteInput.value = t.description || '';
     editModal.classList.remove('hidden');
@@ -888,9 +1298,32 @@ function renderArchivedPeriods() {
     const id = Number(editIdInput.value);
     const amount = parseFloat(editAmountInput.value);
     if (isNaN(amount) || amount <= 0) return alert("Iltimos, to'g'ri summa kiriting!");
+    
+    let category = editCategorySelect.value;
+    const isFundraising = currentMode === 'fundraising';
+    if (isFundraising) {
+      const scope = getFundraisingTargetScope();
+      if (scope === 'hammasi') {
+        const mainCategorySelect = document.getElementById('edit-category-main');
+        const subCategorySelect = document.getElementById('edit-category-sub');
+        const mainCategory = mainCategorySelect ? mainCategorySelect.value : 'personal';
+        
+        if (mainCategory === 'personal') {
+          category = { main: 'personal', sub: 'Shaxsiy' };
+        } else {
+          category = { main: mainCategory, sub: subCategorySelect ? subCategorySelect.value : 'Boshqa' };
+        }
+      } else if (scope === 'oila' || scope === 'guruh') {
+        // For oila and guruh scopes, the category is the sub-category
+        category = { main: scope, sub: editCategorySelect.value };
+      } else if (scope === 'personal') {
+        category = { main: 'personal', sub: 'Umumiy' };
+      }
+    }
+    
     const transactions = getTransactions().map((t) => {
       if (t.id !== id) return t;
-      return { ...t, amount, type: editTypeSelect.value, category: editCategorySelect.value, date: editDateInput.value, description: editNoteInput.value.trim() };
+      return { ...t, amount, type: editTypeSelect.value, category, date: editDateInput.value, description: editNoteInput.value.trim() };
     });
     setTransactions(transactions);
     closeEditModal();
@@ -962,31 +1395,70 @@ function renderArchivedPeriods() {
 
   if (onboardingModal) onboardingModal.addEventListener('click', (e) => { if (e.target === onboardingModal && localStorage.getItem('starting_balance')) { onboardingModal.classList.add('hidden'); onboardingModal.classList.remove('flex'); } });
 
-  // ==================== EDIT STARTING BALANCE (Desktop & Mobile) ====================
+// ==================== EDIT STARTING BALANCE / TARGET (Desktop & Mobile) ====================
   function openEditBalanceModal() {
-    const modal = document.getElementById('onboarding-modal');
-    const amountInput = document.getElementById('onboarding-input');
-    const modalTitle = document.getElementById('onboarding-modal-title');
+    const isFundraising = currentMode === 'fundraising';
+    
+    if (isFundraising) {
+      // Use edit-balance-modal for fundraising with scope selector
+      const modal = document.getElementById('edit-balance-modal');
+      const amountInput = document.getElementById('edit-balance-input');
+      const scopeSelect = document.getElementById('edit-balance-scope');
+      const modalTitle = document.getElementById('edit-balance-modal-title');
+      
+      if (!modal || !amountInput) return;
+      
+      const currentTarget = getFundraisingTargetAmount() || getFundraisingTarget();
+      const currentScope = getFundraisingTargetScope();
+      
+      // Pre-fill input with the current saved target
+      amountInput.value = currentTarget.toString();
+      amountInput.dispatchEvent(new Event('input', { bubbles: true }));
+      
+      // Set scope
+      if (scopeSelect) scopeSelect.value = currentScope;
+      
+      // Update modal title
+      if (modalTitle) {
+        modalTitle.textContent = "Maqsadni tahrirlash";
+      }
+      
+      // Update the label for the amount input
+      const amountLabel = modal.querySelector('label[for="edit-balance-input"]');
+      if (amountLabel) {
+        amountLabel.textContent = "Yig'ilishi kerak bo'lgan summa ($)";
+      }
+      
+      // Show the modal
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      amountInput.focus();
+    } else {
+      // Use onboarding-modal for personal budget
+      const modal = document.getElementById('onboarding-modal');
+      const amountInput = document.getElementById('onboarding-input');
+      const modalTitle = document.getElementById('onboarding-modal-title');
 
-    if (!modal || !amountInput) return;
+      if (!modal || !amountInput) return;
 
-    const currentBalance = localStorage.getItem('starting_balance') || '0';
+      const currentBalance = localStorage.getItem('starting_balance') || '0';
 
-    // Pre-fill input with the current saved balance
-    amountInput.value = currentBalance;
+      // Pre-fill input with the current saved balance
+      amountInput.value = currentBalance;
 
-    // Trigger the live preview so it displays immediately (e.g. 👉 5 000 000 so'm)
-    amountInput.dispatchEvent(new Event('input', { bubbles: true }));
+      // Trigger the live preview so it displays immediately (e.g. 👉 5 000 000 so'm)
+      amountInput.dispatchEvent(new Event('input', { bubbles: true }));
 
-    // Update the modal title to reflect editing mode
-    if (modalTitle) {
-      modalTitle.textContent = "Boshlang'ich pulni tahrirlash";
+      // Update the modal title to reflect editing mode
+      if (modalTitle) {
+        modalTitle.textContent = "Boshlang'ich pulni tahrirlash";
+      }
+
+      // Show the modal
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      amountInput.focus();
     }
-
-    // Show the modal
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-    amountInput.focus();
   }
   window.openEditBalanceModal = openEditBalanceModal;
 
@@ -996,6 +1468,85 @@ function renderArchivedPeriods() {
     const el = document.getElementById(id);
     if (el) el.addEventListener('click', openEditBalanceModal);
   });
+
+  // Edit balance / target submit handler
+  const editBalanceModal = document.getElementById('edit-balance-modal');
+  const editBalanceSubmitBtn = document.getElementById('edit-balance-submit-btn');
+  const cancelEditBalance = document.getElementById('cancel-edit-balance');
+  
+  if (editBalanceSubmitBtn) {
+    editBalanceSubmitBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      const amountInput = document.getElementById('edit-balance-input');
+      const scopeSelect = document.getElementById('edit-balance-scope');
+      
+      if (!amountInput) return;
+      
+      const target = parseFloat(amountInput.value) || 0;
+      const scope = scopeSelect ? scopeSelect.value : 'hammasi';
+      
+      if (target <= 0) {
+        alert("Iltimos, to'g'ri summa kiriting!");
+        return;
+      }
+      
+      const isFundraising = currentMode === 'fundraising';
+      
+      if (isFundraising) {
+        // Save to mode-isolated localStorage
+        setFundraisingTarget(target);
+        setFundraisingTargetAmount(target);
+        setFundraisingTargetScope(scope);
+        
+        // Immediately update header and card target elements
+        updateFundraisingCards();
+        updateStartingBalanceBanner();
+      } else {
+        // Personal mode - update starting balance
+        startingBalance = target;
+        localStorage.setItem('starting_balance', target.toString());
+        if (startingBalanceAmount) startingBalanceAmount.textContent = formatCurrency(target);
+        if (balanceDisplay) {
+          const { currentBalance } = calculateTotals();
+          balanceDisplay.textContent = formatCurrency(currentBalance);
+        }
+      }
+      
+      // Hide modal
+      if (editBalanceModal) {
+        editBalanceModal.classList.add('hidden');
+        editBalanceModal.classList.remove('flex');
+      }
+      
+      // Clear form
+      if (amountInput) amountInput.value = '';
+      if (scopeSelect) scopeSelect.value = 'hammasi';
+      
+      // Update category dropdowns for the new scope
+      updateCategorySelectsForMode();
+      
+      // Re-render UI
+      updateDashboard();
+    });
+  }
+  
+  if (cancelEditBalance) {
+    cancelEditBalance.addEventListener('click', () => {
+      if (editBalanceModal) {
+        editBalanceModal.classList.add('hidden');
+        editBalanceModal.classList.remove('flex');
+      }
+    });
+  }
+  
+  if (editBalanceModal) {
+    editBalanceModal.addEventListener('click', (e) => {
+      if (e.target === editBalanceModal) {
+        editBalanceModal.classList.add('hidden');
+        editBalanceModal.classList.remove('flex');
+      }
+    });
+  }
 
   // ==================== ARCHIVE & RESET ====================
   if (resetArchiveBtn) resetArchiveBtn.addEventListener('click', () => {
@@ -1160,7 +1711,7 @@ function renderArchivedPeriods() {
   }
   function exportBackup() {
     const data = {
-      version: '1.2.1',
+      version: '7.5.0',
       exportedAt: new Date().toISOString(),
       startingBalance: localStorage.getItem('starting_balance'),
       transactions: getTransactionsSafe(),
@@ -1539,7 +2090,7 @@ function renderArchivedPeriods() {
       }
     });
 
-    navigator.serviceWorker.register('sw.js?v=1.2.1').then((registration) => {
+    navigator.serviceWorker.register('sw.js?v=7.5.0').then((registration) => {
       // Force an immediate update check on every page load
       registration.update();
 
