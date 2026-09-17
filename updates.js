@@ -3,6 +3,19 @@
 
   window.APP_UPDATES = [
     {
+      version: "v6.5.0",
+      date: "17.09.2026",
+      title: "Category State Leakage Fix & Dynamic Dropdowns",
+      changes: [
+        "Kategoriya state leakage to'g'rilandi: Fundraising va Personal rejimlar o'rtasida kategoriya o'tishi oldini olindi",
+        "updateCategoryDropdown() funksiyasi qo'shildi: rejim o'zgarganda va target turi o'zgarganda avtomatik chaqiriladi",
+        "Fundraising 'Shaxsiy' turida kategoriya avtomatik 'Umumiy' ga o'rnatiladi va disabled qilinadi",
+        "Personal Byudjet kategoriyalari yangilandi: Oziq-ovqat, Transport, Kommunal, Ko'ngilochar, Boshqa",
+        "Til resurslariga entertainment kaliti qo'shildi (UZ: Ko'ngilochar, RU: Развлечения, EN: Entertainment)",
+        "Script versiyalari v=6.5.0 ga oshirildi"
+      ]
+    },
+    {
       version: "v6.4.0",
       date: "17.09.2026",
       title: "Top Bar Format Fix & Dynamic Category Types",

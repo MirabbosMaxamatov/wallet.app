@@ -192,27 +192,30 @@
 
   // ==================== DYNAMIC CATEGORY LOGIC (Fundraising) ====================
   const PERSONAL_CATEGORIES = [
-    { value: 'Food', label: t('food') || 'Oziq-ovqat' },
+    { value: 'Oziq-ovqat', label: t('food') || 'Oziq-ovqat' },
     { value: 'Transport', label: t('transport') || 'Transport' },
-    { value: 'Salary', label: t('salary') || 'Maosh' },
-    { value: 'Shopping', label: t('shopping') || 'Xarid' },
-    { value: 'Utilities', label: t('utilities') || 'Kommunal' },
-    { value: 'Other', label: t('other') || 'Boshqa' }
+    { value: 'Kommunal', label: t('utilities') || 'Kommunal' },
+    { value: "Ko'ngilochar", label: t('entertainment') || "Ko'ngilochar" },
+    { value: 'Boshqa', label: t('other') || 'Boshqa' }
   ];
 
   const FAMILY_CATEGORIES = [
-    { value: 'father', label: t('father') || 'Ota' },
-    { value: 'mother', label: t('mother') || 'Ona' },
-    { value: 'olderBrother', label: t('olderBrother') || 'Aka' },
-    { value: 'youngerBrother', label: t('youngerBrother') || 'Uka' },
-    { value: 'olderSister', label: t('olderSister') || 'Opa' },
-    { value: 'youngerSister', label: t('youngerSister') || 'Singil' },
-    { value: 'other', label: t('other') || 'Boshqa' }
+    { value: 'Ota', label: t('father') || 'Ota' },
+    { value: 'Ona', label: t('mother') || 'Ona' },
+    { value: 'Aka', label: t('olderBrother') || 'Aka' },
+    { value: 'Uka', label: t('youngerBrother') || 'Uka' },
+    { value: 'Opa', label: t('olderSister') || 'Opa' },
+    { value: 'Singil', label: t('youngerSister') || 'Singil' },
+    { value: 'Boshqa', label: t('other') || 'Boshqa' }
   ];
 
   const GROUP_CATEGORIES = [
-    { value: 'male', label: t('male') || 'Erkak' },
-    { value: 'female', label: t('female') || 'Ayol' }
+    { value: 'Erkak', label: t('male') || 'Erkak' },
+    { value: 'Ayol', label: t('female') || 'Ayol' }
+  ];
+
+  const FUNDRAISING_PERSONAL_CATEGORIES = [
+    { value: 'Umumiy', label: 'Umumiy' }
   ];
 
   function getCategoriesForTargetGroup(groupType) {
@@ -224,9 +227,18 @@
     }
   }
 
-  function populateCategorySelect(selectElement, groupType) {
+  function getFundraisingCategoriesForTargetGroup(groupType) {
+    switch (groupType) {
+      case 'family': return FAMILY_CATEGORIES;
+      case 'group': return GROUP_CATEGORIES;
+      case 'personal':
+      default: return FUNDRAISING_PERSONAL_CATEGORIES;
+    }
+  }
+
+  function populateCategorySelect(selectElement, groupType, isFundraising = false) {
     if (!selectElement) return;
-    const categories = getCategoriesForTargetGroup(groupType);
+    const categories = isFundraising ? getFundraisingCategoriesForTargetGroup(groupType) : getCategoriesForTargetGroup(groupType);
     const currentValue = selectElement.value;
     selectElement.innerHTML = '';
     categories.forEach(cat => {
@@ -241,6 +253,8 @@
     } else if (categories.length > 0) {
       selectElement.value = categories[0].value;
     }
+    // Disable for fundraising personal type
+    selectElement.disabled = isFundraising && groupType === 'personal';
   }
 
   function updateCategorySelectsForMode() {
@@ -249,11 +263,11 @@
     
     // Update main transaction form category select
     const categorySelect = document.getElementById('category');
-    populateCategorySelect(categorySelect, groupType);
+    populateCategorySelect(categorySelect, groupType, isFundraising);
     
     // Update edit modal category select
     const editCategorySelect = document.getElementById('edit-category');
-    populateCategorySelect(editCategorySelect, groupType);
+    populateCategorySelect(editCategorySelect, groupType, isFundraising);
     
     // Show/hide category label based on mode
     const categoryLabels = document.querySelectorAll('label[for="category"], label[for="edit-category"]');
@@ -393,6 +407,9 @@
         }
       }
       
+      // Update category dropdowns for the new mode
+      updateCategorySelectsForMode();
+      
       updateDashboard();
     }
     window.toggleAppMode = toggleAppMode;
@@ -441,6 +458,9 @@
       if (titleInput) titleInput.value = '';
       if (targetInput) targetInput.value = '';
       if (groupTypeSelect) groupTypeSelect.value = 'personal';
+      
+      // Update category dropdowns for the new target group type
+      updateCategorySelectsForMode();
       
       // Re-render UI
       updateDashboard();
@@ -792,10 +812,16 @@ function renderArchivedPeriods() {
   function addTransaction() {
     const amount = parseFloat(document.getElementById('amount').value);
     const type = document.getElementById('type').value;
-    const category = document.getElementById('category').value;
+    let category = document.getElementById('category').value;
     const date = document.getElementById('date').value || new Date().toISOString().split('T')[0];
     const description = document.getElementById('note').value.trim();
     if (isNaN(amount) || amount <= 0) return alert("Iltimos, to'g'ri summa kiriting!");
+    
+    // In fundraising mode with personal type, force category to 'Umumiy'
+    if (currentMode === 'fundraising' && getFundraisingTargetGroup() === 'personal') {
+      category = 'Umumiy';
+    }
+    
     const newTx = { id: Date.now(), amount, type, category, date, description };
     const transactions = getTransactions();
     transactions.push(newTx);
