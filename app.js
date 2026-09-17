@@ -1,15 +1,51 @@
 (() => {
   'use strict';
 
+  // ==================== MODE STATE (must be first) ====================
+  let currentMode = localStorage.getItem('app_mode') || 'smart';
+
   // ==================== DATA LAYER ====================
   let startingBalance = parseFloat(localStorage.getItem('starting_balance'));
   if (!Number.isFinite(startingBalance)) startingBalance = 0;
 
+  // --- Fundraising isolated storage keys ---
+  const FUNDRAISING_KEYS = {
+    target: 'fundraising_target',
+    transactions: 'fundraising_transactions',
+    title: 'fundraising_title'
+  };
+
+  function getFundraisingTarget() {
+    try { return parseFloat(localStorage.getItem(FUNDRAISING_KEYS.target)) || 0; }
+    catch { return 0; }
+  }
+  function setFundraisingTarget(val) {
+    localStorage.setItem(FUNDRAISING_KEYS.target, val.toString());
+  }
+  function getFundraisingTransactions() {
+    try { return JSON.parse(localStorage.getItem(FUNDRAISING_KEYS.transactions)) || []; }
+    catch { return []; }
+  }
+  function setFundraisingTransactions(txns) {
+    localStorage.setItem(FUNDRAISING_KEYS.transactions, JSON.stringify(txns));
+  }
+  function getFundraisingTitle() {
+    try { return localStorage.getItem(FUNDRAISING_KEYS.title) || ''; }
+    catch { return ''; }
+  }
+  function setFundraisingTitle(val) {
+    localStorage.setItem(FUNDRAISING_KEYS.title, val);
+  }
+
   function getTransactions() {
+    const isFundraising = currentMode === 'fundraising';
+    if (isFundraising) return getFundraisingTransactions();
     try { return JSON.parse(localStorage.getItem('transactions')) || []; }
     catch { return []; }
   }
   function setTransactions(txns) {
+    const isFundraising = currentMode === 'fundraising';
+    if (isFundraising) return setFundraisingTransactions(txns);
     localStorage.setItem('transactions', JSON.stringify(txns));
   }
   function getArchivedPeriods() {
@@ -22,6 +58,24 @@
 
   // ==================== CALCULATIONS ====================
   function calculateTotals() {
+    const isFundraising = currentMode === 'fundraising';
+    
+    if (isFundraising) {
+      const target = getFundraisingTarget();
+      const txns = getFundraisingTransactions();
+      let totalIncome = 0;
+      let totalExpenses = 0;
+      for (const t of txns) {
+        const amt = Number.isFinite(t.amount) ? t.amount : 0;
+        if (t.type === 'income') totalIncome += amt;
+        else if (t.type === 'expense') totalExpenses += amt;
+      }
+      if (!Number.isFinite(totalIncome)) totalIncome = 0;
+      if (!Number.isFinite(totalExpenses)) totalExpenses = 0;
+      const currentBalance = totalIncome - totalExpenses;
+      return { startingBalance: target, totalIncome, totalExpenses, currentBalance };
+    }
+
     const txns = getTransactions();
     let totalIncome = 0;
     let totalExpenses = 0;
@@ -201,7 +255,6 @@
   })();
 
   // ==================== DUAL-MODE SYSTEM ====================
-    let currentMode = localStorage.getItem('app_mode') || 'smart';
     function applyModeLabels() {
       const isFundraising = currentMode === 'fundraising';
       const modeBtn = document.getElementById('mode-switch-btn');
@@ -227,9 +280,100 @@
       currentMode = currentMode === 'smart' ? 'fundraising' : 'smart';
       localStorage.setItem('app_mode', currentMode);
       applyModeLabels();
+      
+      // Trigger fundraising onboarding if switching to fundraising mode and no target set
+      if (currentMode === 'fundraising') {
+        const target = getFundraisingTarget();
+        const title = getFundraisingTitle();
+        if (!target || !title) {
+          showFundraisingOnboarding();
+        }
+      }
+      
       updateDashboard();
     }
     window.toggleAppMode = toggleAppMode;
+
+    // ==================== FUNDRAISING ONBOARDING ====================
+    let fundraisingOnboardingStep = 1; // 1 = target, 2 = title
+    function showFundraisingOnboarding() {
+      const modal = document.getElementById('fundraising-onboarding-modal');
+      if (!modal) return;
+      
+      fundraisingOnboardingStep = 1;
+      updateFundraisingOnboardingUI();
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      
+      const input = document.getElementById('fundraising-onboarding-input');
+      if (input) {
+        input.value = '';
+        input.focus();
+      }
+    }
+    function updateFundraisingOnboardingUI() {
+      const titleEl = document.getElementById('fundraising-onboarding-title');
+      const descEl = document.getElementById('fundraising-onboarding-desc');
+      const input = document.getElementById('fundraising-onboarding-input');
+      const btn = document.getElementById('fundraising-onboarding-next-btn');
+      const skipBtn = document.getElementById('fundraising-onboarding-skip-btn');
+      
+      if (fundraisingOnboardingStep === 1) {
+        if (titleEl) titleEl.textContent = t('fundraisingTargetTitle') || 'Maqsad summasini kiriting';
+        if (descEl) descEl.textContent = t('fundraisingTargetDesc') || 'Yig\'moqchi bo\'lgan summani belgilang';
+        if (input) {
+          input.placeholder = t('fundraisingTargetPlaceholder') || 'Masalan: 50 000 000';
+          input.type = 'number';
+        }
+        if (btn) btn.textContent = t('next') || 'Keyingi';
+        if (skipBtn) skipBtn.classList.add('hidden');
+      } else if (fundraisingOnboardingStep === 2) {
+        if (titleEl) titleEl.textContent = t('fundraisingTitleTitle') || 'Loyiha nomini kiriting';
+        if (descEl) descEl.textContent = t('fundraisingTitleDesc') || 'Bu sizni motivatsiya qiluvchi nom bo\'ladi';
+        if (input) {
+          input.placeholder = t('fundraisingTitlePlaceholder') || 'Masalan: Yangi avto, Sayohat...';
+          input.type = 'text';
+        }
+        if (btn) btn.textContent = t('startFundraising') || 'Boshlash';
+        if (skipBtn) skipBtn.classList.remove('hidden');
+      }
+    }
+    function handleFundraisingOnboardingNext() {
+      const input = document.getElementById('fundraising-onboarding-input');
+      if (!input) return;
+      
+      const value = input.value.trim();
+      
+      if (fundraisingOnboardingStep === 1) {
+        const target = parseFloat(value.replace(/\s+/g, ''));
+        if (!Number.isFinite(target) || target <= 0) {
+          alert(t('invalidAmount') || 'Iltimos, to\'g\'ri summa kiriting!');
+          return;
+        }
+        setFundraisingTarget(target);
+        fundraisingOnboardingStep = 2;
+        updateFundraisingOnboardingUI();
+        input.value = '';
+        input.focus();
+      } else if (fundraisingOnboardingStep === 2) {
+        if (!value) {
+          alert(t('enterTitle') || 'Iltimos, nom kiriting!');
+          return;
+        }
+        setFundraisingTitle(value);
+        closeFundraisingOnboarding();
+        updateDashboard();
+      }
+    }
+    function closeFundraisingOnboarding() {
+      const modal = document.getElementById('fundraising-onboarding-modal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+    }
+    window.handleFundraisingOnboardingNext = handleFundraisingOnboardingNext;
+    window.closeFundraisingOnboarding = closeFundraisingOnboarding;
 
     // ==================== UPDATE & RENDER ====================
   function updateDashboard() {
@@ -476,7 +620,7 @@ function renderArchivedPeriods() {
     const newTx = { id: Date.now(), amount, type, category, date, description };
     const transactions = getTransactions();
     transactions.push(newTx);
-    localStorage.setItem('transactions', JSON.stringify(transactions));
+    setTransactions(transactions);
     transactionForm.reset();
     dateInput.valueAsDate = new Date();
     renderTransactions();
@@ -545,12 +689,21 @@ function renderArchivedPeriods() {
   const savedBalance = localStorage.getItem('starting_balance');
   const balanceNum = parseFloat(savedBalance);
   const shouldShowOnboarding = (savedBalance === null) || (savedBalance === '') || (savedBalance === '0') || (balanceNum === 0);
-  if (shouldShowOnboarding) {
+  
+  // Check fundraising onboarding
+  const isFundraisingMode = currentMode === 'fundraising';
+  const fundraisingTarget = getFundraisingTarget();
+  const fundraisingTitle = getFundraisingTitle();
+  const shouldShowFundraisingOnboarding = isFundraisingMode && (!fundraisingTarget || !fundraisingTitle);
+  
+  if (shouldShowOnboarding && !isFundraisingMode) {
     if (onboardingModal) {
       onboardingModal.classList.remove('hidden');
       onboardingModal.classList.add('flex');
     }
     if (onboardingInput) onboardingInput.focus();
+  } else if (shouldShowFundraisingOnboarding) {
+    showFundraisingOnboarding();
   } else {
     updateDashboard();
   }

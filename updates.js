@@ -3,6 +3,20 @@
 
   window.APP_UPDATES = [
     {
+      version: "v6.0.0",
+      date: "17.09.2026",
+      title: "Dual-Mode (Pul Yig'ish) va Sanalar bo'yicha Guruhlash Yangilanishi",
+      changes: [
+        "Yangi 'Pul Yig'ish' (Fundraising) rejimi qo'shildi: Shaxsiy byudjetdan to'liq ajratilgan alohida xotira (State)",
+        "Pul yig'ish rejimida maqsad (Note) va kerakli summa kiritish uchun maxsus boshlang'ich modal biriktirildi",
+        "Pul berganlar ro'yxati avtomatik raqamlanadi (1. Jasur, 2. Axmedov) va eng oxirgi bergan kishi doimo eng tepada turadi",
+        "Pul yig'ish rejimida maxsus kategoriyalar (Erkak / Ayol) va vizual Maqsad ko'rsatgichi qo'shildi",
+        "Tranzaksiyalar tarixi endi kunlar bo'yicha guruhlanib, eng yangi sanalar tepada ko'rsatiladi",
+        "Arxivlash va Reset qilinganda avtomatik yangi balans yoki maqsad kiritish darchasi ochiladi",
+        "Android va iOS Safari uchun PWA 'Bosh ekranga qo'shish' tugmalari va yo'riqnomasi to'liq sozlandi"
+      ]
+    },
+    {
       version: "v5.8.0",
       date: "17.09.2026",
       title: "Tizimning Katta Yangilanishi",
@@ -42,7 +56,7 @@
       changes: [
         "beforeinstallprompt global ushlab olinadi",
         "window.installPWA() orqali Android uchun native o'rnatish chaqiriladi",
-        "iOS Safari uchun ogohlantiruv alerti ko'rsatiladi"
+        "iOS Safari uchun ogohlantiruv alerti ko'rsatildi"
       ]
     },
     {

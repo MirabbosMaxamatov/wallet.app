@@ -9,22 +9,22 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Smart Byudjet" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <link rel="icon" type="image/jpeg" href="assets/walletprf.jpg?v=5.8.0">
-  <link rel="apple-touch-icon" href="assets/walletprf.jpg?v=5.8.0">
-  <link rel="apple-touch-icon" sizes="180x180" href="assets/walletprf.jpg?v=5.8.0">
+  <link rel="icon" type="image/jpeg" href="assets/walletprf.jpg?v=6.0.0">
+  <link rel="apple-touch-icon" href="assets/walletprf.jpg?v=6.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/walletprf.jpg?v=6.0.0">
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css?v=1.2.1" />
+  <link rel="stylesheet" href="style.css?v=6.0.0" />
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="i18n.js?v=5.8.0" defer></script>
-  <script src="updates.js?v=5.8.0" defer></script>
+  <script src="i18n.js?v=6.0.0" defer></script>
+  <script src="updates.js?v=6.0.0" defer></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen">
 
   <!-- Onboarding Modal -->
   <div id="onboarding-modal" class="modal-overlay hidden">
     <div class="modal-card">
-      <h2 class="text-2xl font-bold mb-2 text-slate-100">Xush kelibsiz</h2>
-      <p class="text-slate-400 mb-6">Boshlang'ich pul miqdorini kiriting:</p>
+      <h2 class="text-2xl font-bold mb-2 text-slate-100" id="onboarding-modal-title">Xush kelibsiz</h2>
+      <p class="text-slate-400 mb-6" id="onboarding-modal-subtitle">Boshlang'ich pul miqdorini kiriting:</p>
       <div id="starting-balance-form">
         <div class="mb-6">
           <label class="block text-sm font-medium text-slate-300 mb-2">Boshlang'ich pul ($)</label>
@@ -49,6 +49,31 @@
         </div>
         <button type="button" id="onboarding-start-btn"
           class="btn-primary">Boshlash</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fundraising Onboarding Modal -->
+  <div id="fundraising-onboarding-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <h2 class="text-2xl font-bold mb-2 text-emerald-400" id="fundraising-onboarding-title">🎯 Pul Yig'ish maqsadini kiriting</h2>
+      <p class="text-slate-400 mb-6" id="fundraising-onboarding-subtitle">Yig'ish uchun maqsad va kerakli summani belgilang.</p>
+      <div id="fundraising-onboarding-form">
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-slate-300 mb-2">Maqsad (masalan: Ehson tadbiri)</label>
+          <input type="text" id="fundraising-title-input" required placeholder="Ehson tadbiri" class="input-base" />
+        </div>
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-slate-300 mb-2">Yig'ilishi kerak bo'lgan summa ($)</label>
+          <input type="number" id="fundraising-target-input" step="any" required placeholder="0.00" class="input-base" />
+          <div id="fundraising-target-preview" class="text-xs font-medium text-emerald-400 mt-1.5 min-h-[18px]"></div>
+          <div class="flex items-center gap-2 pt-1.5">
+            <button type="button" onclick="appendZeros('fundraising-target-input', '000')" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 rounded px-2 py-1 text-xs font-semibold transition-colors">+000 (Ming)</button>
+            <button type="button" onclick="appendZeros('fundraising-target-input', '000000')" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 rounded px-2 py-1 text-xs font-semibold transition-colors">+000 000 (Mln)</button>
+            <button type="button" onclick="clearAmountInput('fundraising-target-input')" class="bg-rose-900/40 hover:bg-rose-800/60 text-rose-300 border border-rose-700/50 rounded px-2 py-1 text-xs font-medium transition-colors">C</button>
+          </div>
+        </div>
+        <button type="button" id="fundraising-onboarding-start-btn" class="btn-primary w-full">Boshlash</button>
       </div>
     </div>
   </div>
@@ -232,6 +257,36 @@
     <div class="hero-card">
       <p class="text-slate-400 text-sm font-medium uppercase tracking-wider mb-2" data-i18n="balance">Hozirgi Qoldiq</p>
       <h2 id="balance-display" class="text-3xl sm:text-5xl font-extrabold text-slate-100 transition-all duration-200">0 so'm</h2>
+    </div>
+
+    <!-- Fundraising Progress Indicator -->
+    <div id="fundraising-progress-card" class="hidden bg-gradient-to-r from-emerald-900/40 to-slate-800/60 border border-emerald-500/30 rounded-2xl p-4 mb-6">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-sm font-semibold text-emerald-400" data-i18n="fundraisingProgress">Yig'ish foizasi</span>
+        <span id="fundraising-progress-percent" class="text-lg font-bold text-emerald-400">0%</span>
+      </div>
+      <div class="w-full bg-slate-700/50 rounded-full h-2.5 overflow-hidden">
+        <div id="fundraising-progress-bar" class="bg-emerald-500 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+      </div>
+    </div>
+
+    <!-- Fundraising Target Card -->
+    <div id="fundraising-target-card" class="hidden bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4 mb-6">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="text-emerald-400 text-lg">🎯</span>
+        <span class="text-xs text-slate-400 uppercase tracking-wider" data-i18n="fundraisingTargetCard">Maqsad:</span>
+        <span id="fundraising-target-title" class="text-sm font-semibold text-slate-200 truncate"></span>
+      </div>
+      <div class="grid grid-cols-2 gap-3 text-center">
+        <div>
+          <p class="text-[10px] text-slate-500 uppercase" data-i18n="fundraisingTargetLabel">Maqsad</p>
+          <p id="fundraising-target-amount" class="text-sm font-bold text-slate-100">0 so'm</p>
+        </div>
+        <div>
+          <p class="text-[10px] text-slate-500 uppercase" data-i18n="fundraisingCurrentBalance">Hozirgi Balans</p>
+          <p id="fundraising-current-balance" class="text-sm font-bold text-emerald-400">0 so'm</p>
+        </div>
+      </div>
     </div>
 
     <!-- Dashboard Cards -->
@@ -479,6 +534,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=5.8.0" defer></script>
+  <script src="app.js?v=6.0.0" defer></script>
 </body>
 </html>
