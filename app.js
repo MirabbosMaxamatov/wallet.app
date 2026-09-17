@@ -510,6 +510,11 @@
     const editMainCategorySelect = document.getElementById('edit-category-main');
     const editSubCategorySelect = document.getElementById('edit-category-sub');
     
+    // Wrapper divs for show/hide
+    const categorySingleWrapper = document.getElementById('category-single-wrapper');
+    const categoryCascadeWrapper = document.getElementById('category-cascade-wrapper');
+    const editCascadeWrapper = document.getElementById('edit-category-cascade-wrapper');
+    
     if (isHammasi) {
       if (mainCategorySelect) {
         mainCategorySelect.style.display = '';
@@ -524,8 +529,11 @@
       if (subCategorySelect) subCategorySelect.style.display = '';
       if (categorySelect) categorySelect.style.display = 'none';
       
+      // Show cascade wrapper, hide single wrapper
+      if (categoryCascadeWrapper) categoryCascadeWrapper.style.display = '';
+      if (categorySingleWrapper) categorySingleWrapper.style.display = 'none';
+      
       // Edit modal cascade
-      const editCascadeWrapper = document.getElementById('edit-category-cascade-wrapper');
       if (editCascadeWrapper) editCascadeWrapper.style.display = '';
       if (editCategorySelect) editCategorySelect.style.display = 'none';
       
@@ -542,8 +550,11 @@
       if (subCategorySelect) subCategorySelect.style.display = 'none';
       if (categorySelect) categorySelect.style.display = '';
       
+      // Show single wrapper, hide cascade wrapper
+      if (categoryCascadeWrapper) categoryCascadeWrapper.style.display = 'none';
+      if (categorySingleWrapper) categorySingleWrapper.style.display = '';
+      
       // Edit modal single select
-      const editCascadeWrapper = document.getElementById('edit-category-cascade-wrapper');
       if (editCascadeWrapper) editCascadeWrapper.style.display = 'none';
       if (editCategorySelect) editCategorySelect.style.display = '';
       if (editMainCategorySelect) editMainCategorySelect.style.display = 'none';
@@ -605,7 +616,7 @@
   dateInput.valueAsDate = new Date();
 
   // Live amount preview wiring for all amount inputs
-  ['onboarding-input', 'amount', 'edit-amount', 'fundraising-target-input'].forEach(function (id) {
+  ['onboarding-input', 'amount', 'edit-amount', 'fundraising-target-input', 'edit-balance-input'].forEach(function (id) {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', function () { updateAmountPreview(id); });
   });
@@ -1527,6 +1538,11 @@ function renderArchivedPeriods() {
   window.importBackup = importBackup;
   window.toggleMoreSection = toggleMoreSection;
   window.toggleTheme = toggleTheme;
+  
+  // Quick amount helpers for target edit modal
+  window.appendTargetZeros = (z) => { const el = document.getElementById('edit-balance-input'); if (el) { el.value = (el.value || '') + z; el.dispatchEvent(new Event('input', { bubbles: true })); } };
+  window.addAmountToTargetInput = (v) => { const el = document.getElementById('edit-balance-input'); if (el) { el.value = (parseFloat(el.value) || 0) + v; el.dispatchEvent(new Event('input', { bubbles: true })); } };
+  window.clearTargetInput = () => { const el = document.getElementById('edit-balance-input'); if (el) { el.value = ''; el.dispatchEvent(new Event('input', { bubbles: true })); } };
 
   // Run migration early to ensure data is available for onboarding checks
   migrateLegacyData();
@@ -1909,7 +1925,7 @@ function renderArchivedPeriods() {
   }
   function exportBackup() {
     const data = {
-      version: '9.0.0',
+      version: '9.5.0',
       exportedAt: new Date().toISOString(),
       startingBalance: localStorage.getItem('starting_balance'),
       transactions: getTransactionsSafe(),
@@ -2288,7 +2304,7 @@ function renderArchivedPeriods() {
       }
     });
 
-    navigator.serviceWorker.register('sw.js?v=9.0.0').then((registration) => {
+    navigator.serviceWorker.register('sw.js?v=9.5.0').then((registration) => {
       // Force an immediate update check on every page load
       registration.update();
 

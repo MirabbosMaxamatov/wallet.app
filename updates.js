@@ -3,6 +3,20 @@
 
   window.APP_UPDATES = [
     {
+      version: "v9.5.0",
+      date: "18.09.2026",
+      title: "Cascade Categories for Hammasi, Quick Amount Buttons & Reset/Archive Fixes",
+      changes: [
+        "Fixed 'Hammasi' cascade category rendering - now properly shows 2-tier dropdowns (Main Scope → Sub-category)",
+        "Dynamic sub-category options based on main selection: Personal (Shaxsiy), Oila (family members), Guruh (Erkak/Ayol)",
+        "Added quick amount buttons to target edit modal: +000 (Ming), +10k, +50k, +100k, +500k, Clear (C)",
+        "Live amount preview now works in target edit modal",
+        "Reset & Archive properly resets target_amount to 0 and auto-opens target edit modal in Fundraising mode",
+        "Transactions in Hammasi mode now correctly group under OILA, GURUH, PERSONAL headers",
+        "Script versions bumped to v=9.5.0 to clear browser cache"
+      ]
+    },
+    {
       version: "v9.0.0",
       date: "18.09.2026",
       title: "Hammasi Scope Fix & Reset Archive Fundraising Reset",
