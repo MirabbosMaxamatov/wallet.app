@@ -15,6 +15,7 @@
     title: 'fundraising_title',
     targetTitle: 'fundraising_target_title',
     targetAmount: 'fundraising_target_amount',
+    targetType: 'fundraising_target_type',
     archivedPeriods: 'fundraising_archived_periods'
   };
 
@@ -60,16 +61,12 @@
   function setFundraisingTargetAmount(val) {
     localStorage.setItem(FUNDRAISING_KEYS.targetAmount, val.toString());
   }
-
-  // --- Fundraising target group type ---
-  const TARGET_GROUP_KEY = 'fundraising_target_group_type';
-  const DEFAULT_TARGET_GROUP = 'personal';
-  function getFundraisingTargetGroup() {
-    try { return localStorage.getItem(TARGET_GROUP_KEY) || DEFAULT_TARGET_GROUP; }
-    catch { return DEFAULT_TARGET_GROUP; }
+  function getFundraisingTargetType() {
+    try { return localStorage.getItem(FUNDRAISING_KEYS.targetType) || 'guruh'; }
+    catch { return 'guruh'; }
   }
-  function setFundraisingTargetGroup(val) {
-    localStorage.setItem(TARGET_GROUP_KEY, val);
+  function setFundraisingTargetType(val) {
+    localStorage.setItem(FUNDRAISING_KEYS.targetType, val);
   }
 
   function getTransactions() {
@@ -245,8 +242,8 @@
 
   function getFundraisingCategoriesForTargetGroup(groupType) {
     switch (groupType) {
-      case 'family': return FAMILY_CATEGORIES;
-      case 'group': return GROUP_CATEGORIES;
+      case 'oila': return FAMILY_CATEGORIES;
+      case 'guruh': return GROUP_CATEGORIES;
       case 'personal':
       default: return FUNDRAISING_PERSONAL_CATEGORIES;
     }
@@ -275,7 +272,7 @@
 
   function updateCategorySelectsForMode() {
     const isFundraising = currentMode === 'fundraising';
-    const groupType = isFundraising ? getFundraisingTargetGroup() : 'personal';
+    const groupType = isFundraising ? getFundraisingTargetType() : 'personal';
     
     // Update main transaction form category select
     const categorySelect = document.getElementById('category');
@@ -451,7 +448,7 @@
       
       const title = titleInput ? titleInput.value.trim() : '';
       const target = targetInput ? parseFloat(targetInput.value) || 0 : 0;
-      const groupType = groupTypeSelect ? groupTypeSelect.value : 'personal';
+      const groupType = groupTypeSelect ? groupTypeSelect.value : 'guruh';
       
       if (!title || target <= 0) {
         alert("Iltimos, maqsad nomi va yig'ilishi kerak bo'lgan summani to'g'ri kiriting!");
@@ -463,7 +460,7 @@
       setFundraisingTarget(target);
       setFundraisingTargetTitle(title);
       setFundraisingTargetAmount(target);
-      setFundraisingTargetGroup(groupType);
+      setFundraisingTargetType(groupType);
       
       // Hide modal
       const modal = document.getElementById('fundraising-onboarding-modal');
@@ -475,7 +472,7 @@
       // Clear form
       if (titleInput) titleInput.value = '';
       if (targetInput) targetInput.value = '';
-      if (groupTypeSelect) groupTypeSelect.value = 'personal';
+      if (groupTypeSelect) groupTypeSelect.value = 'guruh';
       
       // Update category dropdowns for the new target group type
       updateCategorySelectsForMode();
@@ -536,13 +533,12 @@
     
     const isFundraising = currentMode === 'fundraising';
     if (isFundraising) {
-      const title = getFundraisingTargetTitle() || getFundraisingTitle();
       const target = getFundraisingTargetAmount() || getFundraisingTarget();
-      const label = t('fundraisingTargetCard') || 'MAQSAD';
-      // Set label
-      if (labelEl) labelEl.textContent = title ? `${label}: ${title.toUpperCase()}` : label;
-      if (labelMobileEl) labelMobileEl.textContent = title ? `${label}: ${title.toUpperCase()}` : label;
-      // Set amount only
+      // Set label: "YIG'ILISHI KERAK BO'LGAN SUMMA"
+      const labelText = 'YIG\'ILISHI KERAK BO\'LGAN SUMMA';
+      if (labelEl) labelEl.textContent = labelText;
+      if (labelMobileEl) labelMobileEl.textContent = labelText;
+      // Set value only: "[New Target Amount] so'm"
       amountEl.textContent = formatCurrency(target);
     } else {
       if (labelEl) labelEl.textContent = t('startingBalance') || 'Boshlang\'ich Pul';
@@ -842,7 +838,7 @@ function renderArchivedPeriods() {
     if (isNaN(amount) || amount <= 0) return alert("Iltimos, to'g'ri summa kiriting!");
     
     // In fundraising mode with personal type, force category to 'Umumiy'
-    if (currentMode === 'fundraising' && getFundraisingTargetGroup() === 'personal') {
+    if (currentMode === 'fundraising' && getFundraisingTargetType() === 'personal') {
       category = 'Umumiy';
     }
     

@@ -3,6 +3,19 @@
 
   window.APP_UPDATES = [
     {
+      version: "v6.7.0",
+      date: "17.09.2026",
+      title: "Target Amount Persistence Fix & Category Type Selector",
+      changes: [
+        "Target title, amount va type alohida localStorage kalitlariga saqlanadi (fundraising_target_title, fundraising_target_amount, fundraising_target_type)",
+        "Fundraising setup/reset modalida 'Yig'ish turi' selector integratsiya qilindi: Shaxsiy / Oila / Guruh",
+        "Yuqori baner to'g'rilandi: Label 'YIG'ILISHI KERAK BO'LGAN SUMMA', Value '[Amount] so'm' formatida",
+        "Kategoriya variantlari target turiga qarab avtomatik o'zgaradi: Shaxsiy -> 'Umumiy' (disabled), Oila -> [Ota, Ona, Aka, Uka, Opa, Singil, Boshqa], Guruh -> [Erkak, Ayol]",
+        "Split kalkulyatori yangilangan target_amount dan foydalanadi",
+        "Script versiyalari v=6.7.0 ga oshirildi"
+      ]
+    },
+    {
       version: "v6.6.0",
       date: "17.09.2026",
       title: "Target Amount Reset/Saving Fix & Top Header Rendering",
