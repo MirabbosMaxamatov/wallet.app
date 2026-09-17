@@ -73,6 +73,15 @@
     input.dispatchEvent(new Event('input', { bubbles: true }));
     updateAmountPreview(inputId);
   }
+  function quickAmount(inputId, value) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const current = parseFloat(input.value);
+    const base = Number.isFinite(current) && current > 0 ? current : 0;
+    input.value = (base + value).toString();
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    updateAmountPreview(inputId);
+  }
   function formatSignedAmount(value) {
     const sign = value >= 0 ? '+' : '-';
     return sign + formatCurrency(value);
@@ -191,7 +200,38 @@
     }
   })();
 
-  // ==================== UPDATE & RENDER ====================
+  // ==================== DUAL-MODE SYSTEM ====================
+    let currentMode = localStorage.getItem('app_mode') || 'smart';
+    function applyModeLabels() {
+      const isFundraising = currentMode === 'fundraising';
+      const modeBtn = document.getElementById('mode-switch-btn');
+      const modeIcon = document.getElementById('mode-switch-icon');
+      const modeLabel = document.getElementById('mode-switch-label');
+      const balanceLabel = document.querySelector('.hero-card p');
+      const sbLabel = document.getElementById('starting-balance-label');
+      const sbLabelMobile = document.getElementById('starting-balance-label-mobile');
+      const incomeLabel = document.querySelector('.card-income p');
+      const expenseLabel = document.querySelector('.card-expense p');
+
+      if (modeBtn) modeBtn.classList.toggle('bg-emerald-600/30', isFundraising);
+      if (modeIcon) modeIcon.textContent = isFundraising ? '🎯' : '⚖️';
+      if (modeLabel) modeLabel.textContent = isFundraising ? t('modeFundraising') : t('modeSmartWallet');
+
+      if (balanceLabel) balanceLabel.textContent = isFundraising ? t('currentBalanceLabel') : t('balance');
+      if (sbLabel) sbLabel.textContent = isFundraising ? t('targetAmount') : t('startingBalance');
+      if (sbLabelMobile) sbLabelMobile.textContent = isFundraising ? 'Maqsad' : 'B.Pul';
+      if (incomeLabel) incomeLabel.textContent = isFundraising ? t('collectedAmount') : t('income');
+      if (expenseLabel) expenseLabel.textContent = isFundraising ? t('spentAmount') : t('expense');
+    }
+    function toggleAppMode() {
+      currentMode = currentMode === 'smart' ? 'fundraising' : 'smart';
+      localStorage.setItem('app_mode', currentMode);
+      applyModeLabels();
+      updateDashboard();
+    }
+    window.toggleAppMode = toggleAppMode;
+
+    // ==================== UPDATE & RENDER ====================
   function updateDashboard() {
     try {
       const { startingBalance, totalIncome, totalExpenses, currentBalance } = calculateTotals();
@@ -219,58 +259,95 @@
 
     const transactions = getTransactions();
     if (!transactions || transactions.length === 0) {
-      container.innerHTML = `<p class="text-center text-slate-400 py-6 text-sm">Hozircha tranzaksiyalar yo'q</p>`;
+      container.innerHTML = `<p class="text-center text-slate-400 py-6 text-sm" data-i18n="noTransactions">Hozircha tranzaksiyalar yo'q</p>`;
       return;
     }
 
-    container.innerHTML = transactions.map(tx => {
-      const isIncome = tx.type === 'income';
-      const amountSign = isIncome ? '+' : '-';
-      const amountColor = isIncome ? 'text-emerald-400' : 'text-rose-400';
-      const amountFormatted = parseFloat(tx.amount || 0).toLocaleString('uz-UZ');
+    // Sort reverse chronological: newest first (by date, then by id)
+    const sorted = transactions.slice().sort((a, b) => {
+      const dateA = new Date(a.date + 'T00:00:00').getTime();
+      const dateB = new Date(b.date + 'T00:00:00').getTime();
+      if (dateB !== dateA) return dateB - dateA;
+      return (b.id || 0) - (a.id || 0);
+    });
 
-      const descriptionText = (tx.description && tx.description.trim() !== '') ? tx.description : 'Izoh kiritilmagan';
-      const dateFormatted = formatDateToUZ(tx.date) || formatDateToUZ(new Date().toISOString().split('T')[0]);
+    // Group by date
+    const groups = {};
+    const order = [];
+    for (const tx of sorted) {
+      const key = tx.date;
+      if (!groups[key]) { groups[key] = []; order.push(key); }
+      groups[key].push(tx);
+    }
 
-      return `
-        <li class="bg-slate-900/50 border border-slate-700/50 rounded-xl p-3 sm:p-4 flex flex-col gap-3 shadow-md mb-3">
-          <!-- TOP ROW: Price & Actions -->
-          <div class="flex items-center justify-between border-b border-slate-700/50 pb-2.5">
-            <span class="text-base sm:text-lg font-bold ${amountColor}">
-              ${amountSign}${amountFormatted} so'm
-            </span>
-            <div class="flex items-center gap-1.5">
-              <button onclick="editTransaction(${tx.id})" class="text-slate-400 hover:text-emerald-400 text-sm p-1 transition-colors" title="Tahrirlash">✏️</button>
-              <button onclick="deleteTransaction(${tx.id})" class="text-slate-400 hover:text-rose-400 text-sm p-1 transition-colors" title="O'chirish">🗑️</button>
-            </div>
-          </div>
+    let html = '';
+    for (const key of order) {
+      const txs = groups[key];
+      let dayIncome = 0, dayExpense = 0;
+      for (const t of txs) {
+        const amt = Number.isFinite(t.amount) ? t.amount : 0;
+        if (t.type === 'income') dayIncome += amt;
+        else if (t.type === 'expense') dayExpense += amt;
+      }
+      const dayNet = dayIncome - dayExpense;
+      const dateStr = formatDateToUZ(key) || formatDateToUZ(new Date().toISOString().split('T')[0]);
+      const netColor = dayNet >= 0 ? 'text-emerald-400' : 'text-rose-400';
+      const netSign = dayNet >= 0 ? '+' : '';
+      const netLabel = t('dailyNet');
 
-          <!-- LIST DETAILS BODY -->
-          <div class="flex flex-col gap-2 text-xs sm:text-sm">
-            <div class="flex items-center justify-between">
-              <span class="text-slate-400 font-medium">Kategoriya:</span>
-              <span class="bg-slate-800 text-slate-200 px-2 py-0.5 rounded-md font-semibold text-xs border border-slate-700/60">
-                ${tx.category}
+      html += `<div class="mb-4">
+        <div class="flex items-center justify-between bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-2 mb-2">
+          <span class="text-sm font-semibold text-slate-200">📅 ${dateStr}</span>
+          <span class="text-xs font-medium ${netColor}">${netLabel}: ${netSign}${Math.abs(dayNet).toLocaleString('uz-UZ')} so'm</span>
+        </div>
+        <ul class="space-y-2">`;
+
+      for (const tx of txs) {
+        const isIncome = tx.type === 'income';
+        const amountSign = isIncome ? '+' : '-';
+        const amountColor = isIncome ? 'text-emerald-400' : 'text-rose-400';
+        const amountFormatted = parseFloat(tx.amount || 0).toLocaleString('uz-UZ');
+        const descriptionText = (tx.description && tx.description.trim() !== '') ? tx.description : 'Izoh kiritilmagan';
+        const dateFormatted = formatDateToUZ(tx.date) || formatDateToUZ(new Date().toISOString().split('T')[0]);
+
+        html += `
+          <li class="bg-slate-900/50 border border-slate-700/50 rounded-xl p-3 sm:p-4 flex flex-col gap-3 shadow-md">
+            <div class="flex items-center justify-between border-b border-slate-700/50 pb-2.5">
+              <span class="text-base sm:text-lg font-bold ${amountColor}">
+                ${amountSign}${amountFormatted} so'm
               </span>
+              <div class="flex items-center gap-1.5">
+                <button onclick="editTransaction(${tx.id})" class="text-slate-400 hover:text-emerald-400 text-sm p-1 transition-colors" title="Tahrirlash">✏️</button>
+                <button onclick="deleteTransaction(${tx.id})" class="text-slate-400 hover:text-rose-400 text-sm p-1 transition-colors" title="O'chirish">🗑️</button>
+              </div>
             </div>
+            <div class="flex flex-col gap-2 text-xs sm:text-sm">
+              <div class="flex items-center justify-between">
+                <span class="text-slate-400 font-medium">Kategoriya:</span>
+                <span class="bg-slate-800 text-slate-200 px-2 py-0.5 rounded-md font-semibold text-xs border border-slate-700/60">
+                  ${tx.category}
+                </span>
+              </div>
+              <div class="flex items-start justify-between gap-2">
+                <span class="text-slate-400 font-medium shrink-0">Tavsif:</span>
+                <span class="text-slate-200 text-right font-normal break-words">
+                  ${descriptionText}
+                </span>
+              </div>
+              <div class="flex items-center justify-between pt-0.5">
+                <span class="text-slate-400 font-medium">Sana:</span>
+                <span class="text-slate-300 font-mono text-xs">
+                  📅 ${dateFormatted}
+                </span>
+              </div>
+            </div>
+          </li>`;
+      }
 
-            <div class="flex items-start justify-between gap-2">
-              <span class="text-slate-400 font-medium shrink-0">Tavsif:</span>
-              <span class="text-slate-200 text-right font-normal break-words">
-                ${descriptionText}
-              </span>
-            </div>
+      html += `</ul></div>`;
+    }
 
-            <div class="flex items-center justify-between pt-0.5">
-              <span class="text-slate-400 font-medium">Sana:</span>
-              <span class="text-slate-300 font-mono text-xs">
-                📅 ${dateFormatted}
-              </span>
-            </div>
-          </div>
-        </li>
-      `;
-    }).join('');
+    container.innerHTML = html;
   }
 
 function renderArchivedPeriods() {
@@ -280,7 +357,16 @@ function renderArchivedPeriods() {
       archivedList.innerHTML = '';
       if (periods.length === 0) { archivedEmptyState.classList.remove('hidden'); return; }
       archivedEmptyState.classList.add('hidden');
-      for (const period of periods) {
+
+      // Sort archived periods newest-first (by id, then by date)
+      const sortedPeriods = periods.slice().sort((a, b) => {
+        if (b.id !== a.id) return (b.id || 0) - (a.id || 0);
+        const dateA = new Date((a.date || a.createdAt || '1970-01-01') + 'T00:00:00').getTime();
+        const dateB = new Date((b.date || b.createdAt || '1970-01-01') + 'T00:00:00').getTime();
+        return dateB - dateA;
+      });
+
+      for (const period of sortedPeriods) {
         const dateStr = formatDateToUZ(period.date) || formatDateToUZ(new Date(period.createdAt || Date.now()).toISOString().split('T')[0]);
         const balanceNum = Number(period.finalBalance) || 0;
         const balanceColor = balanceNum < 0 ? 'text-rose-400' : 'text-emerald-400';
@@ -447,6 +533,7 @@ function renderArchivedPeriods() {
   window.deleteTransaction = deleteTransaction;
   window.appendZeros = appendZeros;
   window.clearAmountInput = clearAmountInput;
+  window.quickAmount = quickAmount;
   window.exportToCSV = exportToCSV;
   window.exportToPDF = exportToPDF;
   window.exportBackup = exportBackup;
@@ -535,8 +622,9 @@ function renderArchivedPeriods() {
   // ==================== ARCHIVE & RESET ====================
   if (resetArchiveBtn) resetArchiveBtn.addEventListener('click', () => {
     try {
-      const { currentBalance } = calculateTotals();
-      if (archiveStartingBalanceInput) archiveStartingBalanceInput.value = currentBalance.toFixed(2);
+      const { startingBalance: sb, currentBalance } = calculateTotals();
+      // Pre-fill the archived period's starting balance (read-only display of what is being archived)
+      if (archiveStartingBalanceInput) archiveStartingBalanceInput.value = (Number.isFinite(sb) ? sb : 0).toFixed(2);
       if (archiveModal) {
         archiveModal.classList.remove('hidden');
         archiveModal.classList.add('flex');
@@ -555,27 +643,40 @@ function renderArchivedPeriods() {
       if (isNaN(newStartingBalance) || newStartingBalance < 0) return alert("Iltimos, to'g'ri summa kiriting!");
       const txns = getTransactions();
       if (txns.length === 0) return alert('Arxivlash uchun tranzaksiyalar mavjud emas.');
-      const { totalIncome, totalExpenses, currentBalance } = calculateTotals();
+
+      // 1. Snapshot current active data into the Archived Periods array
+      const { startingBalance: archivedStarting, totalIncome, totalExpenses, currentBalance } = calculateTotals();
       const safeIncome = Number.isFinite(totalIncome) ? totalIncome : 0;
       const safeExpenses = Number.isFinite(totalExpenses) ? totalExpenses : 0;
       const safeBalance = Number.isFinite(currentBalance) ? currentBalance : newStartingBalance;
-      const archive = { id: Date.now(), name: periodName, startingBalance: newStartingBalance, totalIncome: safeIncome, totalExpenses: safeExpenses, finalBalance: safeBalance, date: formatDateToUZ(new Date().toISOString().split('T')[0]), transactions: [...txns] };
+      const archive = {
+        id: Date.now(),
+        name: periodName,
+        startingBalance: Number.isFinite(archivedStarting) ? archivedStarting : 0,
+        totalIncome: safeIncome,
+        totalExpenses: safeExpenses,
+        finalBalance: safeBalance,
+        date: formatDateToUZ(new Date().toISOString().split('T')[0]),
+        transactions: [...txns]
+      };
       const periods = getArchivedPeriods();
       periods.push(archive);
       setArchivedPeriods(periods);
-      startingBalance = newStartingBalance;
+
+      // 2. Reset active starting_balance to 0 in localStorage
+      // 3. Clear active transactions array in localStorage
       setTransactions([]);
-      localStorage.setItem('starting_balance', startingBalance.toString());
+      startingBalance = 0;
+      localStorage.setItem('starting_balance', '0');
+
       if (archiveModal) { archiveModal.classList.add('hidden'); archiveModal.classList.remove('flex'); }
       if (archiveNameInput) archiveNameInput.value = '';
       if (archiveStartingBalanceInput) archiveStartingBalanceInput.value = '';
+
       updateDashboard();
-      // If the user reset the starting balance to 0, re-open onboarding
-      if (newStartingBalance === 0 && onboardingModal) {
-        onboardingModal.classList.remove('hidden');
-        onboardingModal.classList.add('flex');
-        if (onboardingInput) onboardingInput.focus();
-      }
+
+      // 4. Immediately prompt the user to set the new initial starting balance for the new period
+      openEditBalanceModal();
     } catch (err) { console.error('[archive] submit:', err); }
   });
 
@@ -763,6 +864,10 @@ function renderArchivedPeriods() {
       if (onboardingInput) onboardingInput.focus();
     }
 
+    // Re-render UI and immediately prompt the user to set the new starting balance
+    updateDashboard();
+    openEditBalanceModal();
+
     // Success toast
     showToast("Barcha ma'lumotlar va boshlang'ich pul muvaffaqiyatli tozalandi.", "success");
   }
@@ -941,8 +1046,12 @@ function renderArchivedPeriods() {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
     if (isIOS) {
-      // iOS Safari: show step-by-step guidance (no beforeinstallprompt on Safari)
-      alert("iOS Safari'da o'rnatish uchun: Pastki panelda 'Ulashish' (Share - \ud83d\udce4) tugmasini bosing va 'Bosh ekranga qo'shish' (Add to Home Screen) tanlovini bosing.");
+      // iOS Safari: show the dedicated bottom-sheet install modal with step-by-step visual cues
+      const iosModal = document.getElementById('ios-install-modal');
+      if (iosModal) {
+        iosModal.classList.remove('hidden');
+        iosModal.classList.add('flex');
+      }
       return;
     }
 
@@ -966,6 +1075,13 @@ function renderArchivedPeriods() {
     }
   }
   window.installPWA = installPWA;
+
+  // iOS bottom-sheet dismiss button
+  const iosDismissBtn = document.getElementById('ios-install-dismiss');
+  if (iosDismissBtn) iosDismissBtn.addEventListener('click', function () {
+    const iosModal = document.getElementById('ios-install-modal');
+    if (iosModal) { iosModal.classList.add('hidden'); iosModal.classList.remove('flex'); }
+  });
 
   (function initPWA() {
     // If already installed (standalone mode), never show any prompt
@@ -1074,6 +1190,7 @@ function renderArchivedPeriods() {
 
     // Render full UI immediately
     updateDashboard();
+    applyModeLabels();
 
     // Then check PIN lock (may overlay on top if a PIN is set)
     checkPinLock();
