@@ -3,6 +3,18 @@
 
   window.APP_UPDATES = [
     {
+      version: "v8.1.0",
+      date: "18.09.2026",
+      title: "Critical Bug Fixes: Duplicate Declaration & Init Crash Protection",
+      changes: [
+        "Fixed duplicate 'editBalanceModal' variable declaration (SyntaxError)",
+        "Fixed ReferenceError for toggleAppMode by ensuring proper global exposure",
+        "Wrapped DOMContentLoaded initialization in try-catch to prevent script crashes",
+        "Added error logging for debugging initialization failures",
+        "Script versions bumped to v=8.1.0 to clear browser cache"
+      ]
+    },
+    {
       version: "v7.5.0",
       date: "18.09.2026",
       title: "Modal Binding Fix, Cascade Categories & 3-Tier Hierarchical Grouping",

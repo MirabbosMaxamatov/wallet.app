@@ -20,6 +20,163 @@
     archivedPeriods: 'fundraising_archived_periods'
   };
 
+  // ==================== DATA MIGRATION / FALLBACK ====================
+  let _migrationDone = false;
+  function migrateLegacyData() {
+    if (_migrationDone) {
+      console.log('[Migration] Already done, skipping');
+      return;
+    }
+    _migrationDone = true;
+    console.log('[Migration] Starting localStorage data migration...');
+    
+    // --- MIGRATE TRANSACTIONS ---
+    let fundraisingTxns = [];
+    let personalTxns = [];
+    
+    // Check new mode-scoped keys first
+    try {
+      const newFundraisingTxns = JSON.parse(localStorage.getItem(FUNDRAISING_KEYS.transactions) || '[]');
+      if (Array.isArray(newFundraisingTxns) && newFundraisingTxns.length > 0) {
+        fundraisingTxns = newFundraisingTxns;
+        console.log('[Migration] Found', fundraisingTxns.length, 'transactions in new fundraising key');
+      }
+    } catch (e) {
+      console.warn('[Migration] Failed to parse new fundraising transactions:', e);
+    }
+    
+    try {
+      const newPersonalTxns = JSON.parse(localStorage.getItem('transactions') || '[]');
+      if (Array.isArray(newPersonalTxns) && newPersonalTxns.length > 0) {
+        personalTxns = newPersonalTxns;
+        console.log('[Migration] Found', personalTxns.length, 'transactions in new personal key');
+      }
+    } catch (e) {
+      console.warn('[Migration] Failed to parse new personal transactions:', e);
+    }
+    
+    // Fallback to legacy keys if new keys are empty
+    if (fundraisingTxns.length === 0) {
+      try {
+        const legacyFundraisingTxns = JSON.parse(localStorage.getItem('fundraising_transactions') || '[]');
+        if (Array.isArray(legacyFundraisingTxns) && legacyFundraisingTxns.length > 0) {
+          fundraisingTxns = legacyFundraisingTxns;
+          console.log('[Migration] Restored', fundraisingTxns.length, 'transactions from legacy fundraising_transactions');
+          // Save to new key for future use
+          localStorage.setItem(FUNDRAISING_KEYS.transactions, JSON.stringify(fundraisingTxns));
+        }
+      } catch (e) {
+        console.warn('[Migration] Failed to parse legacy fundraising transactions:', e);
+      }
+    }
+    
+    // Ensure the active mode has the correct transactions in memory
+    if (currentMode === 'fundraising' && fundraisingTxns.length > 0) {
+      console.log('[Migration] Active mode is fundraising, using', fundraisingTxns.length, 'fundraising transactions');
+    } else if (currentMode === 'smart' && personalTxns.length > 0) {
+      console.log('[Migration] Active mode is smart, using', personalTxns.length, 'personal transactions');
+    }
+    
+    // --- MIGRATE TARGET DATA ---
+    let targetAmount = 0;
+    let targetTitle = '';
+    let targetType = 'guruh';
+    let targetScope = 'hammasi';
+    
+    // Try new keys first
+    try {
+      const newTargetAmount = parseFloat(localStorage.getItem(FUNDRAISING_KEYS.targetAmount));
+      if (Number.isFinite(newTargetAmount) && newTargetAmount > 0) {
+        targetAmount = newTargetAmount;
+        console.log('[Migration] Found target amount in new key:', targetAmount);
+      }
+    } catch (e) {
+      console.warn('[Migration] Failed to parse new target amount:', e);
+    }
+    
+    try {
+      const newTargetTitle = localStorage.getItem(FUNDRAISING_KEYS.targetTitle);
+      if (newTargetTitle) {
+        targetTitle = newTargetTitle;
+        console.log('[Migration] Found target title in new key:', targetTitle);
+      }
+    } catch (e) {
+      console.warn('[Migration] Failed to parse new target title:', e);
+    }
+    
+    try {
+      const newTargetType = localStorage.getItem(FUNDRAISING_KEYS.targetType);
+      if (newTargetType) {
+        targetType = newTargetType;
+      }
+    } catch (e) {}
+    
+    try {
+      const newTargetScope = localStorage.getItem(FUNDRAISING_KEYS.targetScope);
+      if (newTargetScope) {
+        targetScope = newTargetScope;
+      }
+    } catch (e) {}
+    
+    // Fallback to legacy keys
+    if (targetAmount === 0) {
+      try {
+        const legacyTarget = parseFloat(localStorage.getItem('fundraising_target'));
+        if (Number.isFinite(legacyTarget) && legacyTarget > 0) {
+          targetAmount = legacyTarget;
+          console.log('[Migration] Restored target amount from legacy fundraising_target:', targetAmount);
+          localStorage.setItem(FUNDRAISING_KEYS.targetAmount, targetAmount.toString());
+        }
+      } catch (e) {
+        console.warn('[Migration] Failed to parse legacy target:', e);
+      }
+    }
+    
+    if (!targetTitle) {
+      try {
+        const legacyTitle = localStorage.getItem('fundraising_title');
+        if (legacyTitle) {
+          targetTitle = legacyTitle;
+          console.log('[Migration] Restored target title from legacy fundraising_title:', targetTitle);
+          localStorage.setItem(FUNDRAISING_KEYS.targetTitle, targetTitle);
+        }
+      } catch (e) {
+        console.warn('[Migration] Failed to parse legacy title:', e);
+      }
+    }
+    
+    // Also check the combined 'target' key
+    if (targetAmount === 0) {
+      try {
+        const combinedTarget = parseFloat(localStorage.getItem(FUNDRAISING_KEYS.target));
+        if (Number.isFinite(combinedTarget) && combinedTarget > 0) {
+          targetAmount = combinedTarget;
+          console.log('[Migration] Restored target amount from combined key:', targetAmount);
+          localStorage.setItem(FUNDRAISING_KEYS.targetAmount, targetAmount.toString());
+        }
+      } catch (e) {}
+    }
+    
+    console.log('[Migration] Final restored state:', {
+      mode: currentMode,
+      fundraisingTxns: fundraisingTxns.length,
+      personalTxns: personalTxns.length,
+      targetAmount: targetAmount,
+      targetTitle: targetTitle,
+      targetType: targetType,
+      targetScope: targetScope
+    });
+    
+    return {
+      fundraisingTxns,
+      personalTxns,
+      targetAmount,
+      targetTitle,
+      targetType,
+      targetScope
+    };
+  }
+
   function getStorageKey(key) {
     if (currentMode === 'fundraising' && FUNDRAISING_KEYS[key]) {
       return FUNDRAISING_KEYS[key];
@@ -35,42 +192,66 @@
     localStorage.setItem(FUNDRAISING_KEYS.target, val.toString());
   }
   function getFundraisingTransactions() {
-    try { return JSON.parse(localStorage.getItem(FUNDRAISING_KEYS.transactions)) || []; }
+    try { 
+      const txns = JSON.parse(localStorage.getItem(FUNDRAISING_KEYS.transactions)) || [];
+      console.log('[getFundraisingTransactions] Loaded', txns.length, 'transactions');
+      return txns;
+    }
     catch { return []; }
   }
   function setFundraisingTransactions(txns) {
     localStorage.setItem(FUNDRAISING_KEYS.transactions, JSON.stringify(txns));
   }
   function getFundraisingTitle() {
-    try { return localStorage.getItem(FUNDRAISING_KEYS.title) || ''; }
+    try { 
+      const title = localStorage.getItem(FUNDRAISING_KEYS.title) || '';
+      console.log('[getFundraisingTitle] Loaded title:', title);
+      return title;
+    }
     catch { return ''; }
   }
   function setFundraisingTitle(val) {
     localStorage.setItem(FUNDRAISING_KEYS.title, val);
   }
   function getFundraisingTargetTitle() {
-    try { return localStorage.getItem(FUNDRAISING_KEYS.targetTitle) || ''; }
+    try { 
+      const title = localStorage.getItem(FUNDRAISING_KEYS.targetTitle) || '';
+      console.log('[getFundraisingTargetTitle] Loaded target title:', title);
+      return title;
+    }
     catch { return ''; }
   }
   function setFundraisingTargetTitle(val) {
     localStorage.setItem(FUNDRAISING_KEYS.targetTitle, val);
   }
   function getFundraisingTargetAmount() {
-    try { return parseFloat(localStorage.getItem(FUNDRAISING_KEYS.targetAmount)) || 0; }
+    try { 
+      const amount = parseFloat(localStorage.getItem(FUNDRAISING_KEYS.targetAmount)) || 0;
+      console.log('[getFundraisingTargetAmount] Loaded target amount:', amount);
+      return amount;
+    }
     catch { return 0; }
   }
   function setFundraisingTargetAmount(val) {
     localStorage.setItem(FUNDRAISING_KEYS.targetAmount, val.toString());
   }
   function getFundraisingTargetType() {
-    try { return localStorage.getItem(FUNDRAISING_KEYS.targetType) || 'guruh'; }
+    try { 
+      const type = localStorage.getItem(FUNDRAISING_KEYS.targetType) || 'guruh';
+      console.log('[getFundraisingTargetType] Loaded target type:', type);
+      return type;
+    }
     catch { return 'guruh'; }
   }
   function setFundraisingTargetType(val) {
     localStorage.setItem(FUNDRAISING_KEYS.targetType, val);
   }
   function getFundraisingTargetScope() {
-    try { return localStorage.getItem(FUNDRAISING_KEYS.targetScope) || 'hammasi'; }
+    try { 
+      const scope = localStorage.getItem(FUNDRAISING_KEYS.targetScope) || 'hammasi';
+      console.log('[getFundraisingTargetScope] Loaded target scope:', scope);
+      return scope;
+    }
     catch { return 'hammasi'; }
   }
   function setFundraisingTargetScope(val) {
@@ -80,7 +261,11 @@
   function getTransactions() {
     const isFundraising = currentMode === 'fundraising';
     if (isFundraising) return getFundraisingTransactions();
-    try { return JSON.parse(localStorage.getItem('transactions')) || []; }
+    try { 
+      const txns = JSON.parse(localStorage.getItem('transactions')) || [];
+      console.log('[getTransactions] Loaded', txns.length, 'personal transactions');
+      return txns;
+    }
     catch { return []; }
   }
   function setTransactions(txns) {
@@ -1343,6 +1528,9 @@ function renderArchivedPeriods() {
   window.toggleMoreSection = toggleMoreSection;
   window.toggleTheme = toggleTheme;
 
+  // Run migration early to ensure data is available for onboarding checks
+  migrateLegacyData();
+
   // ==================== ONBOARDING ====================
   const savedBalance = localStorage.getItem('starting_balance');
   const balanceNum = parseFloat(savedBalance);
@@ -1470,9 +1658,6 @@ function renderArchivedPeriods() {
   });
 
   // Edit balance / target submit handler
-  const editBalanceModal = document.getElementById('edit-balance-modal');
-  const editBalanceSubmitBtn = document.getElementById('edit-balance-submit-btn');
-  const cancelEditBalance = document.getElementById('cancel-edit-balance');
   
   if (editBalanceSubmitBtn) {
     editBalanceSubmitBtn.addEventListener('click', function (e) {
@@ -1711,7 +1896,7 @@ function renderArchivedPeriods() {
   }
   function exportBackup() {
     const data = {
-      version: '7.5.0',
+      version: '8.1.0',
       exportedAt: new Date().toISOString(),
       startingBalance: localStorage.getItem('starting_balance'),
       transactions: getTransactionsSafe(),
@@ -2090,7 +2275,7 @@ function renderArchivedPeriods() {
       }
     });
 
-    navigator.serviceWorker.register('sw.js?v=7.5.0').then((registration) => {
+    navigator.serviceWorker.register('sw.js?v=8.1.0').then((registration) => {
       // Force an immediate update check on every page load
       registration.update();
 
@@ -2112,16 +2297,23 @@ function renderArchivedPeriods() {
 
   // PIN lock check + full UI re-initialization on page load
   document.addEventListener('DOMContentLoaded', function () {
-    // Re-read starting_balance from localStorage to ensure fresh state
-    const saved = localStorage.getItem('starting_balance');
-    const parsed = parseFloat(saved);
-    startingBalance = Number.isFinite(parsed) ? parsed : 0;
+    try {
+      // Run data migration first to restore any legacy data
+      migrateLegacyData();
+      
+      // Re-read starting_balance from localStorage to ensure fresh state
+      const saved = localStorage.getItem('starting_balance');
+      const parsed = parseFloat(saved);
+      startingBalance = Number.isFinite(parsed) ? parsed : 0;
 
-    // Render full UI immediately
-    updateDashboard();
-    applyModeLabels();
+      // Render full UI immediately
+      updateDashboard();
+      applyModeLabels();
 
-    // Then check PIN lock (may overlay on top if a PIN is set)
-    checkPinLock();
+      // Then check PIN lock (may overlay on top if a PIN is set)
+      checkPinLock();
+    } catch (err) {
+      console.error('App init failed:', err);
+    }
   });
 })();
