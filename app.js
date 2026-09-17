@@ -1539,8 +1539,10 @@ function renderArchivedPeriods() {
   // Check fundraising onboarding
   const isFundraisingMode = currentMode === 'fundraising';
   const fundraisingTarget = getFundraisingTarget();
+  const fundraisingTargetAmount = getFundraisingTargetAmount();
   const fundraisingTitle = getFundraisingTitle();
-  const shouldShowFundraisingOnboarding = isFundraisingMode && (!fundraisingTarget || !fundraisingTitle);
+  // Show onboarding if no target set, target amount is 0, or no title
+  const shouldShowFundraisingOnboarding = isFundraisingMode && (!fundraisingTarget || fundraisingTargetAmount <= 0 || !fundraisingTitle);
   
   if (shouldShowOnboarding && !isFundraisingMode) {
     if (onboardingModal) {
@@ -1783,6 +1785,17 @@ function renderArchivedPeriods() {
       startingBalance = 0;
       localStorage.setItem('starting_balance', '0');
 
+      // If in fundraising mode, also reset target amount and scope to trigger new setup
+      const isFundraising = currentMode === 'fundraising';
+      if (isFundraising) {
+        setFundraisingTarget(0);
+        setFundraisingTargetAmount(0);
+        setFundraisingTargetTitle('');
+        setFundraisingTargetType('guruh');
+        setFundraisingTargetScope('hammasi');
+        console.log('[archive] Fundraising mode: reset target amount and scope');
+      }
+
       if (archiveModal) { archiveModal.classList.add('hidden'); archiveModal.classList.remove('flex'); }
       if (archiveNameInput) archiveNameInput.value = '';
       if (archiveStartingBalanceInput) archiveStartingBalanceInput.value = '';
@@ -1896,7 +1909,7 @@ function renderArchivedPeriods() {
   }
   function exportBackup() {
     const data = {
-      version: '8.1.0',
+      version: '9.0.0',
       exportedAt: new Date().toISOString(),
       startingBalance: localStorage.getItem('starting_balance'),
       transactions: getTransactionsSafe(),
@@ -2275,7 +2288,7 @@ function renderArchivedPeriods() {
       }
     });
 
-    navigator.serviceWorker.register('sw.js?v=8.1.0').then((registration) => {
+    navigator.serviceWorker.register('sw.js?v=9.0.0').then((registration) => {
       // Force an immediate update check on every page load
       registration.update();
 

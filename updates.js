@@ -3,6 +3,18 @@
 
   window.APP_UPDATES = [
     {
+      version: "v9.0.0",
+      date: "18.09.2026",
+      title: "Hammasi Scope Fix & Reset Archive Fundraising Reset",
+      changes: [
+        "Fixed 'Hammasi' scope reverting to 'Shaxsiy' - strict scope checking in transaction form and edit modal",
+        "Reset & Archive now properly resets target amount to 0 in Fundraising mode",
+        "Added automatic fundraising onboarding trigger when target_amount is 0 or missing",
+        "Fundraising modals now show correct title: 'Yig'ilishi kerak bo'lgan summani tahrirlash'",
+        "Script versions bumped to v=9.0.0 to clear browser cache"
+      ]
+    },
+    {
       version: "v8.1.0",
       date: "18.09.2026",
       title: "Critical Bug Fixes: Duplicate Declaration & Init Crash Protection",

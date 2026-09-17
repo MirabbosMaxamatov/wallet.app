@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wallet-app-v8.1.0'; // Updated cache version — bump to bust stale caches
+const CACHE_NAME = 'wallet-app-v9.0.0'; // Updated cache version — bump to bust stale caches
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
