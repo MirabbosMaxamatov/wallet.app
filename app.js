@@ -295,75 +295,48 @@
     window.toggleAppMode = toggleAppMode;
 
     // ==================== FUNDRAISING ONBOARDING ====================
-    let fundraisingOnboardingStep = 1; // 1 = target, 2 = title
     function showFundraisingOnboarding() {
       const modal = document.getElementById('fundraising-onboarding-modal');
       if (!modal) return;
       
-      fundraisingOnboardingStep = 1;
-      updateFundraisingOnboardingUI();
       modal.classList.remove('hidden');
       modal.classList.add('flex');
       
-      const input = document.getElementById('fundraising-onboarding-input');
-      if (input) {
-        input.value = '';
-        input.focus();
-      }
+      // Focus on title input first
+      const titleInput = document.getElementById('fundraising-title-input');
+      if (titleInput) titleInput.focus();
     }
-    function updateFundraisingOnboardingUI() {
-      const titleEl = document.getElementById('fundraising-onboarding-title');
-      const descEl = document.getElementById('fundraising-onboarding-desc');
-      const input = document.getElementById('fundraising-onboarding-input');
-      const btn = document.getElementById('fundraising-onboarding-next-btn');
-      const skipBtn = document.getElementById('fundraising-onboarding-skip-btn');
+    function saveFundraisingSetup(e) {
+      if (e) e.preventDefault();
       
-      if (fundraisingOnboardingStep === 1) {
-        if (titleEl) titleEl.textContent = t('fundraisingTargetTitle') || 'Maqsad summasini kiriting';
-        if (descEl) descEl.textContent = t('fundraisingTargetDesc') || 'Yig\'moqchi bo\'lgan summani belgilang';
-        if (input) {
-          input.placeholder = t('fundraisingTargetPlaceholder') || 'Masalan: 50 000 000';
-          input.type = 'number';
-        }
-        if (btn) btn.textContent = t('next') || 'Keyingi';
-        if (skipBtn) skipBtn.classList.add('hidden');
-      } else if (fundraisingOnboardingStep === 2) {
-        if (titleEl) titleEl.textContent = t('fundraisingTitleTitle') || 'Loyiha nomini kiriting';
-        if (descEl) descEl.textContent = t('fundraisingTitleDesc') || 'Bu sizni motivatsiya qiluvchi nom bo\'ladi';
-        if (input) {
-          input.placeholder = t('fundraisingTitlePlaceholder') || 'Masalan: Yangi avto, Sayohat...';
-          input.type = 'text';
-        }
-        if (btn) btn.textContent = t('startFundraising') || 'Boshlash';
-        if (skipBtn) skipBtn.classList.remove('hidden');
+      const titleInput = document.getElementById('fundraising-title-input');
+      const targetInput = document.getElementById('fundraising-target-input');
+      
+      const title = titleInput ? titleInput.value.trim() : '';
+      const target = targetInput ? parseFloat(targetInput.value) || 0 : 0;
+      
+      if (!title || target <= 0) {
+        alert("Iltimos, maqsad nomi va yig'ilishi kerak bo'lgan summani to'g'ri kiriting!");
+        return;
       }
-    }
-    function handleFundraisingOnboardingNext() {
-      const input = document.getElementById('fundraising-onboarding-input');
-      if (!input) return;
+
+      // Save to mode-isolated localStorage
+      setFundraisingTitle(title);
+      setFundraisingTarget(target);
       
-      const value = input.value.trim();
-      
-      if (fundraisingOnboardingStep === 1) {
-        const target = parseFloat(value.replace(/\s+/g, ''));
-        if (!Number.isFinite(target) || target <= 0) {
-          alert(t('invalidAmount') || 'Iltimos, to\'g\'ri summa kiriting!');
-          return;
-        }
-        setFundraisingTarget(target);
-        fundraisingOnboardingStep = 2;
-        updateFundraisingOnboardingUI();
-        input.value = '';
-        input.focus();
-      } else if (fundraisingOnboardingStep === 2) {
-        if (!value) {
-          alert(t('enterTitle') || 'Iltimos, nom kiriting!');
-          return;
-        }
-        setFundraisingTitle(value);
-        closeFundraisingOnboarding();
-        updateDashboard();
+      // Hide modal
+      const modal = document.getElementById('fundraising-onboarding-modal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
       }
+      
+      // Clear form
+      if (titleInput) titleInput.value = '';
+      if (targetInput) targetInput.value = '';
+      
+      // Re-render UI
+      updateDashboard();
     }
     function closeFundraisingOnboarding() {
       const modal = document.getElementById('fundraising-onboarding-modal');
@@ -372,7 +345,7 @@
         modal.classList.remove('flex');
       }
     }
-    window.handleFundraisingOnboardingNext = handleFundraisingOnboardingNext;
+    window.saveFundraisingSetup = saveFundraisingSetup;
     window.closeFundraisingOnboarding = closeFundraisingOnboarding;
 
     // ==================== UPDATE & RENDER ====================
