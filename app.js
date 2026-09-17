@@ -13,6 +13,8 @@
     target: 'fundraising_target',
     transactions: 'fundraising_transactions',
     title: 'fundraising_title',
+    targetTitle: 'fundraising_target_title',
+    targetAmount: 'fundraising_target_amount',
     archivedPeriods: 'fundraising_archived_periods'
   };
 
@@ -43,6 +45,20 @@
   }
   function setFundraisingTitle(val) {
     localStorage.setItem(FUNDRAISING_KEYS.title, val);
+  }
+  function getFundraisingTargetTitle() {
+    try { return localStorage.getItem(FUNDRAISING_KEYS.targetTitle) || ''; }
+    catch { return ''; }
+  }
+  function setFundraisingTargetTitle(val) {
+    localStorage.setItem(FUNDRAISING_KEYS.targetTitle, val);
+  }
+  function getFundraisingTargetAmount() {
+    try { return parseFloat(localStorage.getItem(FUNDRAISING_KEYS.targetAmount)) || 0; }
+    catch { return 0; }
+  }
+  function setFundraisingTargetAmount(val) {
+    localStorage.setItem(FUNDRAISING_KEYS.targetAmount, val.toString());
   }
 
   // --- Fundraising target group type ---
@@ -445,6 +461,8 @@
       // Save to mode-isolated localStorage
       setFundraisingTitle(title);
       setFundraisingTarget(target);
+      setFundraisingTargetTitle(title);
+      setFundraisingTargetAmount(target);
       setFundraisingTargetGroup(groupType);
       
       // Hide modal
@@ -511,19 +529,25 @@
   }
 
   function updateStartingBalanceBanner() {
-    const labelEl = document.querySelector('#starting-balance-banner [data-i18n="startingBalance"]');
-    if (!labelEl) return;
+    const labelEl = document.getElementById('starting-balance-label');
+    const labelMobileEl = document.getElementById('starting-balance-label-mobile');
+    const amountEl = document.getElementById('starting-balance-amount');
+    if (!labelEl || !amountEl) return;
     
     const isFundraising = currentMode === 'fundraising';
     if (isFundraising) {
-      const title = getFundraisingTitle();
-      const target = getFundraisingTarget();
+      const title = getFundraisingTargetTitle() || getFundraisingTitle();
+      const target = getFundraisingTargetAmount() || getFundraisingTarget();
       const label = t('fundraisingTargetCard') || 'MAQSAD';
-      labelEl.textContent = title 
-        ? `${label}: ${title} (${formatCurrency(target)})`
-        : `${label} (${formatCurrency(target)})`;
+      // Set label
+      if (labelEl) labelEl.textContent = title ? `${label}: ${title.toUpperCase()}` : label;
+      if (labelMobileEl) labelMobileEl.textContent = title ? `${label}: ${title.toUpperCase()}` : label;
+      // Set amount only
+      amountEl.textContent = formatCurrency(target);
     } else {
-      labelEl.textContent = `${t('startingBalance') || 'Boshlang\'ich Pul'}: ${formatCurrency(startingBalance)}`;
+      if (labelEl) labelEl.textContent = t('startingBalance') || 'Boshlang\'ich Pul';
+      if (labelMobileEl) labelMobileEl.textContent = 'B.Pul';
+      amountEl.textContent = formatCurrency(startingBalance);
     }
   }
 

@@ -3,6 +3,19 @@
 
   window.APP_UPDATES = [
     {
+      version: "v6.6.0",
+      date: "17.09.2026",
+      title: "Target Amount Reset/Saving Fix & Top Header Rendering",
+      changes: [
+        "Target title va amount alohida localStorage kalitlariga saqlanadi: fundraising_target_title, fundraising_target_amount",
+        "Yuqori baner to'g'rilandi: Label (MAQSAD: REMONT) va Value (444,000.00 so'm) alohida elementlarga ajratildi",
+        "Ikki marta amount ko'rinishi (double rendering) hal qilindi",
+        "Fundraising onboarding/setup da target title va amount to'g'ri saqlanishi ta'minlandi",
+        "Split kalkulyatori yangilangan target amount asosida qayta hisoblanadi",
+        "Script versiyalari v=6.6.0 ga oshirildi"
+      ]
+    },
+    {
       version: "v6.5.0",
       date: "17.09.2026",
       title: "Category State Leakage Fix & Dynamic Dropdowns",
