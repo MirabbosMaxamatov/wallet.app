@@ -3,6 +3,18 @@
 
   window.APP_UPDATES = [
     {
+      version: "v6.4.0",
+      date: "17.09.2026",
+      title: "Top Bar Format Fix & Dynamic Category Types",
+      changes: [
+        "Yuqori baner formati to'g'rilandi: `MAQSAD: REMONT (235,000.00 so'm)` ko'rinishida",
+        "Pul Yig'ish rejimida 'Yig'ish turi' tanlovi qo'shildi: Shaxsiy / Oila / Guruh",
+        "Dinamik kategoriya tizimi: Shaxsiy -> standart kategoriyalar; Oila -> Ota, Ona, Aka, Uka, Opa, Singil, Boshqa; Guruh -> Erkak, Ayol",
+        "Onboarding modalida va tranzaksiya formida kategoriya avtomatik yangilanadi",
+        "Til resurslariga yangi kalitlar qo'shildi: targetGroupType, personal, family, group, father, mother, olderBrother, youngerBrother, olderSister, youngerSister, male, female"
+      ]
+    },
+    {
       version: "v6.2.0",
       date: "17.09.2026",
       title: "Mode-Isolated Archives, Dynamic Header & Split Calculator",

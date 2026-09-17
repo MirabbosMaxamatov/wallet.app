@@ -45,6 +45,17 @@
     localStorage.setItem(FUNDRAISING_KEYS.title, val);
   }
 
+  // --- Fundraising target group type ---
+  const TARGET_GROUP_KEY = 'fundraising_target_group_type';
+  const DEFAULT_TARGET_GROUP = 'personal';
+  function getFundraisingTargetGroup() {
+    try { return localStorage.getItem(TARGET_GROUP_KEY) || DEFAULT_TARGET_GROUP; }
+    catch { return DEFAULT_TARGET_GROUP; }
+  }
+  function setFundraisingTargetGroup(val) {
+    localStorage.setItem(TARGET_GROUP_KEY, val);
+  }
+
   function getTransactions() {
     const isFundraising = currentMode === 'fundraising';
     if (isFundraising) return getFundraisingTransactions();
@@ -178,6 +189,82 @@
     div.textContent = str;
     return div.innerHTML;
   }
+
+  // ==================== DYNAMIC CATEGORY LOGIC (Fundraising) ====================
+  const PERSONAL_CATEGORIES = [
+    { value: 'Food', label: t('food') || 'Oziq-ovqat' },
+    { value: 'Transport', label: t('transport') || 'Transport' },
+    { value: 'Salary', label: t('salary') || 'Maosh' },
+    { value: 'Shopping', label: t('shopping') || 'Xarid' },
+    { value: 'Utilities', label: t('utilities') || 'Kommunal' },
+    { value: 'Other', label: t('other') || 'Boshqa' }
+  ];
+
+  const FAMILY_CATEGORIES = [
+    { value: 'father', label: t('father') || 'Ota' },
+    { value: 'mother', label: t('mother') || 'Ona' },
+    { value: 'olderBrother', label: t('olderBrother') || 'Aka' },
+    { value: 'youngerBrother', label: t('youngerBrother') || 'Uka' },
+    { value: 'olderSister', label: t('olderSister') || 'Opa' },
+    { value: 'youngerSister', label: t('youngerSister') || 'Singil' },
+    { value: 'other', label: t('other') || 'Boshqa' }
+  ];
+
+  const GROUP_CATEGORIES = [
+    { value: 'male', label: t('male') || 'Erkak' },
+    { value: 'female', label: t('female') || 'Ayol' }
+  ];
+
+  function getCategoriesForTargetGroup(groupType) {
+    switch (groupType) {
+      case 'family': return FAMILY_CATEGORIES;
+      case 'group': return GROUP_CATEGORIES;
+      case 'personal':
+      default: return PERSONAL_CATEGORIES;
+    }
+  }
+
+  function populateCategorySelect(selectElement, groupType) {
+    if (!selectElement) return;
+    const categories = getCategoriesForTargetGroup(groupType);
+    const currentValue = selectElement.value;
+    selectElement.innerHTML = '';
+    categories.forEach(cat => {
+      const option = document.createElement('option');
+      option.value = cat.value;
+      option.textContent = cat.label;
+      selectElement.appendChild(option);
+    });
+    // Restore value if it exists in new options, otherwise reset
+    if (categories.some(c => c.value === currentValue)) {
+      selectElement.value = currentValue;
+    } else if (categories.length > 0) {
+      selectElement.value = categories[0].value;
+    }
+  }
+
+  function updateCategorySelectsForMode() {
+    const isFundraising = currentMode === 'fundraising';
+    const groupType = isFundraising ? getFundraisingTargetGroup() : 'personal';
+    
+    // Update main transaction form category select
+    const categorySelect = document.getElementById('category');
+    populateCategorySelect(categorySelect, groupType);
+    
+    // Update edit modal category select
+    const editCategorySelect = document.getElementById('edit-category');
+    populateCategorySelect(editCategorySelect, groupType);
+    
+    // Show/hide category label based on mode
+    const categoryLabels = document.querySelectorAll('label[for="category"], label[for="edit-category"]');
+    categoryLabels.forEach(label => {
+      if (isFundraising && groupType === 'personal') {
+        label.textContent = t('category') || 'Kategoriya';
+      }
+    });
+  }
+
+  window.updateCategorySelectsForMode = updateCategorySelectsForMode;
 
   // ==================== DOM REFERENCES ====================
   const $ = (id) => document.getElementById(id);
@@ -327,9 +414,11 @@
       
       const titleInput = document.getElementById('fundraising-title-input');
       const targetInput = document.getElementById('fundraising-target-input');
+      const groupTypeSelect = document.getElementById('fundraising-group-type-input');
       
       const title = titleInput ? titleInput.value.trim() : '';
       const target = targetInput ? parseFloat(targetInput.value) || 0 : 0;
+      const groupType = groupTypeSelect ? groupTypeSelect.value : 'personal';
       
       if (!title || target <= 0) {
         alert("Iltimos, maqsad nomi va yig'ilishi kerak bo'lgan summani to'g'ri kiriting!");
@@ -339,6 +428,7 @@
       // Save to mode-isolated localStorage
       setFundraisingTitle(title);
       setFundraisingTarget(target);
+      setFundraisingTargetGroup(groupType);
       
       // Hide modal
       const modal = document.getElementById('fundraising-onboarding-modal');
@@ -350,6 +440,7 @@
       // Clear form
       if (titleInput) titleInput.value = '';
       if (targetInput) targetInput.value = '';
+      if (groupTypeSelect) groupTypeSelect.value = 'personal';
       
       // Re-render UI
       updateDashboard();
@@ -391,6 +482,9 @@
       // Update split calculator
       updateSplitCalculator();
 
+      // Update category selects for fundraising mode
+      updateCategorySelectsForMode();
+
       renderTransactions();
       renderArchivedPeriods();
     } catch (e) { console.error('[dashboard] updateDashboard:', e); }
@@ -404,9 +498,10 @@
     if (isFundraising) {
       const title = getFundraisingTitle();
       const target = getFundraisingTarget();
+      const label = t('fundraisingTargetCard') || 'MAQSAD';
       labelEl.textContent = title 
-        ? `${t('fundraisingTargetCard') || 'Maqsad'}: ${title} | ${formatCurrency(target)}`
-        : `${t('targetAmount') || 'Maqsad'}: ${formatCurrency(target)}`;
+        ? `${label}: ${title} (${formatCurrency(target)})`
+        : `${label} (${formatCurrency(target)})`;
     } else {
       labelEl.textContent = `${t('startingBalance') || 'Boshlang\'ich Pul'}: ${formatCurrency(startingBalance)}`;
     }
