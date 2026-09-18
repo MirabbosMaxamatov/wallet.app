@@ -1,6 +1,10 @@
 (() => {
   'use strict';
 
+  // ==================== CONSTANTS & GLOBAL SETTINGS ====================
+  const UZS_PER_USD = 12800;
+  let currentCurrency = localStorage.getItem('app_currency_input') || 'UZS';
+
   // ==================== MODE STATE (must be first) ====================
   let currentMode = localStorage.getItem('app_mode') || 'smart';
 
@@ -396,6 +400,164 @@
     return div.innerHTML;
   }
 
+  // ==================== MATH EXPRESSION EVALUATOR ====================
+  function safeEvaluateExpression(expr) {
+    if (!expr || typeof expr !== 'string') return null;
+    const cleaned = expr.trim().replace(/[^0-9+\-*/().\s]/g, '');
+    if (!cleaned) return null;
+    try {
+      const fn = new Function('return ' + cleaned);
+      const result = fn();
+      return Number.isFinite(result) ? result : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function evaluateAndUpdateInput(inputId) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const value = input.value.trim();
+    const result = safeEvaluateExpression(value);
+    const previewId = inputId + '-preview';
+    const preview = document.getElementById(previewId);
+    if (preview) {
+      if (result !== null && value.includes('+') || value.includes('-') || value.includes('*') || value.includes('/')) {
+        preview.textContent = '= ' + result.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' so\'m';
+        preview.style.color = '#34d399';
+      } else {
+        preview.textContent = formatAmountPreview(value);
+      }
+    }
+    return result;
+  }
+
+  function finalizeInputValue(inputId) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const value = input.value.trim();
+    const result = safeEvaluateExpression(value);
+    if (result !== null) {
+      input.value = result.toString();
+    }
+    updateAmountPreview(inputId);
+  }
+
+  // ==================== CURRENCY CONVERSION ====================
+  function convertCurrency(amount, fromCurrency) {
+    if (fromCurrency === 'USD') {
+      return amount * UZS_PER_USD;
+    }
+    return amount;
+  }
+
+  function formatCurrencyWithToggle(value, showBoth = false) {
+    const uzsValue = currentCurrency === 'USD' ? value * UZS_PER_USD : value;
+    const formatted = formatCurrency(uzsValue);
+    if (showBoth && currentCurrency === 'USD') {
+      return `${formatted} ≈ $${value.toFixed(2)}`;
+    }
+    if (showBoth && currentCurrency === 'UZS') {
+      return `${formatted} ≈ ${(value / UZS_PER_USD).toFixed(2)} $`;
+    }
+    return formatted;
+  }
+
+  function updateCurrencyToggleUI() {
+    const toggleBtns = document.querySelectorAll('.currency-input-toggle');
+    toggleBtns.forEach(btn => {
+      btn.textContent = currentCurrency === 'UZS' ? 'UZS' : 'USD';
+      btn.title = currentCurrency === 'UZS' ? 'Switch to USD' : 'Switch to UZS';
+    });
+    localStorage.setItem('app_currency_input', currentCurrency);
+  }
+
+  function toggleInputCurrency() {
+    currentCurrency = currentCurrency === 'UZS' ? 'USD' : 'UZS';
+    updateCurrencyToggleUI();
+    const amountInput = document.getElementById('amount');
+    if (amountInput) {
+      const preview = document.getElementById('amount-preview');
+      if (preview) {
+        const val = parseFloat(amountInput.value) || 0;
+        if (val > 0) {
+          const converted = convertCurrency(val, currentCurrency === 'USD' ? 'UZS' : 'USD');
+          preview.textContent = currentCurrency === 'USD' ? `≈ ${converted.toLocaleString('en-US')} so'm` : `≈ $${(val / UZS_PER_USD).toFixed(2)}`;
+        }
+      }
+    }
+  }
+
+  // ==================== VELOCITY & PREDICTOR (Fundraising) ====================
+  function calculateFundraisingVelocity() {
+    const txns = getFundraisingTransactions();
+    if (txns.length === 0) return null;
+
+    let totalIncome = 0;
+    let dates = new Set();
+    for (const t of txns) {
+      const amt = Number.isFinite(t.amount) ? t.amount : 0;
+      if (t.type === 'income') totalIncome += amt;
+      if (t.date) dates.add(t.date);
+    }
+
+    if (totalIncome === 0) return null;
+
+    const uniqueDays = dates.size;
+    const daysElapsed = Math.max(1, uniqueDays);
+    const dailyAverage = totalIncome / daysElapsed;
+
+    const target = getFundraisingTargetAmount() || getFundraisingTarget();
+    const { currentBalance } = calculateTotals();
+    const remaining = target - currentBalance;
+
+    if (remaining <= 0) return { dailyAverage, remaining: 0, daysLeft: 0, target, currentBalance, totalIncome };
+
+    const daysLeft = Math.ceil(remaining / dailyAverage);
+    return { dailyAverage, remaining, daysLeft, target, currentBalance, totalIncome };
+  }
+
+  function renderVelocityPredictor() {
+    const container = document.getElementById('velocity-predictor');
+    if (!container) return;
+
+    const velocity = calculateFundraisingVelocity();
+    if (!velocity) {
+      container.innerHTML = `
+        <div class="text-center py-3 text-slate-400 text-sm">
+          Boshlash uchun birinchi kirim tranzaksiyasini kiriting
+        </div>
+      `;
+      return;
+    }
+
+    const { dailyAverage, remaining, daysLeft, target, currentBalance } = velocity;
+    const isComplete = remaining <= 0;
+
+    container.innerHTML = `
+      <div class="bg-slate-700/50 border border-emerald-500/30 rounded-xl p-3">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-emerald-400 text-lg">⚡</span>
+          <span class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Sur'at va Taxmin</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2 text-center mb-2">
+          <div>
+            <p class="text-[10px] text-slate-500 uppercase">Kuniga o'rtacha</p>
+            <p class="text-sm font-bold text-emerald-400">${formatCurrency(dailyAverage)}/kun</p>
+          </div>
+          <div>
+            <p class="text-[10px] text-slate-500 uppercase">${isComplete ? 'Maqsadga erishildi' : 'Qolgan kunlar'}</p>
+            <p class="text-sm font-bold ${isComplete ? 'text-emerald-400' : 'text-amber-400'}">${isComplete ? '✅' : `~${daysLeft} kun`}</p>
+          </div>
+        </div>
+        <div class="text-xs text-slate-400 text-center border-t border-slate-700/50 pt-2">
+          Jami yig'ilgan: ${formatCurrency(currentBalance)} / ${formatCurrency(target)}
+          ${remaining > 0 ? ` | Qolgan: ${formatCurrency(remaining)}` : ''}
+        </div>
+      </div>
+    `;
+  }
+
   // ==================== DYNAMIC CATEGORY LOGIC (Fundraising) ====================
   // Level 1: Main categories (for hammasi scope)
   const MAIN_CATEGORIES = [
@@ -618,7 +780,10 @@
   // Live amount preview wiring for all amount inputs
   ['onboarding-input', 'amount', 'edit-amount', 'fundraising-target-input', 'edit-balance-input'].forEach(function (id) {
     const el = document.getElementById(id);
-    if (el) el.addEventListener('input', function () { updateAmountPreview(id); });
+    if (el) {
+      el.addEventListener('input', function () { updateAmountPreview(id); evaluateAndUpdateInput(id); });
+      el.addEventListener('blur', function () { finalizeInputValue(id); });
+    }
   });
 
   // Split calculator people count input
@@ -849,6 +1014,9 @@
     if (targetTitleEl) targetTitleEl.textContent = title || '-';
     if (targetAmountEl) targetAmountEl.textContent = formatCurrency(target);
     if (currentBalanceEl) currentBalanceEl.textContent = formatCurrency(currentBalance);
+
+    // Render velocity predictor
+    renderVelocityPredictor();
   }
 
   // ==================== SPLIT CALCULATOR (Fundraising only) ====================
@@ -1538,6 +1706,8 @@ function renderArchivedPeriods() {
   window.importBackup = importBackup;
   window.toggleMoreSection = toggleMoreSection;
   window.toggleTheme = toggleTheme;
+  window.toggleInputCurrency = toggleInputCurrency;
+  window.finalizeInputValue = finalizeInputValue;
   
   // Quick amount helpers for target edit modal
   window.appendTargetZeros = (z) => { const el = document.getElementById('edit-balance-input'); if (el) { el.value = (el.value || '') + z; el.dispatchEvent(new Event('input', { bubbles: true })); } };
@@ -1925,7 +2095,7 @@ function renderArchivedPeriods() {
   }
   function exportBackup() {
     const data = {
-      version: '9.5.0',
+      version: '10.0.0',
       exportedAt: new Date().toISOString(),
       startingBalance: localStorage.getItem('starting_balance'),
       transactions: getTransactionsSafe(),
@@ -2304,7 +2474,7 @@ function renderArchivedPeriods() {
       }
     });
 
-    navigator.serviceWorker.register('sw.js?v=9.5.0').then((registration) => {
+    navigator.serviceWorker.register('sw.js?v=10.0.0').then((registration) => {
       // Force an immediate update check on every page load
       registration.update();
 

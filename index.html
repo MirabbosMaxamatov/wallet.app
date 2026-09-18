@@ -9,14 +9,14 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Smart Byudjet" />
   <meta name="mobile-web-app-capable" content="yes" />
-  <link rel="icon" type="image/jpeg" href="assets/walletprf.jpg?v=9.5.0">
-  <link rel="apple-touch-icon" href="assets/walletprf.jpg?v=9.5.0">
-  <link rel="apple-touch-icon" sizes="180x180" href="assets/walletprf.jpg?v=9.5.0">
+  <link rel="icon" type="image/jpeg" href="assets/walletprf.jpg?v=10.0.0">
+  <link rel="apple-touch-icon" href="assets/walletprf.jpg?v=10.0.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/walletprf.jpg?v=10.0.0">
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css?v=9.5.0" />
+  <link rel="stylesheet" href="style.css?v=10.0.0" />
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="i18n.js?v=9.5.0" defer></script>
-  <script src="updates.js?v=9.5.0" defer></script>
+  <script src="i18n.js?v=10.0.0" defer></script>
+  <script src="updates.js?v=10.0.0" defer></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen">
 
@@ -28,8 +28,10 @@
       <div id="starting-balance-form">
         <div class="mb-6">
           <label class="block text-sm font-medium text-slate-300 mb-2">Boshlang'ich pul ($)</label>
-          <input type="number" id="onboarding-input" step="any" required placeholder="0.00"
-            class="input-base" />
+          <div class="flex items-center gap-2">
+            <input type="number" id="onboarding-input" step="any" required placeholder="0.00" class="input-base flex-1" />
+            <button type="button" onclick="toggleInputCurrency()" class="currency-input-toggle bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 rounded px-3 py-2 text-xs font-semibold transition-colors whitespace-nowrap" title="Switch currency">UZS</button>
+          </div>
 
           <!-- Dynamic Live Preview -->
           <div id="onboarding-input-preview" class="text-xs font-medium text-emerald-400 mt-1.5 min-h-[18px]"></div>
@@ -73,7 +75,10 @@
         </div>
         <div class="mb-6">
           <label class="block text-sm font-medium text-slate-300 mb-2">Yig'ilishi kerak bo'lgan summa ($)</label>
-          <input type="number" id="fundraising-target-input" step="any" required placeholder="0.00" class="input-base" />
+          <div class="flex items-center gap-2">
+            <input type="number" id="fundraising-target-input" step="any" required placeholder="0.00" class="input-base flex-1" />
+            <button type="button" onclick="toggleInputCurrency()" class="currency-input-toggle bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 rounded px-3 py-2 text-xs font-semibold transition-colors whitespace-nowrap" title="Switch currency">UZS</button>
+          </div>
           <div id="fundraising-target-preview" class="text-xs font-medium text-emerald-400 mt-1.5 min-h-[18px]"></div>
           <div class="flex items-center gap-2 pt-1.5">
             <button type="button" onclick="appendZeros('fundraising-target-input', '000')" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 rounded px-2 py-1 text-xs font-semibold transition-colors">+000 (Ming)</button>
@@ -115,7 +120,10 @@
         <input type="hidden" id="edit-id" />
         <div class="mb-4">
           <label class="block text-sm font-medium text-slate-300 mb-1">Summa ($)</label>
-          <input type="number" id="edit-amount" step="any" required placeholder="0.00" class="input-base" />
+          <div class="flex items-center gap-2">
+            <input type="number" id="edit-amount" step="any" required placeholder="0.00" class="input-base flex-1" />
+            <button type="button" onclick="toggleInputCurrency()" class="currency-input-toggle bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 rounded px-3 py-2 text-xs font-semibold transition-colors whitespace-nowrap" title="Switch currency">UZS</button>
+          </div>
 
           <!-- Dynamic Live Preview -->
           <div id="edit-amount-preview" class="text-xs font-medium text-emerald-400 mt-1.5 min-h-[18px]"></div>
@@ -200,7 +208,10 @@
         </div>
         <div class="mb-6">
           <label class="block text-sm font-medium text-slate-300 mb-2">Boshlang'ich pul ($)</label>
-          <input type="number" id="edit-balance-input" step="any" required placeholder="0.00" class="input-base" />
+          <div class="flex items-center gap-2">
+            <input type="number" id="edit-balance-input" step="any" required placeholder="0.00" class="input-base flex-1" />
+            <button type="button" onclick="toggleInputCurrency()" class="currency-input-toggle bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 rounded px-3 py-2 text-xs font-semibold transition-colors whitespace-nowrap" title="Switch currency">UZS</button>
+          </div>
           
           <!-- Quick Amount Buttons for Target Edit Modal -->
           <div class="flex flex-wrap gap-1.5 my-2">
@@ -316,6 +327,8 @@
       <div class="w-full bg-slate-700/50 rounded-full h-2.5 overflow-hidden">
         <div id="fundraising-progress-bar" class="bg-emerald-500 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
       </div>
+      <!-- Velocity Predictor Widget -->
+      <div id="velocity-predictor" class="mt-4"></div>
     </div>
 
     <!-- Fundraising Target Card -->
@@ -373,7 +386,10 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
           <div>
             <label class="block text-sm font-medium text-slate-300 mb-1">Summa ($)</label>
-            <input type="number" id="amount" step="any" required placeholder="0.00" class="input-base" />
+            <div class="flex items-center gap-2">
+              <input type="number" id="amount" step="any" required placeholder="0.00" class="input-base flex-1" />
+              <button type="button" onclick="toggleInputCurrency()" class="currency-input-toggle bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 rounded px-3 py-2 text-xs font-semibold transition-colors whitespace-nowrap" title="Switch currency">UZS</button>
+            </div>
 
             <!-- Dynamic Live Preview -->
             <div id="amount-preview" class="text-xs font-medium text-emerald-400 mt-1.5 min-h-[18px]"></div>
@@ -617,6 +633,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=9.5.0" defer></script>
+  <script src="app.js?v=10.0.0" defer></script>
 </body>
 </html>
