@@ -1,9 +1,123 @@
 (() => {
   'use strict';
 
+  // Financial records live in IndexedDB; localStorage remains for small UI preferences.
+  const FINANCIAL_DB_NAME = 'smart-byudjet-financial-data';
+  const FINANCIAL_DB_VERSION = 1;
+  const FINANCIAL_COLLECTIONS = ['transactions', 'fundraising_transactions'];
+  let financialDatabase = null;
+  let financialStorageReady = false;
+  let financialWriteQueue = Promise.resolve();
+  const transactionCache = {
+    transactions: [],
+    fundraising_transactions: []
+  };
+
+  function setStorageNotice(message, isError) {
+    const notice = document.getElementById('storage-status');
+    if (!notice) return;
+    notice.textContent = message;
+    notice.classList.toggle('hidden', !message);
+    notice.classList.toggle('storage-error', Boolean(isError));
+  }
+
+  function openFinancialDatabase() {
+    return new Promise((resolve, reject) => {
+      if (!('indexedDB' in window)) {
+        reject(new Error('IndexedDB is not available in this browser.'));
+        return;
+      }
+      const request = indexedDB.open(FINANCIAL_DB_NAME, FINANCIAL_DB_VERSION);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains('collections')) {
+          db.createObjectStore('collections', { keyPath: 'key' });
+        }
+        if (!db.objectStoreNames.contains('barcodeDictionary')) {
+          db.createObjectStore('barcodeDictionary', { keyPath: 'code' });
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error || new Error('Could not open IndexedDB.'));
+      request.onblocked = () => reject(new Error('Close other app tabs to finish the storage upgrade.'));
+    });
+  }
+
+  function readFinancialRecord(storeName, key) {
+    return new Promise((resolve, reject) => {
+      const request = financialDatabase.transaction(storeName, 'readonly').objectStore(storeName).get(key);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error || new Error('Could not read financial data.'));
+    });
+  }
+
+  function writeFinancialCollection(key, data) {
+    return new Promise((resolve, reject) => {
+      const transaction = financialDatabase.transaction('collections', 'readwrite');
+      transaction.objectStore('collections').put({ key, data });
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error || new Error('Could not save transactions.'));
+      transaction.onabort = () => reject(transaction.error || new Error('Transaction storage was aborted.'));
+    });
+  }
+
+  function persistFinancialCollection(key, data) {
+    const write = financialWriteQueue.then(() => writeFinancialCollection(key, data));
+    financialWriteQueue = write.catch((error) => {
+      console.error('[storage] Failed to persist collection:', key, error);
+      setStorageNotice('Could not save your latest changes. Export a backup and check device storage.', true);
+    });
+    return write.then(() => true, () => false);
+  }
+
+  async function initializeFinancialStorage() {
+    financialDatabase = await openFinancialDatabase();
+    financialDatabase.onversionchange = () => financialDatabase.close();
+
+    for (const key of FINANCIAL_COLLECTIONS) {
+      const record = await readFinancialRecord('collections', key);
+      let data = record && Array.isArray(record.data) ? record.data : null;
+      if (!data) {
+        try {
+          const legacyValue = localStorage.getItem(key);
+          const legacyData = legacyValue ? JSON.parse(legacyValue) : null;
+          if (Array.isArray(legacyData)) {
+            data = legacyData;
+            await writeFinancialCollection(key, data);
+          }
+        } catch (error) {
+          console.error('[storage] Could not migrate legacy transaction data:', key, error);
+          throw new Error('Existing transactions could not be safely migrated. Your old data was left untouched.');
+        }
+      }
+      transactionCache[key] = data || [];
+      if (localStorage.getItem(key) !== null) localStorage.removeItem(key);
+    }
+
+    financialStorageReady = true;
+    setStorageNotice('', false);
+  }
+
+  async function getBarcodeDictionaryItem(code) {
+    if (!financialStorageReady) throw new Error('Financial storage is not ready.');
+    return (await readFinancialRecord('barcodeDictionary', String(code))) || null;
+  }
+
+  function saveBarcodeDictionaryItem(item) {
+    if (!financialStorageReady) return Promise.reject(new Error('Financial storage is not ready.'));
+    return new Promise((resolve, reject) => {
+      const transaction = financialDatabase.transaction('barcodeDictionary', 'readwrite');
+      transaction.objectStore('barcodeDictionary').put(item);
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error || new Error('Could not save the barcode item.'));
+      transaction.onabort = () => reject(transaction.error || new Error('Barcode item storage was aborted.'));
+    });
+  }
+
   // ==================== CONSTANTS & GLOBAL SETTINGS ====================
   const UZS_PER_USD = 12800;
   let currentCurrency = localStorage.getItem('app_currency_input') || 'UZS';
+  let balanceHidden = false;
 
   // ==================== MODE STATE (must be first) ====================
   let currentMode = localStorage.getItem('app_mode') || 'smart';
@@ -21,7 +135,8 @@
     targetAmount: 'fundraising_target_amount',
     targetType: 'fundraising_target_type',
     targetScope: 'fundraising_target_scope',
-    archivedPeriods: 'fundraising_archived_periods'
+    archivedPeriods: 'fundraising_archived_periods',
+    recycleBin: 'fundraising_recycle_bin'
   };
 
   // ==================== DATA MIGRATION / FALLBACK ====================
@@ -196,15 +311,18 @@
     localStorage.setItem(FUNDRAISING_KEYS.target, val.toString());
   }
   function getFundraisingTransactions() {
-    try { 
-      const txns = JSON.parse(localStorage.getItem(FUNDRAISING_KEYS.transactions)) || [];
-      console.log('[getFundraisingTransactions] Loaded', txns.length, 'transactions');
-      return txns;
-    }
-    catch { return []; }
+    return transactionCache[FUNDRAISING_KEYS.transactions];
   }
   function setFundraisingTransactions(txns) {
-    localStorage.setItem(FUNDRAISING_KEYS.transactions, JSON.stringify(txns));
+    const previous = transactionCache[FUNDRAISING_KEYS.transactions].slice();
+    transactionCache[FUNDRAISING_KEYS.transactions] = txns;
+    return persistFinancialCollection(FUNDRAISING_KEYS.transactions, txns).then((saved) => {
+      if (!saved && transactionCache[FUNDRAISING_KEYS.transactions] === txns) {
+        transactionCache[FUNDRAISING_KEYS.transactions] = previous;
+        updateDashboard();
+      }
+      return saved;
+    });
   }
   function getFundraisingTitle() {
     try { 
@@ -265,17 +383,20 @@
   function getTransactions() {
     const isFundraising = currentMode === 'fundraising';
     if (isFundraising) return getFundraisingTransactions();
-    try { 
-      const txns = JSON.parse(localStorage.getItem('transactions')) || [];
-      console.log('[getTransactions] Loaded', txns.length, 'personal transactions');
-      return txns;
-    }
-    catch { return []; }
+    return transactionCache.transactions;
   }
   function setTransactions(txns) {
     const isFundraising = currentMode === 'fundraising';
     if (isFundraising) return setFundraisingTransactions(txns);
-    localStorage.setItem('transactions', JSON.stringify(txns));
+    const previous = transactionCache.transactions.slice();
+    transactionCache.transactions = txns;
+    return persistFinancialCollection('transactions', txns).then((saved) => {
+      if (!saved && transactionCache.transactions === txns) {
+        transactionCache.transactions = previous;
+        updateDashboard();
+      }
+      return saved;
+    });
   }
   function getArchivedPeriods() {
     const key = getStorageKey('archivedPeriods');
@@ -285,6 +406,17 @@
   function setArchivedPeriods(periods) {
     const key = getStorageKey('archivedPeriods');
     localStorage.setItem(key, JSON.stringify(periods));
+  }
+
+  // ==================== RECYCLE BIN ====================
+  function getRecycleBin() {
+    const key = getStorageKey('recycleBin');
+    try { return JSON.parse(localStorage.getItem(key)) || []; }
+    catch { return []; }
+  }
+  function setRecycleBin(items) {
+    const key = getStorageKey('recycleBin');
+    localStorage.setItem(key, JSON.stringify(items));
   }
 
   // ==================== CALCULATIONS ====================
@@ -774,8 +906,96 @@
   const moreChevron = $('more-chevron');
   const themeToggleBtn = $('theme-toggle');
   const currencySelect = $('currency-select');
+  const balanceVisibilityBtn = $('balance-visibility-btn');
+  const balanceEyeIcon = $('balance-eye-icon');
+  const initialBalanceTrigger = $('initial-balance-trigger');
+
+  function openOverlayModal(modal) {
+    if (!modal) return;
+    modal.style.display = '';
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeOverlayModal(modal) {
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    modal.setAttribute('aria-hidden', 'true');
+    modal.style.display = 'none';
+  }
+
+  [onboardingModal, $('fundraising-onboarding-modal'), archiveModal, editBalanceModal].forEach(function (modal) {
+    if (!modal) return;
+    modal.addEventListener('click', function (event) {
+      if (event.target === modal || event.target.closest('[data-close-modal]')) {
+        closeOverlayModal(modal);
+      }
+    });
+  });
+  document.addEventListener('keydown', function (event) {
+    if (event.key !== 'Escape') return;
+    [onboardingModal, $('fundraising-onboarding-modal'), archiveModal, editBalanceModal].forEach(function (modal) {
+      if (modal && !modal.classList.contains('hidden')) closeOverlayModal(modal);
+    });
+  });
 
   dateInput.valueAsDate = new Date();
+
+  function renderBalanceVisibility() {
+    if (!balanceDisplay || !balanceVisibilityBtn) return;
+    const realValue = balanceDisplay.dataset.realValue || balanceDisplay.textContent;
+    balanceDisplay.dataset.realValue = realValue;
+    balanceDisplay.textContent = balanceHidden ? '••••••••' : realValue;
+    balanceVisibilityBtn.setAttribute('aria-pressed', balanceHidden ? 'true' : 'false');
+    balanceVisibilityBtn.setAttribute('aria-label', balanceHidden ? 'Show balance' : 'Hide balance');
+    balanceVisibilityBtn.title = balanceHidden ? 'Show balance' : 'Hide balance';
+    if (balanceEyeIcon) balanceEyeIcon.textContent = balanceHidden ? '◎' : '◉';
+  }
+  if (balanceVisibilityBtn) {
+    balanceVisibilityBtn.addEventListener('click', function () {
+      balanceHidden = !balanceHidden;
+      renderBalanceVisibility();
+    });
+  }
+  if (initialBalanceTrigger) {
+    initialBalanceTrigger.addEventListener('click', function () {
+      if (currentMode === 'fundraising') {
+        showFundraisingOnboarding();
+        return;
+      }
+      const title = $('onboarding-modal-title');
+      if (title) title.textContent = "Boshlang'ich summani kiriting";
+      if (onboardingInput) {
+        onboardingInput.value = '';
+        onboardingInput.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      openOverlayModal(onboardingModal);
+      if (onboardingInput) onboardingInput.focus();
+    });
+  }
+
+  const quickScanReceiptBtn = $('quick-scan-receipt');
+  if (quickScanReceiptBtn) {
+    quickScanReceiptBtn.addEventListener('click', function () {
+      const openSheetBtn = $('open-add-transaction-btn');
+      if (openSheetBtn) openSheetBtn.click();
+      window.setTimeout(function () {
+        const qrTab = $('tab-qr');
+        if (qrTab) qrTab.click();
+      }, 50);
+    });
+  }
+  const quickAnalyticsBtn = $('quick-analytics');
+  if (quickAnalyticsBtn) {
+    quickAnalyticsBtn.addEventListener('click', function () {
+      const analytics = $('dashboard-cards');
+      if (analytics) analytics.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+  const quickBackupBtn = $('quick-backup');
+  if (quickBackupBtn) quickBackupBtn.addEventListener('click', exportBackup);
 
   // Live amount preview wiring for all amount inputs
   ['onboarding-input', 'amount', 'edit-amount', 'fundraising-target-input', 'edit-balance-input'].forEach(function (id) {
@@ -826,6 +1046,7 @@
       const modeBtn = document.getElementById('mode-switch-btn');
       const modeIcon = document.getElementById('mode-switch-icon');
       const modeLabel = document.getElementById('mode-switch-label');
+      const cardModeLabel = document.getElementById('mode-switch-label-card');
       const balanceLabel = document.querySelector('.hero-card p');
       const sbLabel = document.getElementById('starting-balance-label');
       const sbLabelMobile = document.getElementById('starting-balance-label-mobile');
@@ -835,6 +1056,7 @@
       if (modeBtn) modeBtn.classList.toggle('bg-emerald-600/30', isFundraising);
       if (modeIcon) modeIcon.textContent = isFundraising ? '🎯' : '⚖️';
       if (modeLabel) modeLabel.textContent = isFundraising ? t('modeFundraising') : t('modeSmartWallet');
+      if (cardModeLabel) cardModeLabel.textContent = isFundraising ? t('modeFundraising') : t('modeSmartWallet');
 
       if (balanceLabel) balanceLabel.textContent = isFundraising ? t('currentBalanceLabel') : t('balance');
       if (sbLabel) sbLabel.textContent = isFundraising ? t('targetAmount') : t('startingBalance');
@@ -868,8 +1090,7 @@
       const modal = document.getElementById('fundraising-onboarding-modal');
       if (!modal) return;
       
-      modal.classList.remove('hidden');
-      modal.classList.add('flex');
+      openOverlayModal(modal);
       
       // Focus on title input first
       const titleInput = document.getElementById('fundraising-title-input');
@@ -900,10 +1121,7 @@
       
       // Hide modal
       const modal = document.getElementById('fundraising-onboarding-modal');
-      if (modal) {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-      }
+      closeOverlayModal(modal);
       
       // Clear form
       if (titleInput) titleInput.value = '';
@@ -918,10 +1136,7 @@
     }
     function closeFundraisingOnboarding() {
       const modal = document.getElementById('fundraising-onboarding-modal');
-      if (modal) {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-      }
+      closeOverlayModal(modal);
     }
     window.saveFundraisingSetup = saveFundraisingSetup;
     window.closeFundraisingOnboarding = closeFundraisingOnboarding;
@@ -942,6 +1157,8 @@
           balanceDisplay.classList.remove('text-rose-500', 'animate-pulse-rose');
           balanceDisplay.classList.add('text-slate-100');
         }
+        balanceDisplay.dataset.realValue = balanceDisplay.textContent;
+        renderBalanceVisibility();
       }
 
       // Update starting balance banner label dynamically based on mode
@@ -965,11 +1182,16 @@
     const labelEl = document.getElementById('starting-balance-label');
     const labelMobileEl = document.getElementById('starting-balance-label-mobile');
     const amountEl = document.getElementById('starting-balance-amount');
+    const balanceWidget = document.getElementById('starting-balance-banner');
+    const balanceEditBtn = document.getElementById('edit-balance-btn');
+    const balanceTrigger = document.getElementById('initial-balance-trigger');
     if (!labelEl || !amountEl) return;
     
     const isFundraising = currentMode === 'fundraising';
+    let displayedBalance = startingBalance;
     if (isFundraising) {
       const target = getFundraisingTargetAmount() || getFundraisingTarget();
+      displayedBalance = target;
       // Set label: "YIG'ILISHI KERAK BO'LGAN SUMMA"
       const labelText = 'YIG\'ILISHI KERAK BO\'LGAN SUMMA';
       if (labelEl) labelEl.textContent = labelText;
@@ -981,6 +1203,10 @@
       if (labelMobileEl) labelMobileEl.textContent = 'B.Pul';
       amountEl.textContent = formatCurrency(startingBalance);
     }
+    const hasStartingBalance = Number.isFinite(displayedBalance) && displayedBalance > 0;
+    if (balanceWidget) balanceWidget.classList.toggle('is-empty', !hasStartingBalance);
+    if (balanceTrigger) balanceTrigger.classList.toggle('hidden', hasStartingBalance);
+    if (balanceEditBtn) balanceEditBtn.classList.toggle('hidden', !hasStartingBalance);
   }
 
   function updateFundraisingCards() {
@@ -1559,13 +1785,16 @@ function renderArchivedPeriods() {
   }
 
   // ==================== ADD TRANSACTION ====================
-  function addTransaction() {
+  async function addTransaction() {
     const amount = parseFloat(document.getElementById('amount').value);
     const type = document.getElementById('type').value;
     let category = document.getElementById('category').value;
     const date = document.getElementById('date').value || new Date().toISOString().split('T')[0];
     const description = document.getElementById('note').value.trim();
-    if (isNaN(amount) || amount <= 0) return alert("Iltimos, to'g'ri summa kiriting!");
+    if (isNaN(amount) || amount <= 0) {
+      alert("Iltimos, to'g'ri summa kiriting!");
+      return false;
+    }
     
     const isFundraising = currentMode === 'fundraising';
     if (isFundraising) {
@@ -1593,23 +1822,108 @@ function renderArchivedPeriods() {
     }
     
     const newTx = { id: Date.now(), amount, type, category, date, description };
-    const transactions = getTransactions();
+    const transactions = getTransactions().slice();
     transactions.push(newTx);
-    setTransactions(transactions);
+    if (!await setTransactions(transactions)) return false;
     transactionForm.reset();
     dateInput.valueAsDate = new Date();
     renderTransactions();
     updateDashboard();
+    document.dispatchEvent(new CustomEvent('transaction:saved'));
+    return true;
   }
   if (transactionForm) transactionForm.addEventListener('submit', function (e) { e.preventDefault(); addTransaction(); });
   if (addTransactionBtn) addTransactionBtn.addEventListener('click', function (e) { e.preventDefault(); addTransaction(); });
 
   // ==================== DELETE TRANSACTION ====================
-  function deleteTransaction(id) {
-    const transactions = getTransactions().filter((t) => t.id !== id);
-    if (transactions.length === getTransactions().length) return;
-    setTransactions(transactions);
+  // Store last deleted transaction for undo
+  let lastDeletedTransaction = null;
+  let undoTimeout = null;
+
+  async function deleteTransaction(id) {
+    const transactions = getTransactions();
+    const transactionToDelete = transactions.find((t) => t.id === id);
+    
+    if (!transactionToDelete) return;
+
+    // Show confirmation dialog
+    const confirmed = confirm("Haqiqatdan ham ushbu tranzaksiyani o'chirmoqchimisiz?");
+    if (!confirmed) return;
+
+    // Store for undo
+    lastDeletedTransaction = transactionToDelete;
+    
+    // Remove from transactions
+    const updatedTransactions = transactions.filter((t) => t.id !== id);
+    if (!await setTransactions(updatedTransactions)) return;
+    
+    // Show undo toast
+    showUndoToast();
+    
     updateDashboard();
+  }
+
+  function showUndoToast() {
+    clearTimeout(undoTimeout);
+    
+    let toast = document.getElementById('global-toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'global-toast';
+      toast.className = 'fixed bottom-4 left-1/2 transform -translate-x-1/2 px-4 py-2 rounded-lg shadow-2xl z-50 text-sm font-medium transition-all duration-300';
+      document.body.appendChild(toast);
+    }
+    
+    const palette = {
+      success: 'bg-emerald-600 text-white',
+      error: 'bg-rose-600 text-white',
+      info: 'bg-slate-700 text-slate-100',
+      warning: 'bg-amber-600 text-white'
+    };
+    
+    toast.className = toast.className.split(' ').filter(function (c) { 
+      return c.indexOf('bg-') !== 0 && c.indexOf('text-') !== 0; 
+    }).join(' ') + ' ' + palette.warning;
+    
+    // Create toast with undo button
+    toast.innerHTML = `
+      <div class="flex items-center gap-3">
+        <span>Tranzaksiya o'chirildi</span>
+        <button id="undo-delete-btn" class="px-3 py-1 bg-white/20 hover:bg-white/30 rounded text-sm font-medium transition-colors">Bejar qilish</button>
+      </div>
+    `;
+    
+    toast.classList.remove('opacity-0', 'translate-y-2');
+    toast.classList.add('opacity-100');
+    
+    // Add undo button handler
+    const undoBtn = document.getElementById('undo-delete-btn');
+    if (undoBtn) {
+      undoBtn.onclick = function() {
+        undoDeleteTransaction();
+        clearTimeout(undoTimeout);
+        toast.classList.add('opacity-0', 'translate-y-2');
+      };
+    }
+    
+    // Auto-hide after 5 seconds
+    undoTimeout = setTimeout(function () {
+      toast.classList.add('opacity-0', 'translate-y-2');
+      lastDeletedTransaction = null;
+    }, 5000);
+  }
+
+  async function undoDeleteTransaction() {
+    if (!lastDeletedTransaction) return;
+    
+    const transactions = getTransactions().slice();
+    transactions.push(lastDeletedTransaction);
+    if (!await setTransactions(transactions)) return;
+    lastDeletedTransaction = null;
+    updateDashboard();
+    
+    // Show success toast
+    showToast("Tranzaksiya tiklandi", "success");
   }
 
   // ==================== EDIT TRANSACTION ====================
@@ -1657,7 +1971,7 @@ function renderArchivedPeriods() {
   }
   if (editCancelBtn) editCancelBtn.addEventListener('click', closeEditModal);
   if (editModal) editModal.addEventListener('click', (e) => { if (e.target === editModal) closeEditModal(); });
-  if (editSaveBtn) editSaveBtn.addEventListener('click', function (e) {
+  if (editSaveBtn) editSaveBtn.addEventListener('click', async function (e) {
     e.preventDefault();
     const id = Number(editIdInput.value);
     const amount = parseFloat(editAmountInput.value);
@@ -1689,7 +2003,7 @@ function renderArchivedPeriods() {
       if (t.id !== id) return t;
       return { ...t, amount, type: editTypeSelect.value, category, date: editDateInput.value, description: editNoteInput.value.trim() };
     });
-    setTransactions(transactions);
+    if (!await setTransactions(transactions)) return;
     closeEditModal();
     updateDashboard();
   });
@@ -1718,29 +2032,8 @@ function renderArchivedPeriods() {
   migrateLegacyData();
 
   // ==================== ONBOARDING ====================
-  const savedBalance = localStorage.getItem('starting_balance');
-  const balanceNum = parseFloat(savedBalance);
-  const shouldShowOnboarding = (savedBalance === null) || (savedBalance === '') || (savedBalance === '0') || (balanceNum === 0);
-  
-  // Check fundraising onboarding
-  const isFundraisingMode = currentMode === 'fundraising';
-  const fundraisingTarget = getFundraisingTarget();
-  const fundraisingTargetAmount = getFundraisingTargetAmount();
-  const fundraisingTitle = getFundraisingTitle();
-  // Show onboarding if no target set, target amount is 0, or no title
-  const shouldShowFundraisingOnboarding = isFundraisingMode && (!fundraisingTarget || fundraisingTargetAmount <= 0 || !fundraisingTitle);
-  
-  if (shouldShowOnboarding && !isFundraisingMode) {
-    if (onboardingModal) {
-      onboardingModal.classList.remove('hidden');
-      onboardingModal.classList.add('flex');
-    }
-    if (onboardingInput) onboardingInput.focus();
-  } else if (shouldShowFundraisingOnboarding) {
-    showFundraisingOnboarding();
-  } else {
-    updateDashboard();
-  }
+  // Setup is available from the balance widget; do not trap first-time users in a modal.
+  updateDashboard();
 
   // Default modal title (restored after editing)
   const onboardingTitle = $('onboarding-modal-title');
@@ -1752,10 +2045,7 @@ function renderArchivedPeriods() {
     if (!isNaN(val) && val >= 0) {
       startingBalance = val;
       localStorage.setItem('starting_balance', val.toString());
-      if (onboardingModal) {
-        onboardingModal.classList.add('hidden');
-        onboardingModal.classList.remove('flex');
-      }
+      closeOverlayModal(onboardingModal);
       // Reset title back to the welcome greeting
       if (onboardingTitle) onboardingTitle.textContent = "Xush kelibsiz";
       updateDashboard();
@@ -1768,8 +2058,6 @@ function renderArchivedPeriods() {
       if (onboardingStartBtn) onboardingStartBtn.click();
     }
   });
-
-  if (onboardingModal) onboardingModal.addEventListener('click', (e) => { if (e.target === onboardingModal && localStorage.getItem('starting_balance')) { onboardingModal.classList.add('hidden'); onboardingModal.classList.remove('flex'); } });
 
 // ==================== EDIT STARTING BALANCE / TARGET (Desktop & Mobile) ====================
   function openEditBalanceModal() {
@@ -1806,8 +2094,7 @@ function renderArchivedPeriods() {
       }
       
       // Show the modal
-      modal.classList.remove('hidden');
-      modal.classList.add('flex');
+      openOverlayModal(modal);
       amountInput.focus();
     } else {
       // Use onboarding-modal for personal budget
@@ -1818,21 +2105,23 @@ function renderArchivedPeriods() {
       if (!modal || !amountInput) return;
 
       const currentBalance = localStorage.getItem('starting_balance') || '0';
+      const hasBalance = Number.parseFloat(currentBalance) > 0;
 
       // Pre-fill input with the current saved balance
-      amountInput.value = currentBalance;
+      amountInput.value = hasBalance ? currentBalance : '';
 
       // Trigger the live preview so it displays immediately (e.g. 👉 5 000 000 so'm)
       amountInput.dispatchEvent(new Event('input', { bubbles: true }));
 
       // Update the modal title to reflect editing mode
       if (modalTitle) {
-        modalTitle.textContent = "Boshlang'ich pulni tahrirlash";
+        modalTitle.textContent = hasBalance
+          ? "Boshlang'ich pulni tahrirlash"
+          : "Boshlang'ich summani kiriting";
       }
 
       // Show the modal
-      modal.classList.remove('hidden');
-      modal.classList.add('flex');
+      openOverlayModal(modal);
       amountInput.focus();
     }
   }
@@ -1887,8 +2176,7 @@ function renderArchivedPeriods() {
       
       // Hide modal
       if (editBalanceModal) {
-        editBalanceModal.classList.add('hidden');
-        editBalanceModal.classList.remove('flex');
+        closeOverlayModal(editBalanceModal);
       }
       
       // Clear form
@@ -1905,19 +2193,7 @@ function renderArchivedPeriods() {
   
   if (cancelEditBalance) {
     cancelEditBalance.addEventListener('click', () => {
-      if (editBalanceModal) {
-        editBalanceModal.classList.add('hidden');
-        editBalanceModal.classList.remove('flex');
-      }
-    });
-  }
-  
-  if (editBalanceModal) {
-    editBalanceModal.addEventListener('click', (e) => {
-      if (e.target === editBalanceModal) {
-        editBalanceModal.classList.add('hidden');
-        editBalanceModal.classList.remove('flex');
-      }
+      closeOverlayModal(editBalanceModal);
     });
   }
 
@@ -1928,15 +2204,13 @@ function renderArchivedPeriods() {
       // Pre-fill the archived period's starting balance (read-only display of what is being archived)
       if (archiveStartingBalanceInput) archiveStartingBalanceInput.value = (Number.isFinite(sb) ? sb : 0).toFixed(2);
       if (archiveModal) {
-        archiveModal.classList.remove('hidden');
-        archiveModal.classList.add('flex');
+        openOverlayModal(archiveModal);
       }
       if (archiveNameInput) archiveNameInput.focus();
     } catch (e) { console.error('[archive] resetArchiveBtn:', e); }
   });
-  if (cancelArchiveBtn) cancelArchiveBtn.addEventListener('click', () => { if (archiveModal) { archiveModal.classList.add('hidden'); archiveModal.classList.remove('flex'); } });
-  if (archiveModal) archiveModal.addEventListener('click', (e) => { if (e.target === archiveModal) { archiveModal.classList.add('hidden'); archiveModal.classList.remove('flex'); } });
-  if (archiveSubmitBtn) archiveSubmitBtn.addEventListener('click', function (e) {
+  if (cancelArchiveBtn) cancelArchiveBtn.addEventListener('click', () => closeOverlayModal(archiveModal));
+  if (archiveSubmitBtn) archiveSubmitBtn.addEventListener('click', async function (e) {
     e.preventDefault();
     try {
       const periodName = archiveNameInput ? archiveNameInput.value.trim() : '';
@@ -1967,7 +2241,7 @@ function renderArchivedPeriods() {
 
       // 2. Reset active starting_balance to 0 in localStorage
       // 3. Clear active transactions array in localStorage
-      setTransactions([]);
+      if (!await setTransactions([])) return;
       startingBalance = 0;
       localStorage.setItem('starting_balance', '0');
 
@@ -1982,7 +2256,7 @@ function renderArchivedPeriods() {
         console.log('[archive] Fundraising mode: reset target amount and scope');
       }
 
-      if (archiveModal) { archiveModal.classList.add('hidden'); archiveModal.classList.remove('flex'); }
+      closeOverlayModal(archiveModal);
       if (archiveNameInput) archiveNameInput.value = '';
       if (archiveStartingBalanceInput) archiveStartingBalanceInput.value = '';
 
@@ -2002,8 +2276,7 @@ function renderArchivedPeriods() {
 
   // ==================== YANA / PROFIL — EXPORT & TOOLS ====================
   function getTransactionsSafe() {
-    try { return JSON.parse(localStorage.getItem('transactions')) || []; }
-    catch { return []; }
+    return getTransactions();
   }
   function exportToCSV() {
     const transactions = getTransactionsSafe();
@@ -2093,46 +2366,137 @@ function renderArchivedPeriods() {
     printWindow.focus();
     setTimeout(() => { printWindow.print(); }, 500);
   }
-  function exportBackup() {
-    const data = {
-      version: '10.0.0',
-      exportedAt: new Date().toISOString(),
-      startingBalance: localStorage.getItem('starting_balance'),
-      transactions: getTransactionsSafe(),
-      archivedPeriods: getArchivedPeriods()
-    };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `smart_byudjet_backup_${new Date().toISOString().slice(0, 10)}.json`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+  async function exportBackup() {
+    try {
+      await financialWriteQueue;
+      const dictionary = await new Promise((resolve, reject) => {
+        const request = financialDatabase.transaction('barcodeDictionary', 'readonly')
+          .objectStore('barcodeDictionary').getAll();
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error('Could not read barcode data.'));
+      });
+      const data = {
+        version: '11.0.0',
+        exportedAt: new Date().toISOString(),
+        startingBalance: localStorage.getItem('starting_balance'),
+        mode: currentMode,
+        transactions: getTransactions(),
+        transactionsByMode: {
+          smart: transactionCache.transactions,
+          fundraising: transactionCache.fundraising_transactions
+        },
+        archivedPeriods: getArchivedPeriods(),
+        barcodeDictionary: dictionary
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `smart_byudjet_backup_${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setStorageNotice('Backup exported successfully.', false);
+    } catch (error) {
+      console.error('[backup] Export failed:', error);
+      setStorageNotice('Backup export failed. Check the browser storage permissions and try again.', true);
+      alert('Backup export failed. Please try again.');
+    }
   }
+
+  async function replaceFinancialData(collections, dictionary) {
+    await financialWriteQueue;
+    return new Promise((resolve, reject) => {
+      const transaction = financialDatabase.transaction(['collections', 'barcodeDictionary'], 'readwrite');
+      const collectionStore = transaction.objectStore('collections');
+      Object.keys(collections).forEach((key) => {
+        collectionStore.put({ key, data: collections[key] });
+      });
+      if (dictionary) {
+        const dictionaryStore = transaction.objectStore('barcodeDictionary');
+        dictionaryStore.clear();
+        dictionary.forEach((item) => dictionaryStore.put(item));
+      }
+      transaction.oncomplete = () => {
+        Object.keys(collections).forEach((key) => { transactionCache[key] = collections[key]; });
+        resolve();
+      };
+      transaction.onerror = () => reject(transaction.error || new Error('Could not restore backup data.'));
+      transaction.onabort = () => reject(transaction.error || new Error('Backup restore was aborted.'));
+    });
+  }
+
   function importBackup() {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'application/json';
-    input.addEventListener('change', (e) => {
+    input.addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = (ev) => {
+      reader.onload = async (ev) => {
         try {
           const data = JSON.parse(ev.target.result);
-          if (data.transactions) setTransactions(data.transactions);
+          if (!data || typeof data !== 'object' || Array.isArray(data)) {
+            throw new Error('Backup file must contain a JSON object.');
+          }
+          const collections = {};
+          if (data.transactionsByMode && typeof data.transactionsByMode === 'object') {
+            if (Array.isArray(data.transactionsByMode.smart)) collections.transactions = data.transactionsByMode.smart;
+            if (Array.isArray(data.transactionsByMode.fundraising)) {
+              collections.fundraising_transactions = data.transactionsByMode.fundraising;
+            }
+          }
+          if (Array.isArray(data.transactions) && Object.keys(collections).length === 0) {
+            collections[currentMode === 'fundraising' ? 'fundraising_transactions' : 'transactions'] = data.transactions;
+          }
+          if (Object.keys(collections).length === 0) {
+            throw new Error('Backup does not contain a supported transaction list.');
+          }
+          Object.keys(collections).forEach((key) => {
+            if (!collections[key].every((item) => item && typeof item === 'object' && !Array.isArray(item))) {
+              throw new Error('Backup contains an invalid transaction list.');
+            }
+          });
+          if (data.archivedPeriods !== undefined && !Array.isArray(data.archivedPeriods)) {
+            throw new Error('Archived periods must be a JSON array.');
+          }
+          if (data.startingBalance !== undefined && data.startingBalance !== null
+              && !Number.isFinite(Number(data.startingBalance))) {
+            throw new Error('Starting balance must be a number.');
+          }
+          if (data.barcodeDictionary !== undefined && !Array.isArray(data.barcodeDictionary)) {
+            throw new Error('Barcode dictionary must be a JSON array.');
+          }
+          const dictionary = data.barcodeDictionary === undefined
+            ? null
+            : data.barcodeDictionary.map((item) => {
+              if (!item || typeof item.code !== 'string' || !item.code.trim()
+                  || !Number.isFinite(Number(item.amount)) || Number(item.amount) <= 0) {
+                throw new Error('Backup contains an invalid barcode entry.');
+              }
+              return { ...item, code: item.code.trim() };
+            });
+          await replaceFinancialData(collections, dictionary);
           if (data.archivedPeriods) setArchivedPeriods(data.archivedPeriods);
           if (data.startingBalance !== undefined && data.startingBalance !== null) {
             localStorage.setItem('starting_balance', data.startingBalance);
             startingBalance = parseFloat(data.startingBalance) || 0;
           }
-          alert("Zaxira nusqa muvaffaqiyatli yuklandi!");
           updateDashboard();
+          setStorageNotice('Backup imported successfully.', false);
+          alert('Backup imported successfully.');
         } catch (err) {
-          alert("Xatolik: nusqa fayli noto'g'ri formatda.");
+          console.error('[backup] Import failed:', err);
+          setStorageNotice('Backup import failed. No transaction data was replaced.', true);
+          alert('Import failed: the JSON file is invalid or could not be saved.');
         }
+      };
+      reader.onerror = () => {
+        console.error('[backup] Could not read selected backup file:', reader.error);
+        setStorageNotice('Could not read the selected backup file.', true);
+        alert('Could not read the selected backup file.');
       };
       reader.readAsText(file);
     });
@@ -2140,7 +2504,7 @@ function renderArchivedPeriods() {
   }
 
   // ==================== DATA RESET (TOZALASH) ====================
-  function resetAllData() {
+  async function resetAllData() {
     const confirmed = confirm(
       "⚠️ DIQQAT! Barcha tranzaksiyalar va boshlang'ich pul miqdori (balans) butunlay o'chib ketadi.\n\n" +
       "Tozalashdan oldin ma'lumotlarni fayl sifatida yuklab olishni (Backup/CSV) tavsiya etamiz.\n\n" +
@@ -2148,14 +2512,15 @@ function renderArchivedPeriods() {
     );
     if (!confirmed) return;
 
-    // Explicitly remove ALL stored budget data
+    if (!await setTransactions([])) return;
+
+    // Reset local preferences and balance after the financial store is updated.
     localStorage.removeItem('starting_balance');
     localStorage.removeItem('transactions');
     localStorage.removeItem('app_pin_code');
 
     // Reset in-memory state
     startingBalance = 0;
-    setTransactions([]);
     setArchivedPeriods([]);
 
     // Clear form inputs
@@ -2169,13 +2534,6 @@ function renderArchivedPeriods() {
     [archiveModal, editModal, editBalanceModal].forEach(function (m) {
       if (m) { m.classList.add('hidden'); m.classList.remove('flex'); }
     });
-
-    // Re-open onboarding modal so the user can re-enter their starting balance
-    if (onboardingModal) {
-      onboardingModal.classList.remove('hidden');
-      onboardingModal.classList.add('flex');
-      if (onboardingInput) onboardingInput.focus();
-    }
 
     // Re-render UI and immediately prompt the user to set the new starting balance
     updateDashboard();
@@ -2495,24 +2853,367 @@ function renderArchivedPeriods() {
   }
 
   // PIN lock check + full UI re-initialization on page load
-  document.addEventListener('DOMContentLoaded', function () {
+  document.addEventListener('DOMContentLoaded', async function () {
     try {
-      // Run data migration first to restore any legacy data
+      await initializeFinancialStorage();
       migrateLegacyData();
-      
-      // Re-read starting_balance from localStorage to ensure fresh state
-      const saved = localStorage.getItem('starting_balance');
-      const parsed = parseFloat(saved);
+      var saved = localStorage.getItem('starting_balance');
+      var parsed = parseFloat(saved);
       startingBalance = Number.isFinite(parsed) ? parsed : 0;
-
-      // Render full UI immediately
       updateDashboard();
       applyModeLabels();
-
-      // Then check PIN lock (may overlay on top if a PIN is set)
       checkPinLock();
+      initAddTransactionSheet();
     } catch (err) {
       console.error('App init failed:', err);
+      setStorageNotice('Financial data could not be opened safely. Existing backup data has not been replaced. ' + err.message, true);
     }
   });
+
+  // ==================== BOTTOM SHEET + SCANNER ====================
+  function initAddTransactionSheet() {
+    var sheet    = document.getElementById('add-transaction-sheet');
+    var backdrop = document.getElementById('sheet-backdrop');
+    var closeBtn = document.getElementById('close-sheet-btn');
+    var openBtn  = document.getElementById('open-add-transaction-btn');
+    var tabs     = document.querySelectorAll('.sheet-tab');
+    if (!sheet || !openBtn) return;
+
+    var activeScanner = null;
+    var activeScannerTab = null;
+    var scannerStartPromise = null;
+    var tabChangeSequence = 0;
+    var scanHandled = false;
+
+    function openSheet() {
+      sheet.classList.add('open');
+      sheet.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      var resultStatus = document.getElementById('scan-result-status');
+      if (resultStatus) resultStatus.classList.add('hidden');
+      switchTab('manual');
+      document.getElementById('amount').focus();
+    }
+
+    function closeSheet() {
+      tabChangeSequence++;
+      stopActiveScanner().then(function () {
+        sheet.classList.remove('open');
+        sheet.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+        openBtn.focus();
+      });
+    }
+
+    openBtn.addEventListener('click', openSheet);
+    if (closeBtn) closeBtn.addEventListener('click', closeSheet);
+    if (backdrop) backdrop.addEventListener('click', closeSheet);
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && sheet.classList.contains('open')) closeSheet();
+    });
+
+    document.addEventListener('transaction:saved', function () {
+      if (sheet.classList.contains('open')) closeSheet();
+    });
+
+    tabs.forEach(function (tab) {
+      tab.addEventListener('click', function () { switchTab(tab.dataset.tab); });
+    });
+
+    function switchTab(tabName) {
+      if (['manual', 'qr', 'barcode'].indexOf(tabName) === -1) return;
+      var sequence = ++tabChangeSequence;
+
+      tabs.forEach(function (tab) {
+        var isActive = tab.dataset.tab === tabName;
+        tab.classList.toggle('active', isActive);
+        tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      });
+
+      ['manual', 'qr', 'barcode'].forEach(function (name) {
+        var pane = document.getElementById('pane-' + name);
+        if (!pane) return;
+        var isActive = name === tabName;
+        pane.classList.toggle('active', isActive);
+        pane.hidden = !isActive;
+        pane.style.display = isActive ? 'block' : 'none';
+      });
+
+      stopActiveScanner().then(function () {
+        if (sequence !== tabChangeSequence || !sheet.classList.contains('open')) return;
+        if (tabName === 'qr') {
+          startScanner('qr-reader', 'qr-scanner-container', 'qr-status', 'qr');
+        } else if (tabName === 'barcode') {
+          startScanner('bar-reader', 'bar-scanner-container', 'bar-status', 'barcode');
+        }
+      });
+    }
+
+    async function stopActiveScanner() {
+      var scanner = activeScanner;
+      if (!scanner) {
+        if (scannerStartPromise) await scannerStartPromise;
+        scanner = activeScanner;
+        if (!scanner) return;
+      }
+
+      var scannerTab = activeScannerTab;
+      if (scannerStartPromise) await scannerStartPromise;
+      if (activeScanner !== scanner) return;
+
+      activeScanner = null;
+      activeScannerTab = null;
+      try {
+        await scanner.stop();
+      } catch (error) {
+        console.warn('[scanner] Camera stream was already stopped or could not stop:', error);
+      } finally {
+        try {
+          scanner.clear();
+        } catch (error) {
+          console.warn('[scanner] Scanner UI could not be cleared:', error);
+        }
+      }
+      if (scannerTab) {
+        var reader = document.getElementById(scannerTab === 'qr' ? 'qr-reader' : 'bar-reader');
+        if (reader) reader.replaceChildren();
+      }
+    }
+
+    async function startScanner(readerId, containerId, statusId, tabKey) {
+      var readerEl = document.getElementById(readerId);
+      var containerEl = document.getElementById(containerId);
+      if (!readerEl || !containerEl) {
+        console.error('[scanner] Scanner element not found:', readerId);
+        return;
+      }
+
+      containerEl.style.display = 'block';
+      readerEl.style.display = 'block';
+      readerEl.replaceChildren();
+      scanHandled = false;
+      showScannerStatus(statusId, '📷', 'Kamera ishga tushirilmoqda…');
+
+      if (typeof Html5Qrcode !== 'function' || typeof Html5QrcodeSupportedFormats === 'undefined') {
+        showScannerStatus(statusId, '⚠️', 'Skaner kutubxonasi yuklanmadi. Internet aloqasini tekshiring.');
+        return;
+      }
+
+      var isBarcode = tabKey === 'barcode';
+      var formats = isBarcode ? [
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.ITF,
+        Html5QrcodeSupportedFormats.DATA_MATRIX
+      ] : [Html5QrcodeSupportedFormats.QR_CODE];
+
+      var scanner;
+      try {
+        scanner = new Html5Qrcode(readerId, { formatsToSupport: formats, verbose: false });
+      } catch (error) {
+        console.error('[scanner] Failed to create scanner:', error);
+        showScannerStatus(statusId, '⚠️', 'Skanerni yaratib bo‘lmadi.', error);
+        return;
+      }
+
+      activeScanner = scanner;
+      activeScannerTab = tabKey;
+      var scanBoxSize = Math.max(160, Math.min(240, (containerEl.clientWidth || window.innerWidth) - 32));
+      scannerStartPromise = scanner.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: scanBoxSize, height: scanBoxSize } },
+        async function onSuccess(decodedText) {
+          if (scanHandled) return;
+          scanHandled = true;
+          await stopActiveScanner();
+
+          var amountInput = document.getElementById('amount');
+          var resultStatus = document.getElementById('scan-result-status');
+          try {
+            if (tabKey === 'barcode') {
+              await handleBarcodeScan(decodedText, amountInput, resultStatus);
+            } else {
+              const amount = parseScannedValue(decodedText);
+              if (amount !== null) {
+                applyScannedAmount(amount, 'Receipt total scanned. Verify it before saving.', amountInput, resultStatus);
+              } else if (resultStatus) {
+                resultStatus.textContent = 'QR scanned, but no valid amount was found. Enter it manually.';
+                resultStatus.classList.remove('hidden');
+              }
+            }
+          } catch (error) {
+            console.error('[scanner] Could not process scanned data:', error);
+            if (resultStatus) {
+              resultStatus.textContent = 'The scanned data could not be saved. You can enter it manually.';
+              resultStatus.classList.remove('hidden');
+            }
+          }
+          switchTab('manual');
+        }
+      ).then(function () {
+        var statusEl = document.getElementById(statusId);
+        if (statusEl) statusEl.style.display = 'none';
+      }).catch(async function (error) {
+        if (activeScanner === scanner) {
+          activeScanner = null;
+          activeScannerTab = null;
+        }
+        try {
+          await scanner.stop();
+        } catch (stopError) {
+          console.warn('[scanner] No running camera stream to stop after startup failure:', stopError);
+        }
+        try {
+          scanner.clear();
+        } catch (clearError) {
+          console.warn('[scanner] Failed to clear scanner after startup error:', clearError);
+        }
+        console.error('[scanner] Camera could not be started:', error);
+        var reason = String(error && (error.name || error.message || error));
+        if (/NotFoundError|NotFound|no camera|camera device/i.test(reason)) {
+          showScannerStatus(statusId, '📷', 'Kamera topilmadi. Qurilmangizda kamera mavjudligini tekshiring.', error);
+        } else if (/NotAllowedError|Permission|denied|NotReadableError|SecurityError/i.test(reason)) {
+          showScannerStatus(statusId, '🚫', 'Kameraga ruxsat berilmadi. Brauzer sozlamalarida kameraga ruxsat bering.', error);
+        } else {
+          showScannerStatus(statusId, '⚠️', 'Kamerani ishga tushirib bo‘lmadi.', error);
+        }
+      }).finally(function () {
+        scannerStartPromise = null;
+      });
+      await scannerStartPromise;
+    }
+
+    function showScannerStatus(statusId, icon, message, detail) {
+      var statusEl = document.getElementById(statusId);
+      if (!statusEl) return;
+      statusEl.replaceChildren();
+      statusEl.style.display = 'block';
+      var iconEl = document.createElement('div');
+      iconEl.className = 'scanner-icon';
+      iconEl.textContent = icon;
+      var messageEl = document.createElement('div');
+      messageEl.textContent = message;
+      statusEl.append(iconEl, messageEl);
+      if (detail) {
+        var detailEl = document.createElement('div');
+        detailEl.style.cssText = 'font-size:0.7rem;color:#64748b;margin-top:0.3rem;';
+        detailEl.textContent = String(detail && (detail.message || detail.name) || detail);
+        statusEl.appendChild(detailEl);
+      }
+    }
+
+    function parseScannedValue(raw) {
+      if (!raw) return null;
+      try {
+        var obj = JSON.parse(raw);
+        if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+          var amountKeys = ['amount', 'total', 'sum', 'price', 'summa', 'narx'];
+          var objectKeys = Object.keys(obj);
+          for (var i = 0; i < amountKeys.length; i++) {
+            var matchingKey = objectKeys.find(function (key) {
+              return key.toLowerCase() === amountKeys[i];
+            });
+            if (matchingKey !== undefined) {
+              var parsedValue = parseNumericAmount(obj[matchingKey]);
+              if (parsedValue !== null) return parsedValue;
+            }
+          }
+        }
+      } catch (error) {
+        // Plain-text scanner payloads are expected and handled below.
+      }
+      var keyedAmount = raw.match(/(?:amount|total|sum|price|summa|narx)\s*[=:]\s*([\d.,\s]+)/i);
+      if (keyedAmount) return parseNumericAmount(keyedAmount[1]);
+      return parseNumericAmount(raw);
+    }
+
+    async function handleBarcodeScan(rawCode, amountInput, resultStatus) {
+      const code = String(rawCode || '').trim();
+      if (!code) throw new Error('The scanner returned an empty barcode.');
+
+      let item = await getBarcodeDictionaryItem(code);
+      if (!item) {
+        const priceInput = window.prompt('Barcode ' + code + ' is not saved yet. Enter its price in UZS:');
+        if (priceInput === null) {
+          if (resultStatus) {
+            resultStatus.textContent = 'Barcode scanned. Add its price in the form before saving.';
+            resultStatus.classList.remove('hidden');
+          }
+          return;
+        }
+        const price = parseNumericAmount(priceInput);
+        if (price === null) {
+          if (resultStatus) {
+            resultStatus.textContent = 'Invalid price. The barcode was not added to your catalog.';
+            resultStatus.classList.remove('hidden');
+          }
+          return;
+        }
+        const label = window.prompt('Product name (optional):', 'Product ' + code);
+        if (label === null) return;
+        item = {
+          code,
+          name: label.trim() || 'Product ' + code,
+          amount: price,
+          updatedAt: new Date().toISOString()
+        };
+        await saveBarcodeDictionaryItem(item);
+      }
+
+      const amount = parseNumericAmount(item.amount);
+      if (amount === null) {
+        if (resultStatus) {
+          resultStatus.textContent = 'This barcode has no valid saved price. Update it in your catalog.';
+          resultStatus.classList.remove('hidden');
+        }
+        return;
+      }
+      const descriptionInput = document.getElementById('note');
+      if (descriptionInput) descriptionInput.value = item.name || 'Product ' + code;
+      applyScannedAmount(amount, 'Barcode item loaded from your offline catalog. Verify and save.', amountInput, resultStatus);
+    }
+
+    function applyScannedAmount(amount, message, amountInput, resultStatus) {
+      if (amountInput) {
+        amountInput.value = String(amount);
+        amountInput.dispatchEvent(new Event('input', { bubbles: true }));
+        if (typeof updateAmountPreview === 'function') updateAmountPreview('amount');
+        amountInput.focus();
+      }
+      if (resultStatus) {
+        resultStatus.textContent = message;
+        resultStatus.classList.remove('hidden');
+      }
+    }
+
+    function parseNumericAmount(value) {
+      if (typeof value === 'number') return Number.isFinite(value) && value > 0 ? value : null;
+      var matches = String(value).match(/\d[\d\s.,]*/g);
+      if (!matches || matches.length !== 1) return null;
+      var normalized = matches[0].replace(/\s/g, '');
+      var comma = normalized.lastIndexOf(',');
+      var period = normalized.lastIndexOf('.');
+      if (comma !== -1 && period !== -1) {
+        var decimalSeparator = comma > period ? ',' : '.';
+        var groupingSeparator = decimalSeparator === ',' ? '.' : ',';
+        normalized = normalized.split(groupingSeparator).join('');
+        if (decimalSeparator === ',') normalized = normalized.replace(',', '.');
+      } else if (comma !== -1 || period !== -1) {
+        var separator = comma !== -1 ? ',' : '.';
+        var separatorParts = normalized.split(separator);
+        if (separatorParts.length > 2 || separatorParts[separatorParts.length - 1].length === 3) {
+          normalized = separatorParts.join('');
+        } else if (separator === ',') {
+          normalized = normalized.replace(',', '.');
+        }
+      }
+      var amount = Number(normalized);
+      return Number.isFinite(amount) && amount > 0 ? amount : null;
+    }
+  }
+
 })();
