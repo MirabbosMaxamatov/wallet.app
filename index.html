@@ -476,12 +476,57 @@
 
     /* More toggle */
     #more-toggle-btn {
-      width: 100%; display: flex; align-items: center; justify-content: space-between;
+      width: 100%; height: auto; min-height: 48px; padding: 12px 16px;
+      display: flex; align-items: center; justify-content: space-between;
       background: rgba(30,41,59,0.8); border: 1px solid rgba(51,65,85,0.6);
-      border-radius: 0.75rem; padding: 0.75rem 1rem;
+      border-radius: 0.75rem;
       cursor: pointer; transition: background 0.2s;
     }
     #more-toggle-btn:hover { background: rgba(51,65,85,0.4); }
+    #more-toggle-btn #more-chevron {
+      width: 20px; height: 20px; min-width: 20px; object-fit: contain;
+    }
+    .profile-header {
+      width: 100%; text-align: center; display: flex;
+      flex-direction: column; align-items: center;
+    }
+    #more-body > div {
+      width: 100%;
+      max-width: 100%;
+      margin: 12px 0;
+    }
+    #more-body button:not(.settings-primary) {
+      background: #1e293b;
+      color: #e2e8f0;
+      border: 1px solid #334155;
+    }
+    #more-body button:not(.settings-primary):hover {
+      background: #334155;
+    }
+    #more-body button.settings-primary {
+      background: #10b981;
+      color: #ffffff;
+      border: 1px solid #10b981;
+    }
+    #more-body button.settings-primary:hover {
+      background: #059669;
+      border-color: #059669;
+    }
+    #more-body select {
+      background: #0f172a;
+      color: #ffffff;
+      border: 1px solid #334155;
+    }
+    #more-body select option {
+      background: #0f172a;
+      color: #ffffff;
+    }
+    #profile-avatar {
+      width: 80px; height: 80px; min-width: 80px; min-height: 80px;
+      max-width: 100%; border-radius: 50%; object-fit: cover;
+      margin: 0 auto 12px auto; display: block;
+    }
+    img, svg { max-width: 100%; }
 
     /* PWA banner */
     #pwa-install-banner {
@@ -607,7 +652,7 @@
       width: 20px;
       height: 20px;
       min-width: 20px;
-      max-width: 24px;
+      max-width: 100%;
       max-height: 24px;
       object-fit: contain;
       flex-shrink: 0;
@@ -647,6 +692,16 @@
         min-height: fit-content;
         margin-left: 0;
         margin-right: 0;
+      }
+      #more-toggle-btn {
+        height: auto;
+        min-height: 48px;
+        padding: 12px 16px;
+      }
+      #more-toggle-btn #more-chevron {
+        width: 20px !important;
+        height: 20px !important;
+        min-width: 20px !important;
       }
       svg {
         width: 18px !important;
@@ -1250,7 +1305,7 @@
       <div id="more-body" class="hidden space-y-4 mt-4">
 
         <!-- Profil Rasmi (Profile Picture) -->
-        <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-4 shadow-sm flex items-center gap-3">
+        <div class="profile-header bg-slate-800/80 border border-slate-700/60 rounded-xl p-4 shadow-sm">
           <img src="assets/walletprf.jpg" alt="Profile" class="w-10 h-10 rounded-full object-cover border-2 border-emerald-500/40" id="profile-avatar">
           <div class="flex flex-col">
             <span class="text-sm font-semibold text-slate-100" data-i18n="profile">Profil</span>
@@ -1262,7 +1317,7 @@
         <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-4 shadow-sm">
           <h4 class="text-sm font-semibold text-slate-100 mb-3 flex items-center gap-2">📊 Hisobotlar &amp; Eksport</h4>
           <div class="flex flex-col sm:flex-row gap-2">
-            <button type="button" onclick="exportToPDF()" class="flex-1 bg-emerald-600/90 hover:bg-emerald-500 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors">📄 PDF Hisobot</button>
+            <button type="button" onclick="exportToPDF()" class="settings-primary flex-1 bg-emerald-600/90 hover:bg-emerald-500 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors">📄 PDF Hisobot</button>
             <button type="button" onclick="exportToCSV()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-100 text-xs font-medium px-3 py-2 rounded-lg transition-colors">📋 Excel (CSV)</button>
           </div>
         </div>
@@ -1314,7 +1369,7 @@
         <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-4 shadow-sm">
           <h4 class="text-sm font-semibold text-slate-100 mb-3 flex items-center gap-2">💾 Backup &amp; Restore</h4>
           <div class="flex flex-col sm:flex-row gap-2">
-            <button type="button" onclick="exportBackup()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-100 text-xs font-medium px-3 py-2 rounded-lg transition-colors">Export Data (JSON)</button>
+            <button type="button" onclick="exportBackup()" class="settings-primary flex-1 bg-emerald-600/90 hover:bg-emerald-500 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors">Export Data (JSON)</button>
             <button type="button" onclick="importBackup()" class="flex-1 bg-emerald-600/90 hover:bg-emerald-500 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors">Import Data (JSON)</button>
           </div>
           <button type="button" onclick="resetAllData()" class="w-full mt-3 bg-rose-600/90 hover:bg-rose-500 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors">🗑️ Ma'lumotlarni tozalash (Reset)</button>
