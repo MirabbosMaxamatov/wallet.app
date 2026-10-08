@@ -909,6 +909,7 @@
   const balanceVisibilityBtn = $('balance-visibility-btn');
   const balanceEyeIcon = $('balance-eye-icon');
   const initialBalanceTrigger = $('initial-balance-trigger');
+  const backupModal = $('backup-modal');
 
   function openOverlayModal(modal) {
     if (!modal) return;
@@ -926,7 +927,7 @@
     modal.style.display = 'none';
   }
 
-  [onboardingModal, $('fundraising-onboarding-modal'), archiveModal, editBalanceModal].forEach(function (modal) {
+  [onboardingModal, $('fundraising-onboarding-modal'), archiveModal, editBalanceModal, backupModal].forEach(function (modal) {
     if (!modal) return;
     modal.addEventListener('click', function (event) {
       if (event.target === modal || event.target.closest('[data-close-modal]')) {
@@ -936,7 +937,7 @@
   });
   document.addEventListener('keydown', function (event) {
     if (event.key !== 'Escape') return;
-    [onboardingModal, $('fundraising-onboarding-modal'), archiveModal, editBalanceModal].forEach(function (modal) {
+    [onboardingModal, $('fundraising-onboarding-modal'), archiveModal, editBalanceModal, backupModal].forEach(function (modal) {
       if (modal && !modal.classList.contains('hidden')) closeOverlayModal(modal);
     });
   });
@@ -995,7 +996,15 @@
     });
   }
   const quickBackupBtn = $('quick-backup');
-  if (quickBackupBtn) quickBackupBtn.addEventListener('click', exportBackup);
+  if (quickBackupBtn) quickBackupBtn.addEventListener('click', function () { openOverlayModal(backupModal); });
+  const backupCopyTextBtn = $('backup-copy-text');
+  if (backupCopyTextBtn) backupCopyTextBtn.addEventListener('click', copyBackupText);
+  const backupDownloadBtn = $('backup-download-json');
+  if (backupDownloadBtn) backupDownloadBtn.addEventListener('click', exportBackup);
+  const backupRestoreTextBtn = $('backup-restore-text-btn');
+  if (backupRestoreTextBtn) backupRestoreTextBtn.addEventListener('click', restoreBackupText);
+  const backupRestoreFile = $('backup-restore-file');
+  if (backupRestoreFile) backupRestoreFile.addEventListener('change', handleBackupFileSelection);
 
   // Live amount preview wiring for all amount inputs
   ['onboarding-input', 'amount', 'edit-amount', 'fundraising-target-input', 'edit-balance-input'].forEach(function (id) {
@@ -1729,7 +1738,7 @@ function renderArchivedPeriods() {
           '<span class="bg-slate-800 text-slate-200 px-2 py-0.5 rounded-md font-semibold text-xs border border-slate-700/60">Arxiv</span>' +
           '<span class="text-slate-400">📅 ' + dateStr + '</span>' +
           '</div></div>' +
-          '<div class="flex items-center gap-1.5 shrink-0">' +
+          '<div class="archive-actions shrink-0">' +
           '<button type="button" class="archive-chevron-btn text-slate-400 hover:text-emerald-400 text-sm p-1 transition-colors" title="Yopish/Ko\'rish">▸</button>' +
           '<button type="button" class="archive-delete-btn text-slate-400 hover:text-rose-400 text-sm p-1 transition-colors" title="Arxivni o\'chirish">🗑️</button>' +
           '</div></div>' +
@@ -2366,42 +2375,78 @@ function renderArchivedPeriods() {
     printWindow.focus();
     setTimeout(() => { printWindow.print(); }, 500);
   }
+  async function createBackupData() {
+    if (!financialStorageReady || !financialDatabase) {
+      throw new Error('Financial storage is not ready.');
+    }
+    await financialWriteQueue;
+    const dictionary = await new Promise((resolve, reject) => {
+      const request = financialDatabase.transaction('barcodeDictionary', 'readonly')
+        .objectStore('barcodeDictionary').getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error || new Error('Could not read barcode data.'));
+    });
+    return {
+      version: '11.0.0',
+      exportedAt: new Date().toISOString(),
+      startingBalance: localStorage.getItem('starting_balance'),
+      mode: currentMode,
+      transactions: getTransactions(),
+      transactionsByMode: {
+        smart: transactionCache.transactions,
+        fundraising: transactionCache.fundraising_transactions
+      },
+      archivedPeriods: getArchivedPeriods(),
+      barcodeDictionary: dictionary
+    };
+  }
+
+  function downloadBackupText(jsonText) {
+    const blob = new Blob([jsonText], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `smart_byudjet_backup_${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
   async function exportBackup() {
     try {
-      await financialWriteQueue;
-      const dictionary = await new Promise((resolve, reject) => {
-        const request = financialDatabase.transaction('barcodeDictionary', 'readonly')
-          .objectStore('barcodeDictionary').getAll();
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error || new Error('Could not read barcode data.'));
-      });
-      const data = {
-        version: '11.0.0',
-        exportedAt: new Date().toISOString(),
-        startingBalance: localStorage.getItem('starting_balance'),
-        mode: currentMode,
-        transactions: getTransactions(),
-        transactionsByMode: {
-          smart: transactionCache.transactions,
-          fundraising: transactionCache.fundraising_transactions
-        },
-        archivedPeriods: getArchivedPeriods(),
-        barcodeDictionary: dictionary
-      };
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `smart_byudjet_backup_${new Date().toISOString().slice(0, 10)}.json`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      const data = await createBackupData();
+      downloadBackupText(JSON.stringify(data, null, 2));
       setStorageNotice('Backup exported successfully.', false);
     } catch (error) {
       console.error('[backup] Export failed:', error);
       setStorageNotice('Backup export failed. Check the browser storage permissions and try again.', true);
-      alert('Backup export failed. Please try again.');
+      showToast('Backup yuklab olinmadi. Qayta urinib ko‘ring.', 'error');
+    }
+  }
+
+  async function copyBackupText() {
+    try {
+      const jsonText = JSON.stringify(await createBackupData(), null, 2);
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(jsonText);
+      } else {
+        const copyArea = document.createElement('textarea');
+        copyArea.value = jsonText;
+        copyArea.setAttribute('readonly', '');
+        copyArea.style.position = 'fixed';
+        copyArea.style.opacity = '0';
+        document.body.appendChild(copyArea);
+        copyArea.select();
+        const copied = document.execCommand('copy');
+        copyArea.remove();
+        if (!copied) throw new Error('Clipboard access was denied.');
+      }
+      showToast("Ma'lumotlar nusxalandi! Telegram 'Izbrannoye'ngizga saqlab qo'ying.", 'success');
+    } catch (error) {
+      console.error('[backup] Copy failed:', error);
+      setStorageNotice('Nusxalash amalga oshmadi. Fayl qilib yuklab olishni sinab ko‘ring.', true);
+      showToast('Nusxalash amalga oshmadi. Fayl qilib yuklab olishni sinab ko‘ring.', 'error');
     }
   }
 
@@ -2427,78 +2472,105 @@ function renderArchivedPeriods() {
     });
   }
 
+  async function restoreBackupData(data) {
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      throw new Error('Backup must contain a JSON object.');
+    }
+    const collections = {};
+    if (data.transactionsByMode && typeof data.transactionsByMode === 'object') {
+      if (Array.isArray(data.transactionsByMode.smart)) collections.transactions = data.transactionsByMode.smart;
+      if (Array.isArray(data.transactionsByMode.fundraising)) {
+        collections.fundraising_transactions = data.transactionsByMode.fundraising;
+      }
+    }
+    if (Array.isArray(data.transactions) && Object.keys(collections).length === 0) {
+      collections[currentMode === 'fundraising' ? 'fundraising_transactions' : 'transactions'] = data.transactions;
+    }
+    if (Object.keys(collections).length === 0) {
+      throw new Error('Backup does not contain a supported transaction list.');
+    }
+    Object.keys(collections).forEach((key) => {
+      if (!collections[key].every((item) => item && typeof item === 'object' && !Array.isArray(item))) {
+        throw new Error('Backup contains an invalid transaction list.');
+      }
+    });
+    if (data.archivedPeriods !== undefined && !Array.isArray(data.archivedPeriods)) {
+      throw new Error('Archived periods must be a JSON array.');
+    }
+    if (data.startingBalance !== undefined && data.startingBalance !== null
+        && !Number.isFinite(Number(data.startingBalance))) {
+      throw new Error('Starting balance must be a number.');
+    }
+    if (data.barcodeDictionary !== undefined && !Array.isArray(data.barcodeDictionary)) {
+      throw new Error('Barcode dictionary must be a JSON array.');
+    }
+    const dictionary = data.barcodeDictionary === undefined
+      ? null
+      : data.barcodeDictionary.map((item) => {
+        if (!item || typeof item.code !== 'string' || !item.code.trim()
+            || !Number.isFinite(Number(item.amount)) || Number(item.amount) <= 0) {
+          throw new Error('Backup contains an invalid barcode entry.');
+        }
+        return { ...item, code: item.code.trim() };
+      });
+    await replaceFinancialData(collections, dictionary);
+    if (data.archivedPeriods) setArchivedPeriods(data.archivedPeriods);
+    if (data.startingBalance !== undefined && data.startingBalance !== null) {
+      localStorage.setItem('starting_balance', data.startingBalance);
+      startingBalance = parseFloat(data.startingBalance) || 0;
+    }
+    updateDashboard();
+    setStorageNotice('Backup imported successfully.', false);
+  }
+
+  async function restoreBackupText() {
+    const restoreText = $('backup-restore-text');
+    const rawText = restoreText ? restoreText.value.trim() : '';
+    if (!rawText) {
+      showToast('Tiklash uchun backup matnini kiriting.', 'error');
+      if (restoreText) restoreText.focus();
+      return;
+    }
+    try {
+      await restoreBackupData(JSON.parse(rawText));
+      restoreText.value = '';
+      closeOverlayModal(backupModal);
+      showToast('Ma’lumotlar muvaffaqiyatli tiklandi.', 'success');
+    } catch (error) {
+      console.error('[backup] Text restore failed:', error);
+      setStorageNotice('Backup tiklanmadi. Ma’lumotlar o‘zgartirilmadi.', true);
+      showToast('Backup matni noto‘g‘ri yoki tiklab bo‘lmadi.', 'error');
+    }
+  }
+
+  async function handleBackupFile(file) {
+    if (!file) return;
+    try {
+      const rawText = await file.text();
+      await restoreBackupData(JSON.parse(rawText));
+      closeOverlayModal(backupModal);
+      showToast('Ma’lumotlar muvaffaqiyatli tiklandi.', 'success');
+    } catch (error) {
+      console.error('[backup] File restore failed:', error);
+      setStorageNotice('Backup tiklanmadi. Ma’lumotlar o‘zgartirilmadi.', true);
+      showToast('Fayl noto‘g‘ri yoki ma’lumotlarni tiklab bo‘lmadi.', 'error');
+    }
+  }
+
+  function handleBackupFileSelection(event) {
+    const input = event.currentTarget;
+    const file = input.files && input.files[0];
+    if (file) handleBackupFile(file);
+    input.value = '';
+  }
+
   function importBackup() {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = 'application/json';
-    input.addEventListener('change', async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = async (ev) => {
-        try {
-          const data = JSON.parse(ev.target.result);
-          if (!data || typeof data !== 'object' || Array.isArray(data)) {
-            throw new Error('Backup file must contain a JSON object.');
-          }
-          const collections = {};
-          if (data.transactionsByMode && typeof data.transactionsByMode === 'object') {
-            if (Array.isArray(data.transactionsByMode.smart)) collections.transactions = data.transactionsByMode.smart;
-            if (Array.isArray(data.transactionsByMode.fundraising)) {
-              collections.fundraising_transactions = data.transactionsByMode.fundraising;
-            }
-          }
-          if (Array.isArray(data.transactions) && Object.keys(collections).length === 0) {
-            collections[currentMode === 'fundraising' ? 'fundraising_transactions' : 'transactions'] = data.transactions;
-          }
-          if (Object.keys(collections).length === 0) {
-            throw new Error('Backup does not contain a supported transaction list.');
-          }
-          Object.keys(collections).forEach((key) => {
-            if (!collections[key].every((item) => item && typeof item === 'object' && !Array.isArray(item))) {
-              throw new Error('Backup contains an invalid transaction list.');
-            }
-          });
-          if (data.archivedPeriods !== undefined && !Array.isArray(data.archivedPeriods)) {
-            throw new Error('Archived periods must be a JSON array.');
-          }
-          if (data.startingBalance !== undefined && data.startingBalance !== null
-              && !Number.isFinite(Number(data.startingBalance))) {
-            throw new Error('Starting balance must be a number.');
-          }
-          if (data.barcodeDictionary !== undefined && !Array.isArray(data.barcodeDictionary)) {
-            throw new Error('Barcode dictionary must be a JSON array.');
-          }
-          const dictionary = data.barcodeDictionary === undefined
-            ? null
-            : data.barcodeDictionary.map((item) => {
-              if (!item || typeof item.code !== 'string' || !item.code.trim()
-                  || !Number.isFinite(Number(item.amount)) || Number(item.amount) <= 0) {
-                throw new Error('Backup contains an invalid barcode entry.');
-              }
-              return { ...item, code: item.code.trim() };
-            });
-          await replaceFinancialData(collections, dictionary);
-          if (data.archivedPeriods) setArchivedPeriods(data.archivedPeriods);
-          if (data.startingBalance !== undefined && data.startingBalance !== null) {
-            localStorage.setItem('starting_balance', data.startingBalance);
-            startingBalance = parseFloat(data.startingBalance) || 0;
-          }
-          updateDashboard();
-          setStorageNotice('Backup imported successfully.', false);
-          alert('Backup imported successfully.');
-        } catch (err) {
-          console.error('[backup] Import failed:', err);
-          setStorageNotice('Backup import failed. No transaction data was replaced.', true);
-          alert('Import failed: the JSON file is invalid or could not be saved.');
-        }
-      };
-      reader.onerror = () => {
-        console.error('[backup] Could not read selected backup file:', reader.error);
-        setStorageNotice('Could not read the selected backup file.', true);
-        alert('Could not read the selected backup file.');
-      };
-      reader.readAsText(file);
+    input.accept = 'application/json,.json';
+    input.addEventListener('change', (event) => {
+      const file = event.currentTarget.files && event.currentTarget.files[0];
+      if (file) handleBackupFile(file);
     });
     input.click();
   }

@@ -521,6 +521,61 @@
       background: #0f172a;
       color: #ffffff;
     }
+    .archive-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .archive-actions .archive-chevron-btn {
+      background: #1e293b;
+      color: #f8fafc;
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 6px 10px;
+    }
+    .archive-actions .archive-delete-btn {
+      background: rgba(239, 68, 68, 0.15);
+      color: #ef4444;
+      border: 1px solid #ef4444;
+      border-radius: 6px;
+      padding: 6px 10px;
+    }
+    select {
+      background: #0f172a;
+      color: #f8fafc;
+    }
+    select option {
+      background: #0f172a;
+      color: #f8fafc;
+    }
+    .backup-action {
+      display: block;
+      width: 100%;
+      min-height: 48px;
+      padding: 0.75rem 1rem;
+      border: 1px solid #10b981;
+      border-radius: 0.75rem;
+      color: #ffffff;
+      background: #10b981;
+      font-size: 0.9rem;
+      font-weight: 700;
+      text-align: left;
+      cursor: pointer;
+    }
+    .backup-action:hover { background: #059669; border-color: #059669; }
+    .backup-secondary {
+      display: block;
+      width: 100%;
+      min-height: 44px;
+      padding: 0.65rem 0.9rem;
+      border: 1px solid #334155;
+      border-radius: 0.65rem;
+      color: #f8fafc;
+      background: #1e293b;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .backup-secondary:hover { background: #334155; }
     #profile-avatar {
       width: 80px; height: 80px; min-width: 80px; min-height: 80px;
       max-width: 100%; border-radius: 50%; object-fit: cover;
@@ -1379,6 +1434,29 @@
     </div>
 
     <footer class="text-center text-slate-600 text-xs mt-8 mb-4">Smart Byudjet Tracker &copy; 2026</footer>
+  </div>
+
+  <!-- Simple backup and restore -->
+  <div id="backup-modal" class="modal-overlay hidden" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="backup-modal-title">
+    <div class="modal-card">
+      <div class="modal-heading-row">
+        <h2 class="text-xl font-bold text-slate-100" id="backup-modal-title">💾 Ma'lumotlarni saqlash</h2>
+        <button type="button" class="modal-close-btn" data-close-modal aria-label="Yopish">×</button>
+      </div>
+      <p class="text-sm text-slate-300 mb-4">Ma'lumotlaringizni saqlang yoki avvalgi nusxadan tiklang.</p>
+      <div class="flex flex-col gap-2 mb-6">
+        <button type="button" class="backup-action" id="backup-copy-text">📋 Matn sifatida nusxalash (Copy Text)</button>
+        <button type="button" class="backup-secondary" id="backup-download-json">💾 Fayl qilib yuklab olish (Download JSON)</button>
+      </div>
+      <div class="border-t border-slate-700 pt-4">
+        <h3 class="text-base font-semibold text-slate-100 mb-2">Zaxira nusxasini tiklash</h3>
+        <label class="form-label" for="backup-restore-text">Nusxalangan matnni shu yerga joylashtiring</label>
+        <textarea id="backup-restore-text" class="input-base resize-none mb-2" rows="5" placeholder="Backup matnini shu yerga joylashtiring"></textarea>
+        <button type="button" class="backup-secondary mb-3" id="backup-restore-text-btn">Matndan tiklash</button>
+        <label class="form-label" for="backup-restore-file">Yoki JSON faylni tanlang</label>
+        <input type="file" id="backup-restore-file" class="input-base" accept="application/json,.json">
+      </div>
+    </div>
   </div>
 
   <!-- PIN Lock Modal -->
