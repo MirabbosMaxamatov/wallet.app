@@ -3101,15 +3101,18 @@ function renderArchivedPeriods() {
         async function onSuccess(decodedText) {
           if (scanHandled) return;
           scanHandled = true;
+          var isSoliqReceipt = tabKey === 'qr' && /^https?:\/\/ofd\.soliq\.uz\/check(?:[?#]|$)/i.test(String(decodedText).trim());
+          if (isSoliqReceipt) showScannerStatus(statusId, '⏳', 'Chek ma’lumotlari yuklanmoqda…');
           await stopActiveScanner();
 
           var amountInput = document.getElementById('amount');
           var resultStatus = document.getElementById('scan-result-status');
+          var shouldSwitchToManual = !isSoliqReceipt;
           try {
             if (tabKey === 'barcode') {
               await handleBarcodeScan(decodedText, amountInput, resultStatus);
-            } else if (/^https?:\/\/ofd\.soliq\.uz\/check(?:[?#]|$)/i.test(String(decodedText).trim())) {
-              await handleSoliqReceiptScan(decodedText, amountInput, resultStatus);
+            } else if (isSoliqReceipt) {
+              shouldSwitchToManual = await handleSoliqReceiptScan(decodedText, amountInput, resultStatus, statusId);
             } else {
               const amount = parseScannedValue(decodedText);
               if (amount !== null) {
@@ -3125,8 +3128,13 @@ function renderArchivedPeriods() {
               resultStatus.textContent = 'The scanned data could not be saved. You can enter it manually.';
               resultStatus.classList.remove('hidden');
             }
+            if (isSoliqReceipt) {
+              shouldSwitchToManual = false;
+              showScannerStatus(statusId, '⚠️', 'Chek ma’lumotlarini olib bo‘lmadi. Summani kiritish uchun Manual bo‘limini tanlang.');
+              showToast('Chek summasi olinmadi. Summani Manual bo‘limida kiriting.', 'info');
+            }
           }
-          switchTab('manual');
+          if (shouldSwitchToManual) switchTab('manual');
         }
       ).then(function () {
         var statusEl = document.getElementById(statusId);
@@ -3205,50 +3213,46 @@ function renderArchivedPeriods() {
       return parseNumericAmount(raw);
     }
 
-    async function handleSoliqReceiptScan(rawUrl, amountInput, resultStatus) {
+    async function handleSoliqReceiptScan(rawUrl, amountInput, resultStatus, statusId) {
       var scannedUrl;
       try {
         scannedUrl = new URL(String(rawUrl).trim());
       } catch (error) {
         console.warn('[scanner] Invalid Soliq receipt URL:', error);
-        switchTab('manual');
-        if (amountInput) amountInput.focus();
-        showToast('Internetsiz rejim: Iltimos, chek formasiga summani kiriting.', 'info');
-        return;
+        showScannerStatus(statusId, '⚠️', 'Chek ma’lumotlarini o‘qib bo‘lmadi. Summani kiritish uchun Manual bo‘limini tanlang.');
+        showToast('Chek summasi olinmadi. Summani Manual bo‘limida kiriting.', 'info');
+        return false;
+      }
+
+      if (scannedUrl.hostname.toLowerCase() !== 'ofd.soliq.uz' || scannedUrl.pathname !== '/check') {
+        console.warn('[scanner] Invalid Soliq receipt URL:', scannedUrl.href);
+        showScannerStatus(statusId, '⚠️', 'Chek ma’lumotlarini o‘qib bo‘lmadi. Summani kiritish uchun Manual bo‘limini tanlang.');
+        showToast('Chek summasi olinmadi. Summani Manual bo‘limida kiriting.', 'info');
+        return false;
       }
 
       var receiptDate = scannedUrl.searchParams.get('c') || '';
       var fiscalImzo = scannedUrl.searchParams.get('s') || '';
+      var dateValue = '';
       if (receiptDate.length >= 8 && /^\d{8}/.test(receiptDate)) {
         var year = Number(receiptDate.slice(0, 4));
         var month = Number(receiptDate.slice(4, 6));
         var day = Number(receiptDate.slice(6, 8));
         var parsedDate = new Date(Date.UTC(year, month - 1, day));
         if (parsedDate.getUTCFullYear() === year && parsedDate.getUTCMonth() === month - 1 && parsedDate.getUTCDate() === day) {
-          var dateInput = document.getElementById('date');
-          if (dateInput) dateInput.value = year + '-' + String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+          dateValue = year + '-' + String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0');
         }
       }
-      if (fiscalImzo) {
-        var descriptionInput = document.getElementById('note');
-        if (descriptionInput) descriptionInput.value = 'Chek: ' + fiscalImzo;
-      }
-
-      function useOfflineFallback(reason) {
-        if (reason) console.warn('[scanner] Soliq receipt could not be fetched; using offline entry:', reason);
-        switchTab('manual');
-        if (amountInput) amountInput.focus();
-        showToast('Internetsiz rejim: Iltimos, chek formasiga summani kiriting.', 'info');
-      }
-
-      if (scannedUrl.hostname.toLowerCase() !== 'ofd.soliq.uz' || scannedUrl.pathname !== '/check') {
-        useOfflineFallback(new Error('The scanned URL is not a valid Soliq receipt URL.'));
-        return;
-      }
+      var dateInput = document.getElementById('date');
+      var descriptionInput = document.getElementById('note');
+      if (dateValue && dateInput) dateInput.value = dateValue;
+      if (fiscalImzo && descriptionInput) descriptionInput.value = 'Chek: ' + fiscalImzo;
 
       if (navigator.onLine === false) {
-        useOfflineFallback();
-        return;
+        console.info('[scanner] Device is offline; keeping the QR tab open for manual entry.');
+        showScannerStatus(statusId, '📴', 'Chek sanasi saqlandi. Summani kiritish uchun Manual bo‘limini tanlang.');
+        showToast('Internetsiz rejim: Iltimos, chek formasiga summani kiriting.', 'info');
+        return false;
       }
 
       var controller = new AbortController();
@@ -3278,12 +3282,29 @@ function renderArchivedPeriods() {
         if (amount === null) throw new Error('Soliq response did not contain a valid totalSum.');
         if (amount > 100000) amount /= 100;
         if (!Number.isFinite(amount) || amount <= 0) throw new Error('Soliq response contained an invalid receipt total.');
+        if (!dateValue || !dateInput || !amountInput) {
+          throw new Error('Receipt date or amount input is unavailable or invalid.');
+        }
 
-        switchTab('manual');
-        applyScannedAmount(amount, 'Chek summasi muvaffaqiyatli aniqlandi!', amountInput, resultStatus);
+        dateInput.value = dateValue;
+        amountInput.value = String(amount);
+        amountInput.dispatchEvent(new Event('input', { bubbles: true }));
+        if (typeof updateAmountPreview === 'function') updateAmountPreview('amount');
+        if (dateInput.value !== dateValue || Number(amountInput.value) !== amount) {
+          throw new Error('Receipt date or amount could not be applied to the form.');
+        }
+        amountInput.focus();
+        if (resultStatus) {
+          resultStatus.textContent = 'Chek summasi muvaffaqiyatli aniqlandi!';
+          resultStatus.classList.remove('hidden');
+        }
         showToast('Chek summasi muvaffaqiyatli aniqlandi!', 'success');
+        return true;
       } catch (error) {
-        useOfflineFallback(error);
+        console.warn('[scanner] Soliq receipt fetch or parsing failed:', error);
+        showScannerStatus(statusId, '⚠️', 'Chek sanasi saqlandi. Summani kiritish uchun Manual bo‘limini tanlang.');
+        showToast('Internetsiz rejim: Iltimos, chek formasiga summani kiriting.', 'info');
+        return false;
       } finally {
         clearTimeout(timeout);
       }
