@@ -2956,6 +2956,9 @@ function renderArchivedPeriods() {
     var scannerStartPromise = null;
     var tabChangeSequence = 0;
     var scanHandled = false;
+    var receiptImageInput = document.getElementById('receiptImageInput');
+    var receiptImageTrigger = document.getElementById('receipt-image-trigger');
+    var receiptImageLoading = document.getElementById('receipt-image-loading');
 
     function openSheet() {
       sheet.classList.add('open');
@@ -2991,6 +2994,10 @@ function renderArchivedPeriods() {
     tabs.forEach(function (tab) {
       tab.addEventListener('click', function () { switchTab(tab.dataset.tab); });
     });
+    if (receiptImageTrigger && receiptImageInput) {
+      receiptImageTrigger.addEventListener('click', function () { receiptImageInput.click(); });
+      receiptImageInput.addEventListener('change', handleReceiptImageUpload);
+    }
 
     function switchTab(tabName) {
       if (['manual', 'qr', 'barcode'].indexOf(tabName) === -1) return;
@@ -3158,6 +3165,89 @@ function renderArchivedPeriods() {
         scannerStartPromise = null;
       });
       await scannerStartPromise;
+    }
+
+    async function handleReceiptImageUpload(event) {
+      var file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      scanHandled = true;
+      if (receiptImageLoading) receiptImageLoading.classList.remove('hidden');
+      if (receiptImageTrigger) receiptImageTrigger.disabled = true;
+      showToast('Rasm tahlil qilinmoqda...', 'info');
+
+      var worker = null;
+      try {
+        await stopActiveScanner();
+        if (!window.Tesseract || typeof window.Tesseract.createWorker !== 'function') {
+          throw new Error('Tesseract OCR library is not available.');
+        }
+
+        worker = await window.Tesseract.createWorker('uzb+rus+eng');
+        var recognition = await worker.recognize(file);
+        var rawText = recognition && recognition.data && recognition.data.text || '';
+        console.log('[receipt-ocr] Extracted receipt text:', rawText);
+        if (!rawText.trim()) throw new Error('No readable text was found in the receipt image.');
+
+        var amountPatterns = [
+          /(?:Jami|ИТОГО|TOTAL|To'lov|Сумма|Summa)[\s:]*([\d\s.,]+)/i,
+          /([\d\s.]{4,})\s*(?:so'm|сум|uzs)/i
+        ];
+        var totalAmount = 0;
+        amountPatterns.forEach(function (pattern) {
+          var match = rawText.match(pattern);
+          if (!match || !match[1]) return;
+          var parsedAmount = parseNumericAmount(match[1]);
+          if (parsedAmount !== null && parsedAmount > totalAmount) totalAmount = parsedAmount;
+        });
+
+        var ignoredReceiptLine = /(inn|nds|fpu|terminal|fiskal|cheki|ravisda|xush kelibsiz|rahmat|итого|jami|total|to'lov|summa)/i;
+        var products = rawText.split(/\r?\n/)
+          .map(function (line) { return line.trim(); })
+          .filter(function (line) { return line.length > 3 && !ignoredReceiptLine.test(line); })
+          .slice(0, 6)
+          .join(', ');
+
+        var amountInput = document.getElementById('amount');
+        var descriptionInput = document.getElementById('note');
+        if (totalAmount > 0 && amountInput) {
+          amountInput.value = String(totalAmount);
+          amountInput.dispatchEvent(new Event('input', { bubbles: true }));
+          if (typeof updateAmountPreview === 'function') updateAmountPreview('amount');
+        }
+        if (products && descriptionInput) descriptionInput.value = products;
+
+        switchTab('manual');
+        if (amountInput) amountInput.focus();
+        if (totalAmount > 0 || products) {
+          showToast("Rasm o'qildi! Summa va mahsulotlar kiritildi.", 'success');
+          var resultStatus = document.getElementById('scan-result-status');
+          if (resultStatus) {
+            resultStatus.textContent = totalAmount > 0
+              ? "Rasm o'qildi. Summa va mahsulotlarni tekshirib saqlang."
+              : "Mahsulotlar o'qildi. Summani tekshiring yoki qo'lda kiriting.";
+            resultStatus.classList.remove('hidden');
+          }
+        } else {
+          showToast("Rasmda summa yoki mahsulotlar topilmadi. Qo'lda kiriting.", 'info');
+        }
+      } catch (error) {
+        console.error('[receipt-ocr] Could not read receipt image:', error);
+        switchTab('manual');
+        var inputToFocus = document.getElementById('amount');
+        if (inputToFocus) inputToFocus.focus();
+        showToast("Rasm matnini o'qishda xatolik bo'ldi. Summani qo'lda kiriting.", 'error');
+      } finally {
+        try {
+          if (worker) await worker.terminate();
+        } catch (error) {
+          console.error('[receipt-ocr] Could not terminate Tesseract worker:', error);
+        } finally {
+          if (receiptImageLoading) receiptImageLoading.classList.add('hidden');
+          if (receiptImageTrigger) receiptImageTrigger.disabled = false;
+          event.target.value = '';
+        }
+      }
     }
 
     async function handleDecodedQrCode(decodedText, amountInput, resultStatus) {
