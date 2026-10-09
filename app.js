@@ -3253,7 +3253,7 @@ function renderArchivedPeriods() {
         return Promise.reject(new Error('Tesseract OCR library is not available.'));
       }
       if (!receiptOcrWorkerPromise) {
-        receiptOcrWorkerPromise = window.Tesseract.createWorker('eng').catch(function (error) {
+        receiptOcrWorkerPromise = window.Tesseract.createWorker('rus+eng').catch(function (error) {
           receiptOcrWorkerPromise = null;
           throw error;
         });
