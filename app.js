@@ -3286,42 +3286,25 @@ function renderArchivedPeriods() {
         var value = receiptUrl.searchParams.get(key);
         if (value !== null) params.set(key, value);
       });
-      var apiUrl = 'https://ofd.soliq.uz/api/check?' + params.toString();
-      var proxyUrls = [
-        'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(apiUrl),
-        'https://api.allorigins.win/get?url=' + encodeURIComponent(apiUrl)
-      ];
-      var lastError = null;
-
-      for (var i = 0; i < proxyUrls.length; i++) {
-        var controller = new AbortController();
-        var timeout = setTimeout(function () { controller.abort(); }, 7000);
-        try {
-          var response = await fetch(proxyUrls[i], { signal: controller.signal });
-          if (!response.ok) throw new Error('Soliq proxy request failed with HTTP ' + response.status + '.');
-          var body = await response.text();
-          var contents = body;
-
-          try {
-            var proxyEnvelope = JSON.parse(body);
-            if (proxyEnvelope && typeof proxyEnvelope.contents === 'string') {
-              contents = proxyEnvelope.contents;
-            }
-          } catch (error) {
-            // Some proxies return the Soliq response directly instead of a JSON envelope.
-          }
-
-          var receipt = parseSoliqReceiptContents(contents);
-          if (receipt.totalSum !== null || receipt.items.length) return receipt;
-          throw new Error('Soliq response did not contain a total or product items.');
-        } catch (error) {
-          lastError = error;
-          console.warn('[scanner] Soliq proxy attempt failed:', proxyUrls[i], error);
-        } finally {
-          clearTimeout(timeout);
+      var controller = new AbortController();
+      var timeout = setTimeout(function () { controller.abort(); }, 8000);
+      try {
+        var response = await fetch('/api/soliq?' + params.toString(), { signal: controller.signal });
+        if (!response.ok) {
+          var errorBody = await response.json().catch(function () { return null; });
+          throw new Error(errorBody && errorBody.error
+            ? errorBody.error
+            : 'Soliq endpoint returned HTTP ' + response.status + '.');
         }
+        var data = await response.json();
+        var receipt = parseSoliqReceiptContents(JSON.stringify(data));
+        if (receipt.totalSum === null && !receipt.items.length) {
+          throw new Error('Soliq response did not contain a total or product items.');
+        }
+        return receipt;
+      } finally {
+        clearTimeout(timeout);
       }
-      throw lastError || new Error('Could not retrieve Soliq receipt data.');
     }
 
     function parseSoliqReceiptContents(contents) {
