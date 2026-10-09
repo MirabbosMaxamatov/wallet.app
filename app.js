@@ -3021,16 +3021,16 @@ function renderArchivedPeriods() {
       });
     }
 
-    async function stopActiveScanner() {
+    async function stopActiveScanner(waitForStart) {
       var scanner = activeScanner;
       if (!scanner) {
-        if (scannerStartPromise) await scannerStartPromise;
+        if (waitForStart !== false && scannerStartPromise) await scannerStartPromise;
         scanner = activeScanner;
         if (!scanner) return;
       }
 
       var scannerTab = activeScannerTab;
-      if (scannerStartPromise) await scannerStartPromise;
+      if (waitForStart !== false && scannerStartPromise) await scannerStartPromise;
       if (activeScanner !== scanner) return;
 
       activeScanner = null;
@@ -3101,44 +3101,31 @@ function renderArchivedPeriods() {
         async function onSuccess(decodedText) {
           if (scanHandled) return;
           scanHandled = true;
-          var isSoliqReceipt = tabKey === 'qr' && /^https?:\/\/ofd\.soliq\.uz\/check(?:[?#]|$)/i.test(String(decodedText).trim());
-          if (isSoliqReceipt) showScannerStatus(statusId, '⏳', 'Chek ma’lumotlari yuklanmoqda…');
-          await stopActiveScanner();
-
           var amountInput = document.getElementById('amount');
           var resultStatus = document.getElementById('scan-result-status');
-          var shouldSwitchToManual = !isSoliqReceipt;
           try {
+            if (tabKey === 'qr') {
+              await handleDecodedQrCode(decodedText, amountInput, resultStatus);
+              return;
+            }
+
+            await stopActiveScanner(false);
             if (tabKey === 'barcode') {
               await handleBarcodeScan(decodedText, amountInput, resultStatus);
-            } else if (isSoliqReceipt) {
-              shouldSwitchToManual = await handleSoliqReceiptScan(decodedText, amountInput, resultStatus, statusId);
-            } else {
-              const amount = parseScannedValue(decodedText);
-              if (amount !== null) {
-                applyScannedAmount(amount, 'Receipt total scanned. Verify it before saving.', amountInput, resultStatus);
-              } else if (resultStatus) {
-                resultStatus.textContent = 'QR scanned, but no valid amount was found. Enter it manually.';
-                resultStatus.classList.remove('hidden');
-              }
             }
+            switchTab('manual');
           } catch (error) {
             console.error('[scanner] Could not process scanned data:', error);
             if (resultStatus) {
               resultStatus.textContent = 'The scanned data could not be saved. You can enter it manually.';
               resultStatus.classList.remove('hidden');
             }
-            if (isSoliqReceipt) {
-              shouldSwitchToManual = false;
-              showScannerStatus(statusId, '⚠️', 'Chek ma’lumotlarini olib bo‘lmadi. Summani kiritish uchun Manual bo‘limini tanlang.');
-              showToast('Chek summasi olinmadi. Summani Manual bo‘limida kiriting.', 'info');
-            }
+            switchTab('manual');
           }
-          if (shouldSwitchToManual) switchTab('manual');
         }
       ).then(function () {
         var statusEl = document.getElementById(statusId);
-        if (statusEl) statusEl.style.display = 'none';
+        if (statusEl && !scanHandled) statusEl.style.display = 'none';
       }).catch(async function (error) {
         if (activeScanner === scanner) {
           activeScanner = null;
@@ -3167,6 +3154,99 @@ function renderArchivedPeriods() {
         scannerStartPromise = null;
       });
       await scannerStartPromise;
+    }
+
+    async function handleDecodedQrCode(decodedText, amountInput, resultStatus) {
+      console.log('Scanned QR Code Text:', decodedText);
+
+      await stopActiveScanner(false);
+
+      var scannedUrl = null;
+      try {
+        scannedUrl = new URL(String(decodedText).trim());
+      } catch (error) {
+        console.info('[scanner] QR payload is not a URL; parsing it as a regular receipt value.');
+      }
+
+      var isSoliqReceipt = scannedUrl &&
+        scannedUrl.hostname.toLowerCase() === 'ofd.soliq.uz' &&
+        scannedUrl.pathname === '/check';
+
+      if (isSoliqReceipt) {
+        var rawDate = scannedUrl.searchParams.get('c') || '';
+        var fiscalImzo = scannedUrl.searchParams.get('s') || '';
+        var dateValue = '';
+        if (rawDate.length >= 8 && /^\d{8}/.test(rawDate)) {
+          var year = Number(rawDate.slice(0, 4));
+          var month = Number(rawDate.slice(4, 6));
+          var day = Number(rawDate.slice(6, 8));
+          var parsedDate = new Date(Date.UTC(year, month - 1, day));
+          if (parsedDate.getUTCFullYear() === year &&
+              parsedDate.getUTCMonth() === month - 1 &&
+              parsedDate.getUTCDate() === day) {
+            dateValue = year + '-' + String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+          }
+        }
+
+        var dateInput = document.getElementById('date');
+        var descriptionInput = document.getElementById('note');
+        if (dateValue && dateInput) dateInput.value = dateValue;
+        if (fiscalImzo && descriptionInput) descriptionInput.value = 'Chek ID: ' + fiscalImzo;
+        if (amountInput) {
+          amountInput.value = '';
+          amountInput.dispatchEvent(new Event('input', { bubbles: true }));
+          if (typeof updateAmountPreview === 'function') updateAmountPreview('amount');
+        }
+
+        switchTab('manual');
+        if (amountInput) amountInput.focus();
+
+        if (navigator.onLine === false) {
+          if (resultStatus) {
+            resultStatus.textContent = "Sana to'ldirildi. Chek summasini kiriting.";
+            resultStatus.classList.remove('hidden');
+          }
+          showToast('Internetsiz rejim: Iltimos, chek formasiga summani kiriting.', 'info');
+          return;
+        }
+
+        if (resultStatus) {
+          resultStatus.textContent = 'Chek summasi yuklanmoqda…';
+          resultStatus.classList.remove('hidden');
+        }
+        showToast("Sana to'ldirildi. Chek summasi tekshirilmoqda!", 'info');
+        fetchSoliqReceiptAmount(scannedUrl.href).then(function (amount) {
+          if (amountInput && !amountInput.value) {
+            amountInput.value = String(amount);
+            amountInput.dispatchEvent(new Event('input', { bubbles: true }));
+            if (typeof updateAmountPreview === 'function') updateAmountPreview('amount');
+          }
+          if (resultStatus) {
+            resultStatus.textContent = amountInput && amountInput.value !== String(amount)
+              ? 'Chek summasi topildi. Kiritilgan summangiz o‘zgartirilmadi.'
+              : 'Chek summasi va sanasi muvaffaqiyatli yuklandi!';
+            resultStatus.classList.remove('hidden');
+          }
+          showToast('Summa topildi: ' + amount + " so'm", 'success');
+        }).catch(function (error) {
+          console.warn('[scanner] Background Soliq amount lookup failed:', error);
+          if (resultStatus) {
+            resultStatus.textContent = "Sana to'ldirildi. Chek summasini kiriting.";
+            resultStatus.classList.remove('hidden');
+          }
+          showToast('Chek summasi olinmadi. Summani kiriting.', 'info');
+        });
+        return;
+      }
+
+      var amount = parseScannedValue(String(decodedText || '').trim());
+      if (amount !== null) {
+        applyScannedAmount(amount, 'Receipt total scanned. Verify it before saving.', amountInput, resultStatus);
+      } else if (resultStatus) {
+        resultStatus.textContent = 'QR scanned, but no valid amount was found. Enter it manually.';
+        resultStatus.classList.remove('hidden');
+      }
+      switchTab('manual');
     }
 
     function showScannerStatus(statusId, icon, message, detail) {
@@ -3213,52 +3293,12 @@ function renderArchivedPeriods() {
       return parseNumericAmount(raw);
     }
 
-    async function handleSoliqReceiptScan(rawUrl, amountInput, resultStatus, statusId) {
-      var scannedUrl;
-      try {
-        scannedUrl = new URL(String(rawUrl).trim());
-      } catch (error) {
-        console.warn('[scanner] Invalid Soliq receipt URL:', error);
-        showScannerStatus(statusId, '⚠️', 'Chek ma’lumotlarini o‘qib bo‘lmadi. Summani kiritish uchun Manual bo‘limini tanlang.');
-        showToast('Chek summasi olinmadi. Summani Manual bo‘limida kiriting.', 'info');
-        return false;
-      }
-
-      if (scannedUrl.hostname.toLowerCase() !== 'ofd.soliq.uz' || scannedUrl.pathname !== '/check') {
-        console.warn('[scanner] Invalid Soliq receipt URL:', scannedUrl.href);
-        showScannerStatus(statusId, '⚠️', 'Chek ma’lumotlarini o‘qib bo‘lmadi. Summani kiritish uchun Manual bo‘limini tanlang.');
-        showToast('Chek summasi olinmadi. Summani Manual bo‘limida kiriting.', 'info');
-        return false;
-      }
-
-      var receiptDate = scannedUrl.searchParams.get('c') || '';
-      var fiscalImzo = scannedUrl.searchParams.get('s') || '';
-      var dateValue = '';
-      if (receiptDate.length >= 8 && /^\d{8}/.test(receiptDate)) {
-        var year = Number(receiptDate.slice(0, 4));
-        var month = Number(receiptDate.slice(4, 6));
-        var day = Number(receiptDate.slice(6, 8));
-        var parsedDate = new Date(Date.UTC(year, month - 1, day));
-        if (parsedDate.getUTCFullYear() === year && parsedDate.getUTCMonth() === month - 1 && parsedDate.getUTCDate() === day) {
-          dateValue = year + '-' + String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0');
-        }
-      }
-      var dateInput = document.getElementById('date');
-      var descriptionInput = document.getElementById('note');
-      if (dateValue && dateInput) dateInput.value = dateValue;
-      if (fiscalImzo && descriptionInput) descriptionInput.value = 'Chek: ' + fiscalImzo;
-
-      if (navigator.onLine === false) {
-        console.info('[scanner] Device is offline; keeping the QR tab open for manual entry.');
-        showScannerStatus(statusId, '📴', 'Chek sanasi saqlandi. Summani kiritish uchun Manual bo‘limini tanlang.');
-        showToast('Internetsiz rejim: Iltimos, chek formasiga summani kiriting.', 'info');
-        return false;
-      }
-
+    async function fetchSoliqReceiptAmount(receiptUrl) {
+      if (navigator.onLine === false) throw new Error('The device is offline.');
       var controller = new AbortController();
-      var timeout = setTimeout(function () { controller.abort(); }, 5000);
+      var timeout = setTimeout(function () { controller.abort(); }, 4000);
       try {
-        var proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(scannedUrl.href);
+        var proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(receiptUrl);
         var response = await fetch(proxyUrl, { signal: controller.signal });
         if (!response.ok) throw new Error('Soliq CORS proxy request failed with HTTP ' + response.status + '.');
         var data = await response.json();
@@ -3282,29 +3322,7 @@ function renderArchivedPeriods() {
         if (amount === null) throw new Error('Soliq response did not contain a valid totalSum.');
         if (amount > 100000) amount /= 100;
         if (!Number.isFinite(amount) || amount <= 0) throw new Error('Soliq response contained an invalid receipt total.');
-        if (!dateValue || !dateInput || !amountInput) {
-          throw new Error('Receipt date or amount input is unavailable or invalid.');
-        }
-
-        dateInput.value = dateValue;
-        amountInput.value = String(amount);
-        amountInput.dispatchEvent(new Event('input', { bubbles: true }));
-        if (typeof updateAmountPreview === 'function') updateAmountPreview('amount');
-        if (dateInput.value !== dateValue || Number(amountInput.value) !== amount) {
-          throw new Error('Receipt date or amount could not be applied to the form.');
-        }
-        amountInput.focus();
-        if (resultStatus) {
-          resultStatus.textContent = 'Chek summasi muvaffaqiyatli aniqlandi!';
-          resultStatus.classList.remove('hidden');
-        }
-        showToast('Chek summasi muvaffaqiyatli aniqlandi!', 'success');
-        return true;
-      } catch (error) {
-        console.warn('[scanner] Soliq receipt fetch or parsing failed:', error);
-        showScannerStatus(statusId, '⚠️', 'Chek sanasi saqlandi. Summani kiritish uchun Manual bo‘limini tanlang.');
-        showToast('Internetsiz rejim: Iltimos, chek formasiga summani kiriting.', 'info');
-        return false;
+        return amount;
       } finally {
         clearTimeout(timeout);
       }
