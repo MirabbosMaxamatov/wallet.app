@@ -499,6 +499,40 @@
     input.dispatchEvent(new Event('input', { bubbles: true }));
     updateAmountPreview(inputId);
   }
+  function parseAttoSms(rawText) {
+    if (!/atto/i.test(String(rawText || ''))) return null;
+
+    const attoMatch = String(rawText).match(/(?:-\s*|to'lov\s*)([\d\s.,'`’ʻʼ]+)\s*(?:uzs|so'm)/i);
+    let amount = 2500;
+    if (attoMatch) {
+      let normalizedAmount = attoMatch[1].replace(/(\d)['`’ʻʼ](\d{3})/g, '$1$2').replace(/[\s'`’ʻʼ]/g, '');
+      const comma = normalizedAmount.lastIndexOf(',');
+      const period = normalizedAmount.lastIndexOf('.');
+      if (comma !== -1 && period !== -1) {
+        const decimalSeparator = comma > period ? ',' : '.';
+        const groupingSeparator = decimalSeparator === ',' ? '.' : ',';
+        normalizedAmount = normalizedAmount.split(groupingSeparator).join('');
+        if (decimalSeparator === ',') normalizedAmount = normalizedAmount.replace(',', '.');
+      } else if (comma !== -1 || period !== -1) {
+        const separator = comma !== -1 ? ',' : '.';
+        const parts = normalizedAmount.split(separator);
+        if (parts.length > 2 || parts[parts.length - 1].length === 3) {
+          normalizedAmount = parts.join('');
+        } else if (separator === ',') {
+          normalizedAmount = normalizedAmount.replace(',', '.');
+        }
+      }
+      const parsedAmount = Number(normalizedAmount);
+      if (Number.isFinite(parsedAmount) && parsedAmount > 0) amount = parsedAmount;
+    }
+
+    return {
+      amount,
+      category: 'Transport',
+      description: 'ATTO Jamoat transporti'
+    };
+  }
+  window.parseAttoSms = parseAttoSms;
   function formatSignedAmount(value) {
     const sign = value >= 0 ? '+' : '-';
     return sign + formatCurrency(value);
@@ -3011,6 +3045,24 @@ function renderArchivedPeriods() {
         receiptOcrWorkerPromise = null;
       }, { once: true });
     }
+    var attoQuickBtn = document.getElementById('attoQuickBtn');
+    if (attoQuickBtn) {
+      attoQuickBtn.addEventListener('click', function () {
+        var amountInput = document.getElementById('amount');
+        var categorySelect = document.getElementById('category');
+        var transactionDesc = document.getElementById('note');
+        if (amountInput) {
+          amountInput.value = '2500';
+          amountInput.dispatchEvent(new Event('input', { bubbles: true }));
+          if (typeof updateAmountPreview === 'function') updateAmountPreview('amount');
+        }
+        if (categorySelect && Array.from(categorySelect.options).some(function (option) { return option.value === 'Transport'; })) {
+          categorySelect.value = 'Transport';
+        }
+        if (transactionDesc) transactionDesc.value = "ATTO Yo'l haqi";
+        showToast("ATTO yo'l haqi tanlandi (2,500 so'm)", 'info');
+      });
+    }
 
     function switchTab(tabName) {
       if (['manual', 'qr', 'barcode'].indexOf(tabName) === -1) return;
@@ -3195,20 +3247,31 @@ function renderArchivedPeriods() {
         var resizedImage = await compressAndResizeImage(file, 800);
         var recognition = await worker.recognize(resizedImage);
         var rawText = recognition && recognition.data && recognition.data.text || '';
+        var totalAmount = parseReceiptAmount(rawText);
+        if (totalAmount <= 0) {
+          console.info('[receipt-ocr] No total found; retrying with receipt rotated 90 degrees.');
+          var rotatedBlob = await rotateCanvasBlob(resizedImage, 90);
+          var rotatedRecognition = await worker.recognize(rotatedBlob);
+          var rotatedText = rotatedRecognition && rotatedRecognition.data && rotatedRecognition.data.text || '';
+          var rotatedAmount = parseReceiptAmount(rotatedText);
+          if (rotatedAmount > 0) {
+            rawText = rotatedText;
+            totalAmount = rotatedAmount;
+          } else {
+            var oppositeBlob = await rotateCanvasBlob(resizedImage, 270);
+            var oppositeRecognition = await worker.recognize(oppositeBlob);
+            var oppositeText = oppositeRecognition && oppositeRecognition.data && oppositeRecognition.data.text || '';
+            var oppositeAmount = parseReceiptAmount(oppositeText);
+            if (oppositeAmount > 0) {
+              rawText = oppositeText;
+              totalAmount = oppositeAmount;
+            } else if (rotatedText.length > rawText.length) {
+              rawText = rotatedText;
+            }
+          }
+        }
         console.log('[receipt-ocr] Extracted receipt text:', rawText);
         if (!rawText.trim()) throw new Error('No readable text was found in the receipt image.');
-
-        var amountPatterns = [
-          /(?:Jami|ИТОГО|TOTAL|To'lov|Сумма|Summa)[\s:]*([\d\s.,]+)/i,
-          /([\d\s.]{4,})\s*(?:so'm|сум|uzs)/i
-        ];
-        var totalAmount = 0;
-        amountPatterns.forEach(function (pattern) {
-          var match = rawText.match(pattern);
-          if (!match || !match[1]) return;
-          var parsedAmount = parseNumericAmount(match[1]);
-          if (parsedAmount !== null && parsedAmount > totalAmount) totalAmount = parsedAmount;
-        });
 
         var products = cleanAndFormatDescription(rawText);
 
@@ -3246,6 +3309,43 @@ function renderArchivedPeriods() {
         if (receiptImageTrigger) receiptImageTrigger.disabled = false;
         event.target.value = '';
       }
+    }
+
+    function rotateCanvasBlob(blob, degrees) {
+      return new Promise(function (resolve, reject) {
+        var objectUrl = URL.createObjectURL(blob);
+        var image = new Image();
+        image.onload = function () {
+          try {
+            var canvas = document.createElement('canvas');
+            var context = canvas.getContext('2d');
+            if (!context) throw new Error('Could not create canvas for receipt rotation.');
+            if (degrees === 90 || degrees === 270) {
+              canvas.width = image.height;
+              canvas.height = image.width;
+            } else {
+              canvas.width = image.width;
+              canvas.height = image.height;
+            }
+            context.translate(canvas.width / 2, canvas.height / 2);
+            context.rotate(degrees * Math.PI / 180);
+            context.drawImage(image, -image.width / 2, -image.height / 2);
+            canvas.toBlob(function (rotatedBlob) {
+              URL.revokeObjectURL(objectUrl);
+              if (rotatedBlob) resolve(rotatedBlob);
+              else reject(new Error('Could not rotate receipt image.'));
+            }, 'image/jpeg', 0.8);
+          } catch (error) {
+            URL.revokeObjectURL(objectUrl);
+            reject(error);
+          }
+        };
+        image.onerror = function () {
+          URL.revokeObjectURL(objectUrl);
+          reject(new Error('Could not load receipt image for rotation.'));
+        };
+        image.src = objectUrl;
+      });
     }
 
     function getReceiptOcrWorker() {
@@ -3317,6 +3417,27 @@ function renderArchivedPeriods() {
         if (bitmap) bitmap.close();
         if (objectUrl) URL.revokeObjectURL(objectUrl);
       }
+    }
+
+    function parseReceiptAmount(rawText) {
+      if (!rawText) return 0;
+
+      var normalizedText = String(rawText).replace(/(\d)['`’ʻʼ](\d{3})/g, '$1$2');
+      var patterns = [
+        /(?:JAMI|ИТОГО|TOTAL|To'lov\s+uchun\s+jami|Summa|Общая\s+сумма|К\s+оплате)[\s:=]*([\d\s.,]+)/i,
+        /([\d\s.,]{3,})\s*(?:so'm|сум|uzs|сумов)/i,
+        /(?:BANK CARD|KARTA|NAQD|КАРТА|НАЛИЧНЫЕ)[\s:=]*([\d\s.,]+)/i
+      ];
+      var maxAmount = 0;
+
+      patterns.forEach(function (pattern) {
+        var match = normalizedText.match(pattern);
+        if (!match || !match[1]) return;
+        var value = parseNumericAmount(match[1]);
+        if (value !== null && value > maxAmount) maxAmount = value;
+      });
+
+      return maxAmount;
     }
 
     function cleanAndFormatDescription(rawText) {
