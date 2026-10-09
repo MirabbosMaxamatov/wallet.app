@@ -2959,6 +2959,7 @@ function renderArchivedPeriods() {
     var receiptImageInput = document.getElementById('receiptImageInput');
     var receiptImageTrigger = document.getElementById('receipt-image-trigger');
     var receiptImageLoading = document.getElementById('receipt-image-loading');
+    var receiptOcrWorkerPromise = null;
 
     function openSheet() {
       sheet.classList.add('open');
@@ -2997,6 +2998,18 @@ function renderArchivedPeriods() {
     if (receiptImageTrigger && receiptImageInput) {
       receiptImageTrigger.addEventListener('click', function () { receiptImageInput.click(); });
       receiptImageInput.addEventListener('change', handleReceiptImageUpload);
+      getReceiptOcrWorker().catch(function (error) {
+        console.warn('[receipt-ocr] Could not warm up OCR worker:', error);
+      });
+      window.addEventListener('pagehide', function () {
+        if (!receiptOcrWorkerPromise) return;
+        receiptOcrWorkerPromise.then(function (worker) {
+          return worker.terminate();
+        }).catch(function (error) {
+          console.warn('[receipt-ocr] Could not terminate OCR worker on page exit:', error);
+        });
+        receiptOcrWorkerPromise = null;
+      }, { once: true });
     }
 
     function switchTab(tabName) {
@@ -3176,15 +3189,11 @@ function renderArchivedPeriods() {
       if (receiptImageTrigger) receiptImageTrigger.disabled = true;
       showToast('Rasm tahlil qilinmoqda...', 'info');
 
-      var worker = null;
       try {
         await stopActiveScanner();
-        if (!window.Tesseract || typeof window.Tesseract.createWorker !== 'function') {
-          throw new Error('Tesseract OCR library is not available.');
-        }
-
-        worker = await window.Tesseract.createWorker('uzb+rus+eng');
-        var recognition = await worker.recognize(file);
+        var worker = await getReceiptOcrWorker();
+        var resizedImage = await compressAndResizeImage(file, 800);
+        var recognition = await worker.recognize(resizedImage);
         var rawText = recognition && recognition.data && recognition.data.text || '';
         console.log('[receipt-ocr] Extracted receipt text:', rawText);
         if (!rawText.trim()) throw new Error('No readable text was found in the receipt image.');
@@ -3233,15 +3242,80 @@ function renderArchivedPeriods() {
         if (inputToFocus) inputToFocus.focus();
         showToast("Rasm matnini o'qishda xatolik bo'ldi. Summani qo'lda kiriting.", 'error');
       } finally {
-        try {
-          if (worker) await worker.terminate();
-        } catch (error) {
-          console.error('[receipt-ocr] Could not terminate Tesseract worker:', error);
-        } finally {
-          if (receiptImageLoading) receiptImageLoading.classList.add('hidden');
-          if (receiptImageTrigger) receiptImageTrigger.disabled = false;
-          event.target.value = '';
+        if (receiptImageLoading) receiptImageLoading.classList.add('hidden');
+        if (receiptImageTrigger) receiptImageTrigger.disabled = false;
+        event.target.value = '';
+      }
+    }
+
+    function getReceiptOcrWorker() {
+      if (!window.Tesseract || typeof window.Tesseract.createWorker !== 'function') {
+        return Promise.reject(new Error('Tesseract OCR library is not available.'));
+      }
+      if (!receiptOcrWorkerPromise) {
+        receiptOcrWorkerPromise = window.Tesseract.createWorker('eng').catch(function (error) {
+          receiptOcrWorkerPromise = null;
+          throw error;
+        });
+      }
+      return receiptOcrWorkerPromise;
+    }
+
+    async function compressAndResizeImage(file, maxWidth) {
+      maxWidth = maxWidth || 800;
+      var bitmap;
+      var image;
+      var objectUrl;
+      var width;
+      var height;
+      var canvas;
+      var context;
+      try {
+        if (typeof createImageBitmap === 'function') {
+          bitmap = await createImageBitmap(file);
+          width = bitmap.width;
+          height = bitmap.height;
+        } else {
+          objectUrl = URL.createObjectURL(file);
+          image = await new Promise(function (resolve, reject) {
+            var imageElement = new Image();
+            imageElement.onload = function () { resolve(imageElement); };
+            imageElement.onerror = function () { reject(new Error('Could not decode receipt image.')); };
+            imageElement.src = objectUrl;
+          });
+          width = image.naturalWidth;
+          height = image.naturalHeight;
         }
+
+        if (!width || !height) throw new Error('Receipt image has invalid dimensions.');
+        var scale = Math.min(1, maxWidth / width);
+        var resizedWidth = Math.max(1, Math.round(width * scale));
+        var resizedHeight = Math.max(1, Math.round(height * scale));
+
+        if (typeof OffscreenCanvas === 'function') {
+          canvas = new OffscreenCanvas(resizedWidth, resizedHeight);
+          context = canvas.getContext('2d');
+          if (!context) throw new Error('Could not create an image canvas.');
+          context.drawImage(bitmap || image, 0, 0, resizedWidth, resizedHeight);
+          return await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.8 });
+        }
+
+        canvas = document.createElement('canvas');
+        canvas.width = resizedWidth;
+        canvas.height = resizedHeight;
+        context = canvas.getContext('2d');
+        if (!context) throw new Error('Could not create an image canvas.');
+        context.drawImage(bitmap || image, 0, 0, resizedWidth, resizedHeight);
+        var blob = await new Promise(function (resolve, reject) {
+          canvas.toBlob(function (result) {
+            if (result) resolve(result);
+            else reject(new Error('Could not compress receipt image.'));
+          }, 'image/jpeg', 0.8);
+        });
+        return blob;
+      } finally {
+        if (bitmap) bitmap.close();
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
       }
     }
 
