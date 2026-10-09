@@ -3211,23 +3211,31 @@ function renderArchivedPeriods() {
         scannedUrl = new URL(String(rawUrl).trim());
       } catch (error) {
         console.warn('[scanner] Invalid Soliq receipt URL:', error);
+        switchTab('manual');
+        if (amountInput) amountInput.focus();
+        showToast('Internetsiz rejim: Iltimos, chek formasiga summani kiriting.', 'info');
         return;
       }
 
       var receiptDate = scannedUrl.searchParams.get('c') || '';
+      var fiscalImzo = scannedUrl.searchParams.get('s') || '';
+      if (receiptDate.length >= 8 && /^\d{8}/.test(receiptDate)) {
+        var year = Number(receiptDate.slice(0, 4));
+        var month = Number(receiptDate.slice(4, 6));
+        var day = Number(receiptDate.slice(6, 8));
+        var parsedDate = new Date(Date.UTC(year, month - 1, day));
+        if (parsedDate.getUTCFullYear() === year && parsedDate.getUTCMonth() === month - 1 && parsedDate.getUTCDate() === day) {
+          var dateInput = document.getElementById('date');
+          if (dateInput) dateInput.value = year + '-' + String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+        }
+      }
+      if (fiscalImzo) {
+        var descriptionInput = document.getElementById('note');
+        if (descriptionInput) descriptionInput.value = 'Chek: ' + fiscalImzo;
+      }
 
       function useOfflineFallback(reason) {
         if (reason) console.warn('[scanner] Soliq receipt could not be fetched; using offline entry:', reason);
-        if (/^\d{14}$/.test(receiptDate)) {
-          var year = Number(receiptDate.slice(0, 4));
-          var month = Number(receiptDate.slice(4, 6));
-          var day = Number(receiptDate.slice(6, 8));
-          var parsedDate = new Date(Date.UTC(year, month - 1, day));
-          if (parsedDate.getUTCFullYear() === year && parsedDate.getUTCMonth() === month - 1 && parsedDate.getUTCDate() === day) {
-            var dateInput = document.getElementById('date');
-            if (dateInput) dateInput.value = year + '-' + String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0');
-          }
-        }
         switchTab('manual');
         if (amountInput) amountInput.focus();
         showToast('Internetsiz rejim: Iltimos, chek formasiga summani kiriting.', 'info');
@@ -3243,40 +3251,42 @@ function renderArchivedPeriods() {
         return;
       }
 
-      var urls = [
-        scannedUrl.href,
-        'https://api.allorigins.win/raw?url=' + encodeURIComponent(scannedUrl.href)
-      ];
-      var lastError = null;
+      var controller = new AbortController();
+      var timeout = setTimeout(function () { controller.abort(); }, 5000);
+      try {
+        var proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(scannedUrl.href);
+        var response = await fetch(proxyUrl, { signal: controller.signal });
+        if (!response.ok) throw new Error('Soliq CORS proxy request failed with HTTP ' + response.status + '.');
+        var data = await response.json();
+        if (!data || typeof data.contents !== 'string') throw new Error('Soliq CORS proxy returned no receipt contents.');
 
-      for (var i = 0; i < urls.length; i++) {
-        var controller = new AbortController();
-        var timeout = setTimeout(function () { controller.abort(); }, 8000);
+        var totalSum = null;
         try {
-          var response = await fetch(urls[i], { signal: controller.signal });
-          if (!response.ok) throw new Error('Soliq request failed with HTTP ' + response.status + '.');
-          var data = await response.json();
-          var totalSum = data && (data.totalSum !== undefined ? data.totalSum : data.data && data.data.totalSum);
-          var amount = parseNumericAmount(totalSum);
-          if (amount === null) throw new Error('Soliq response did not contain a valid totalSum.');
-
-          var totalSumUnit = String(data.totalSumUnit || data.currencyUnit || data.unit || '').toLowerCase();
-          if (/tiyin|minor/.test(totalSumUnit) || !/uzs|sum|so['’]?m|major/.test(totalSumUnit)) {
-            amount /= 100;
-          }
-          if (!Number.isFinite(amount) || amount <= 0) throw new Error('Soliq response contained an invalid receipt total.');
-
-          switchTab('manual');
-          applyScannedAmount(amount, 'Receipt total loaded from Soliq. Verify it before saving.', amountInput, resultStatus);
-          return;
+          var contentData = JSON.parse(data.contents);
+          totalSum = contentData && (contentData.totalSum !== undefined
+            ? contentData.totalSum
+            : contentData.data && contentData.data.totalSum);
         } catch (error) {
-          lastError = error;
-        } finally {
-          clearTimeout(timeout);
+          // Soliq may return an HTML page with the receipt data embedded in it.
         }
-      }
+        if (totalSum === null || totalSum === undefined) {
+          var amountMatch = data.contents.match(/\\?"totalSum\\?"\s*:\s*\\?"?([\d.,]+)\\?"?/i);
+          if (amountMatch) totalSum = amountMatch[1];
+        }
 
-      useOfflineFallback(lastError);
+        var amount = parseNumericAmount(totalSum);
+        if (amount === null) throw new Error('Soliq response did not contain a valid totalSum.');
+        if (amount > 100000) amount /= 100;
+        if (!Number.isFinite(amount) || amount <= 0) throw new Error('Soliq response contained an invalid receipt total.');
+
+        switchTab('manual');
+        applyScannedAmount(amount, 'Chek summasi muvaffaqiyatli aniqlandi!', amountInput, resultStatus);
+        showToast('Chek summasi muvaffaqiyatli aniqlandi!', 'success');
+      } catch (error) {
+        useOfflineFallback(error);
+      } finally {
+        clearTimeout(timeout);
+      }
     }
 
     async function handleBarcodeScan(rawCode, amountInput, resultStatus) {
