@@ -3201,12 +3201,7 @@ function renderArchivedPeriods() {
           if (parsedAmount !== null && parsedAmount > totalAmount) totalAmount = parsedAmount;
         });
 
-        var ignoredReceiptLine = /(inn|nds|fpu|terminal|fiskal|cheki|ravisda|xush kelibsiz|rahmat|итого|jami|total|to'lov|summa)/i;
-        var products = rawText.split(/\r?\n/)
-          .map(function (line) { return line.trim(); })
-          .filter(function (line) { return line.length > 3 && !ignoredReceiptLine.test(line); })
-          .slice(0, 6)
-          .join(', ');
+        var products = cleanAndFormatDescription(rawText);
 
         var amountInput = document.getElementById('amount');
         var descriptionInput = document.getElementById('note');
@@ -3248,6 +3243,27 @@ function renderArchivedPeriods() {
           event.target.value = '';
         }
       }
+    }
+
+    function cleanAndFormatDescription(rawText) {
+      if (!rawText) return 'Chek xaridi';
+
+      var stopWords = /(kontaktsiz|operatsiya|raqam|savdogar|\bpos\b|terminal|fiskal|cheki|kassir|\binn\b|\bnds\b|\bfpa\b|\bfm\b|\bchdp\b|uzcard|humo|visa|mastercard|stansiya|stsiya|ob'yekt|sana|vaqt|xush kelibsiz|rahmat)/i;
+      var lines = String(rawText).split(/\r?\n/)
+        .map(function (line) { return line.trim(); })
+        .filter(function (line) {
+          return line.length >= 3 && !/^\d+$/.test(line) && !stopWords.test(line);
+        });
+
+      var cleanedItems = lines.map(function (line) {
+        return line
+          .replace(/[^\w\sА-яЎўҚқҒғҲҳ.,()-]/gi, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+      }).filter(function (item) { return item.length > 2; });
+
+      if (cleanedItems.length === 0) return "Soliq / Do'kon chek xaridi";
+      return cleanedItems.slice(0, 4).join(', ');
     }
 
     async function handleDecodedQrCode(decodedText, amountInput, resultStatus) {
