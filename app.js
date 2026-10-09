@@ -3280,50 +3280,188 @@ function renderArchivedPeriods() {
 
     async function fetchSoliqReceiptData(qrUrl) {
       if (navigator.onLine === false) throw new Error('The device is offline.');
-      var controller = new AbortController();
-      var timeout = setTimeout(function () { controller.abort(); }, 6000);
-      try {
-        var proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(qrUrl);
-        var response = await fetch(proxyUrl, { signal: controller.signal });
-        if (!response.ok) throw new Error('Soliq CORS proxy request failed with HTTP ' + response.status + '.');
-        var data = await response.json();
-        if (!data || typeof data.contents !== 'string') throw new Error('Soliq CORS proxy returned no receipt contents.');
+      var receiptUrl = new URL(qrUrl);
+      var params = new URLSearchParams();
+      ['t', 'r', 'c', 's'].forEach(function (key) {
+        var value = receiptUrl.searchParams.get(key);
+        if (value !== null) params.set(key, value);
+      });
+      var apiUrl = 'https://ofd.soliq.uz/api/check?' + params.toString();
+      var proxyUrls = [
+        'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(apiUrl),
+        'https://api.allorigins.win/get?url=' + encodeURIComponent(apiUrl)
+      ];
+      var lastError = null;
 
-        var htmlContent = data.contents;
-        var receiptData = null;
+      for (var i = 0; i < proxyUrls.length; i++) {
+        var controller = new AbortController();
+        var timeout = setTimeout(function () { controller.abort(); }, 7000);
         try {
-          receiptData = JSON.parse(htmlContent);
+          var response = await fetch(proxyUrls[i], { signal: controller.signal });
+          if (!response.ok) throw new Error('Soliq proxy request failed with HTTP ' + response.status + '.');
+          var body = await response.text();
+          var contents = body;
+
+          try {
+            var proxyEnvelope = JSON.parse(body);
+            if (proxyEnvelope && typeof proxyEnvelope.contents === 'string') {
+              contents = proxyEnvelope.contents;
+            }
+          } catch (error) {
+            // Some proxies return the Soliq response directly instead of a JSON envelope.
+          }
+
+          var receipt = parseSoliqReceiptContents(contents);
+          if (receipt.totalSum !== null || receipt.items.length) return receipt;
+          throw new Error('Soliq response did not contain a total or product items.');
         } catch (error) {
-          // Soliq may return an HTML page with the receipt data embedded in it.
+          lastError = error;
+          console.warn('[scanner] Soliq proxy attempt failed:', proxyUrls[i], error);
+        } finally {
+          clearTimeout(timeout);
         }
-        var nestedData = receiptData && receiptData.data && typeof receiptData.data === 'object'
-          ? receiptData.data
-          : receiptData;
-        var totalSum = nestedData && nestedData.totalSum;
-        if (totalSum === null || totalSum === undefined) {
-          var sumMatch = htmlContent.match(/\\?"totalSum\\?"\s*:\s*\\?"?([\d.,]+)\\?"?/i) ||
-            htmlContent.match(/To'lov uchun jami\s*:\s*([\d\s.]+)/i);
-          if (sumMatch) totalSum = sumMatch[1].replace(/\s/g, '');
+      }
+      throw lastError || new Error('Could not retrieve Soliq receipt data.');
+    }
+
+    function parseSoliqReceiptContents(contents) {
+      var candidates = [String(contents || '')];
+      var receipt = { totalSum: null, items: [] };
+
+      function inspectValue(value) {
+        if (!value) return;
+        if (typeof value === 'string') {
+          try {
+            inspectValue(JSON.parse(value));
+          } catch (error) {
+            candidates.push(value);
+          }
+          return;
+        }
+        if (Array.isArray(value)) {
+          value.forEach(inspectValue);
+          return;
+        }
+        if (typeof value !== 'object') return;
+
+        var nestedReceipt = value.receipt && typeof value.receipt === 'object' ? value.receipt : value;
+        if (receipt.totalSum === null && nestedReceipt.totalSum !== undefined) {
+          receipt.totalSum = nestedReceipt.totalSum;
+        }
+        if (!receipt.items.length && Array.isArray(nestedReceipt.items)) {
+          receipt.items = nestedReceipt.items;
+        }
+        ['data', 'result', 'payload', 'props', 'pageProps', '__INITIAL_STATE__'].forEach(function (key) {
+          if (value[key] !== undefined) inspectValue(value[key]);
+        });
+      }
+
+      try {
+        inspectValue(JSON.parse(candidates[0]));
+      } catch (error) {
+        // Soliq may return a rendered HTML page instead of JSON.
+      }
+
+      var parsedHtml = null;
+      if (typeof DOMParser === 'function' && /<\/?[a-z][\s\S]*>/i.test(candidates[0])) {
+        parsedHtml = new DOMParser().parseFromString(candidates[0], 'text/html');
+        parsedHtml.querySelectorAll('script').forEach(function (script) {
+          if (script.textContent) candidates.push(script.textContent);
+        });
+        candidates.push(parsedHtml.body ? parsedHtml.body.textContent : '');
+      }
+
+      candidates.forEach(function (candidate) {
+        if (receipt.totalSum === null) {
+          var sumMatch = candidate.match(/\\?"totalSum\\?"\s*:\s*\\?"?([\d.,]+)\\?"?/i) ||
+            candidate.match(/To(?:'|’|ʻ|`)?lov\s+uchun\s+jami\s*:?\s*([\d\s.,]+)/i);
+          if (sumMatch) receipt.totalSum = sumMatch[1].replace(/\s/g, '');
         }
 
-        var items = nestedData && Array.isArray(nestedData.items) ? nestedData.items : [];
-        if (!items.length) {
-          var itemsArrayMatch = htmlContent.match(/\\?"items\\?"\s*:\s*(\[[\s\S]*?\])/i);
-          if (itemsArrayMatch) {
+        if (!receipt.items.length) {
+          var itemsArray = extractJsonArrayAfterKey(candidate, 'items');
+          if (itemsArray) {
             try {
-              items = JSON.parse(itemsArrayMatch[1].replace(/\\"/g, '"'));
+              receipt.items = JSON.parse(itemsArray);
             } catch (error) {
-              console.warn('[scanner] Could not parse embedded Soliq item list:', error);
+              try {
+                receipt.items = JSON.parse(itemsArray.replace(/\\"/g, '"'));
+              } catch (unescapeError) {
+                console.warn('[scanner] Could not parse embedded Soliq items array:', unescapeError);
+              }
             }
           }
         }
-        return {
-          totalSum,
-          items: Array.isArray(items) ? items : []
-        };
-      } finally {
-        clearTimeout(timeout);
+      });
+
+      if (!receipt.items.length && parsedHtml) {
+        receipt.items = extractSoliqItemsFromHtml(parsedHtml);
       }
+
+      return {
+        totalSum: receipt.totalSum,
+        items: Array.isArray(receipt.items) ? receipt.items : []
+      };
+    }
+
+    function extractSoliqItemsFromHtml(parsedHtml) {
+      var tables = Array.from(parsedHtml.querySelectorAll('table'));
+      for (var tableIndex = 0; tableIndex < tables.length; tableIndex++) {
+        var rows = Array.from(tables[tableIndex].querySelectorAll('tr'));
+        if (rows.length < 2) continue;
+
+        var headings = Array.from(rows[0].querySelectorAll('th, td')).map(function (cell) {
+          return (cell.textContent || '').trim().toLowerCase();
+        });
+        var nameIndex = headings.findIndex(function (heading) {
+          return /товар|наимен|product|item|mahsulot|nomi/.test(heading);
+        });
+        var quantityIndex = headings.findIndex(function (heading) {
+          return /колич|quantity|qty|miqdor|soni/.test(heading);
+        });
+        var priceIndex = headings.findIndex(function (heading) {
+          return /цена|стоим|price|summa|narx|jami|сумм/.test(heading);
+        });
+        if (nameIndex < 0) continue;
+
+        var parsedItems = rows.slice(1).map(function (row) {
+          var cells = Array.from(row.querySelectorAll('td')).map(function (cell) {
+            return (cell.textContent || '').trim();
+          });
+          if (!cells[nameIndex]) return null;
+          return {
+            name: cells[nameIndex],
+            quantity: quantityIndex >= 0 ? cells[quantityIndex] : 1,
+            price: priceIndex >= 0 ? cells[priceIndex] : ''
+          };
+        }).filter(Boolean);
+        if (parsedItems.length) return parsedItems;
+      }
+      return [];
+    }
+
+    function extractJsonArrayAfterKey(source, key) {
+      var keyPattern = new RegExp('\\\\?"' + key + '\\\\?"\\s*:\\s*\\[', 'i');
+      var match = keyPattern.exec(source);
+      if (!match) return null;
+
+      var start = source.indexOf('[', match.index + match[0].lastIndexOf('['));
+      var depth = 0;
+      var inString = false;
+      var escaped = false;
+      for (var i = start; i < source.length; i++) {
+        var character = source[i];
+        if (inString) {
+          if (escaped) escaped = false;
+          else if (character === '\\') escaped = true;
+          else if (character === '"') inString = false;
+          continue;
+        }
+        if (character === '"') inString = true;
+        else if (character === '[') depth++;
+        else if (character === ']' && --depth === 0) return source.slice(start, i + 1);
+      }
+      return null;
     }
 
     function formatSoliqReceiptItems(items) {
@@ -3332,7 +3470,8 @@ function renderArchivedPeriods() {
         var name = item.name || item.productName || item.title || item.product || item.itemName;
         var quantity = item.quantity !== undefined ? item.quantity
           : item.qty !== undefined ? item.qty
-            : item.count !== undefined ? item.count : 1;
+            : item.count !== undefined ? item.count
+              : item.amount !== undefined ? item.amount : 1;
         var price = item.price !== undefined ? item.price
           : item.unitPrice !== undefined ? item.unitPrice
             : item.totalPrice !== undefined ? item.totalPrice
