@@ -3108,6 +3108,8 @@ function renderArchivedPeriods() {
           try {
             if (tabKey === 'barcode') {
               await handleBarcodeScan(decodedText, amountInput, resultStatus);
+            } else if (/^https?:\/\/ofd\.soliq\.uz\/check(?:[?#]|$)/i.test(String(decodedText).trim())) {
+              await handleSoliqReceiptScan(decodedText, amountInput, resultStatus);
             } else {
               const amount = parseScannedValue(decodedText);
               if (amount !== null) {
@@ -3201,6 +3203,80 @@ function renderArchivedPeriods() {
       var keyedAmount = raw.match(/(?:amount|total|sum|price|summa|narx)\s*[=:]\s*([\d.,\s]+)/i);
       if (keyedAmount) return parseNumericAmount(keyedAmount[1]);
       return parseNumericAmount(raw);
+    }
+
+    async function handleSoliqReceiptScan(rawUrl, amountInput, resultStatus) {
+      var scannedUrl;
+      try {
+        scannedUrl = new URL(String(rawUrl).trim());
+      } catch (error) {
+        console.warn('[scanner] Invalid Soliq receipt URL:', error);
+        return;
+      }
+
+      var receiptDate = scannedUrl.searchParams.get('c') || '';
+
+      function useOfflineFallback(reason) {
+        if (reason) console.warn('[scanner] Soliq receipt could not be fetched; using offline entry:', reason);
+        if (/^\d{14}$/.test(receiptDate)) {
+          var year = Number(receiptDate.slice(0, 4));
+          var month = Number(receiptDate.slice(4, 6));
+          var day = Number(receiptDate.slice(6, 8));
+          var parsedDate = new Date(Date.UTC(year, month - 1, day));
+          if (parsedDate.getUTCFullYear() === year && parsedDate.getUTCMonth() === month - 1 && parsedDate.getUTCDate() === day) {
+            var dateInput = document.getElementById('date');
+            if (dateInput) dateInput.value = year + '-' + String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+          }
+        }
+        switchTab('manual');
+        if (amountInput) amountInput.focus();
+        showToast('Internetsiz rejim: Iltimos, chek formasiga summani kiriting.', 'info');
+      }
+
+      if (scannedUrl.hostname.toLowerCase() !== 'ofd.soliq.uz' || scannedUrl.pathname !== '/check') {
+        useOfflineFallback(new Error('The scanned URL is not a valid Soliq receipt URL.'));
+        return;
+      }
+
+      if (navigator.onLine === false) {
+        useOfflineFallback();
+        return;
+      }
+
+      var urls = [
+        scannedUrl.href,
+        'https://api.allorigins.win/raw?url=' + encodeURIComponent(scannedUrl.href)
+      ];
+      var lastError = null;
+
+      for (var i = 0; i < urls.length; i++) {
+        var controller = new AbortController();
+        var timeout = setTimeout(function () { controller.abort(); }, 8000);
+        try {
+          var response = await fetch(urls[i], { signal: controller.signal });
+          if (!response.ok) throw new Error('Soliq request failed with HTTP ' + response.status + '.');
+          var data = await response.json();
+          var totalSum = data && (data.totalSum !== undefined ? data.totalSum : data.data && data.data.totalSum);
+          var amount = parseNumericAmount(totalSum);
+          if (amount === null) throw new Error('Soliq response did not contain a valid totalSum.');
+
+          var totalSumUnit = String(data.totalSumUnit || data.currencyUnit || data.unit || '').toLowerCase();
+          if (/tiyin|minor/.test(totalSumUnit) || !/uzs|sum|so['’]?m|major/.test(totalSumUnit)) {
+            amount /= 100;
+          }
+          if (!Number.isFinite(amount) || amount <= 0) throw new Error('Soliq response contained an invalid receipt total.');
+
+          switchTab('manual');
+          applyScannedAmount(amount, 'Receipt total loaded from Soliq. Verify it before saving.', amountInput, resultStatus);
+          return;
+        } catch (error) {
+          lastError = error;
+        } finally {
+          clearTimeout(timeout);
+        }
+      }
+
+      useOfflineFallback(lastError);
     }
 
     async function handleBarcodeScan(rawCode, amountInput, resultStatus) {
