@@ -3851,4 +3851,90 @@ function renderArchivedPeriods() {
     }
   }
 
+  // ==================== VALYUTA VA QARZ DAFTARI ====================
+  function formatCurrency(amount) {
+    return new Intl.NumberFormat('uz-UZ').format(amount || 0) + " so'm";
+  }
+
+  function initDebtTracker() {
+    const debts = JSON.parse(localStorage.getItem('debts') || '[]');
+    const container = document.getElementById('debts-list');
+    if (!container) return;
+
+    if (debts.length === 0) {
+      container.innerHTML = '<p style="text-align:center; color:#94a3b8; padding:1rem;">Hali qarzlar yo\'q</p>';
+      return;
+    }
+
+    const given = debts.filter(d => d.type === 'given' && !d.paid);
+    const received = debts.filter(d => d.type === 'received' && !d.paid);
+    
+    container.innerHTML = `
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.75rem; margin-bottom:1rem;">
+        <div style="background:rgba(225,29,72,0.15); border:1px solid rgba(225,29,72,0.3); border-radius:1rem; padding:0.75rem; text-align:center;">
+          <p style="font-size:0.75rem; color:#fda4af; margin-bottom:0.25rem;">Menga berilgan</p>
+          <p style="font-size:1.1rem; font-weight:bold; color:#fb7185;">${formatCurrency(received.reduce((s, d) => s + d.amount, 0))}</p>
+        </div>
+        <div style="background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.3); border-radius:1rem; padding:0.75rem; text-align:center;">
+          <p style="font-size:0.75rem; color:#6ee7b7; margin-bottom:0.25rem;">Men bergan</p>
+          <p style="font-size:1.1rem; font-weight:bold; color:#34d399;">${formatCurrency(given.reduce((s, d) => s + d.amount, 0))}</p>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:0.5rem;">
+        ${debts.map(debt => `
+          <div style="display:flex; align-items:center; justify-content:space-between; background:#1e293b; border:1px solid #334155; border-radius:0.75rem; padding:0.75rem; ${debt.paid ? 'opacity:0.5;' : ''}">
+            <div>
+              <p style="font-weight:600; color:#f1f5f9; margin:0;">${debt.name}</p>
+              <p style="font-size:0.85rem; color:${debt.type === 'given' ? '#34d399' : '#fb7185'}; margin:0.25rem 0;">
+                ${debt.type === 'given' ? 'Berildi' : 'Olindi'}: ${formatCurrency(debt.amount)}
+              </p>
+              <p style="font-size:0.7rem; color:#64748b; margin:0;">${new Date(debt.date).toLocaleDateString('uz-UZ')}</p>
+            </div>
+            <div style="display:flex; gap:0.5rem;">
+              ${!debt.paid ? `<button onclick="toggleDebt(${debt.id})" style="background:#059669; color:white; border:none; border-radius:0.5rem; padding:0.25rem 0.75rem; font-size:0.8rem; cursor:pointer;">✓</button>` : '<span style="font-size:0.75rem; color:#64748b; padding:0 0.5rem;">To\'landi</span>'}
+              <button onclick="deleteDebt(${debt.id})" style="background:rgba(239,68,68,0.2); color:#fb7185; border:none; border-radius:0.5rem; padding:0.25rem 0.75rem; font-size:0.8rem; cursor:pointer;"></button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  window.addDebt = function(name, amount, type) {
+    if (!name || !amount) return showToast('Ism va summani kiriting', 'error');
+    const debts = JSON.parse(localStorage.getItem('debts') || '[]');
+    debts.push({
+      id: Date.now(),
+      name,
+      amount: parseFloat(amount),
+      type,
+      date: new Date().toISOString(),
+      paid: false
+    });
+    localStorage.setItem('debts', JSON.stringify(debts));
+    initDebtTracker();
+    showToast('Qarz qo\'shildi!', 'success');
+  };
+
+  window.toggleDebt = function(id) {
+    const debts = JSON.parse(localStorage.getItem('debts') || '[]');
+    const debt = debts.find(d => d.id === id);
+    if (debt) {
+      debt.paid = !debt.paid;
+      localStorage.setItem('debts', JSON.stringify(debts));
+      initDebtTracker();
+    }
+  };
+
+  window.deleteDebt = function(id) {
+    if (!confirm('Bu qarzni o\'chirishni xohlaysizmi?')) return;
+    const debts = JSON.parse(localStorage.getItem('debts') || '[]').filter(d => d.id !== id);
+    localStorage.setItem('debts', JSON.stringify(debts));
+    initDebtTracker();
+  };
+
+  document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(initDebtTracker, 1000);
+  });
+
 })();

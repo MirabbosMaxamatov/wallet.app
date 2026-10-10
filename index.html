@@ -1255,6 +1255,9 @@
                   <button type="button" onclick="quickAmount('amount',500000)" class="quick-btn green">+500k</button>
                   <button type="button" onclick="clearAmountInput('amount')" class="quick-btn red">C</button>
                   <button type="button" id="attoQuickBtn" class="px-3 py-1 bg-blue-600/20 text-blue-400 border border-blue-500/30 rounded-lg text-xs flex items-center gap-1">🚌 ATTO (2,500 so'm)</button>
+                  <button onclick="document.getElementById('debt-modal').style.display='flex'" class="quick-btn" style="background: rgba(99, 102, 241, 0.15); color: #818cf8; border-color: rgba(99, 102, 241, 0.4); margin-top: 0.5rem;">
+  📒 Qarz Daftari
+                  </button>
                 </div>
               </div>
 
@@ -1545,6 +1548,30 @@
       </div>
     </div>
   </div>
+
+  <!-- Qarz Daftari Modal Oynasi -->
+<div id="debt-modal" class="modal-overlay" onclick="if(event.target===this)this.style.display='none'" style="display: none;">
+  <div class="modal-card">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem;">
+      <h2 style="font-size:1.25rem; font-weight:bold; color:#f1f5f9; margin:0;">📒 Qarz Daftari</h2>
+      <button onclick="document.getElementById('debt-modal').style.display='none'" style="background:none; border:none; color:#94a3b8; font-size:1.5rem; cursor:pointer;">&times;</button>
+    </div>
+
+    <form onsubmit="event.preventDefault(); addDebt(this.debtName.value, this.debtAmount.value, this.debtType.value); this.reset();" style="display:flex; flex-direction:column; gap:0.75rem; margin-bottom:1.5rem;">
+      <input name="debtName" type="text" placeholder="Ism yoki tavsif (masalan: Ali)" class="input-base" required>
+      <input name="debtAmount" type="number" placeholder="Summa (so'm)" class="input-base" required>
+      <select name="debtType" class="input-base">
+        <option value="given">Men berdim (Mening qarzimga)</option>
+        <option value="received">Men oldim (Menga qarz)</option>
+      </select>
+      <button type="submit" class="btn-primary">Qarzni qo'shish</button>
+    </form>
+
+    <div id="debts-list" style="max-height:16rem; overflow-y:auto;">
+      <p style="text-align:center; color:#94a3b8; padding:1rem;">Yuklanmoqda...</p>
+    </div>
+  </div>
+</div>
 
   <script src="app.js?v=10.0.0" defer></script>
 </body>
