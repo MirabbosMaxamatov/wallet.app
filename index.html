@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Smart Byudjet Tracker</title>
+  <title>Aqlli Hamyoncha</title>
   <meta name="theme-color" content="#1e293b" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Smart Byudjet" />
+  <meta name="apple-mobile-web-app-title" content="Aqlli Hamyoncha" />
   <meta name="mobile-web-app-capable" content="yes" />
   <link rel="icon" type="image/jpeg" href="assets/walletprf.jpg?v=10.0.0">
   <link rel="apple-touch-icon" href="assets/walletprf.jpg?v=10.0.0">
@@ -690,35 +690,61 @@
     }
     .b2b-spec-label { display: block; color: #94a3b8; font-size: 0.7rem; font-weight: 600; }
     .b2b-spec-value { display: block; margin-top: 0.4rem; color: #f8fafc; font-size: 0.95rem; font-weight: 700; line-height: 1.4; overflow-wrap: anywhere; }
-    .bank-sdk-fields {
-      display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.4fr);
-      gap: 0.75rem;
+    .simulator-presets { display: flex; flex-wrap: wrap; gap: 0.55rem; margin-bottom: 1rem; }
+    .simulator-preset {
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem;
+      min-height: 44px; padding: 0.6rem 0.85rem; color: #cbd5e1; background: #1e293b;
+      border: 1px solid #475569; border-radius: 0.75rem; font-size: 0.82rem; font-weight: 650;
+      cursor: pointer; transition: color 0.18s, background 0.18s, border-color 0.18s, transform 0.18s;
     }
-    .bank-sdk-card label { display: block; margin-bottom: 0.4rem; color: #cbd5e1; font-size: 0.8rem; font-weight: 600; }
-    #bankSelector, #bankSmsInput {
-      display: block; width: 100%; min-width: 0; min-height: 48px;
-      padding: 0.75rem 0.9rem; color: #f8fafc; background: #0f172a;
-      border: 1px solid #475569; border-radius: 0.75rem; font-size: 0.95rem;
-      line-height: 1.5; transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
+    .simulator-preset:hover { color: #f8fafc; background: #334155; border-color: #64748b; }
+    .simulator-preset[aria-pressed="true"] { color: #a7f3d0; background: rgba(16,185,129,0.12); border-color: #34d399; }
+    .simulator-preset:active { transform: translateY(1px); }
+    .simulator-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.85rem; }
+    .simulator-card { min-width: 0; padding: 1rem; background: #0f172a; border: 1px solid #334155; border-radius: 1rem; }
+    .simulator-card-heading { display: flex; align-items: center; gap: 0.55rem; margin-bottom: 0.9rem; color: #cbd5e1; font-size: 0.75rem; font-weight: 700; }
+    .simulator-step { display: grid; place-items: center; width: 1.4rem; height: 1.4rem; border-radius: 50%; color: #a7f3d0; background: rgba(16,185,129,0.14); font-size: 0.65rem; }
+    .sms-notification { max-width: 30rem; padding: 0.9rem; background: #1e293b; border: 1px solid #334155; border-radius: 1rem 1rem 1rem 0.35rem; }
+    .sms-sender-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.45rem; color: #f1f5f9; font-size: 0.8rem; font-weight: 700; }
+    .sms-time { color: #94a3b8; font-size: 0.68rem; font-weight: 500; }
+    #simulatorSmsText { color: #e2e8f0; font-size: 0.85rem; line-height: 1.55; overflow-wrap: anywhere; }
+    .integration-transaction { display: flex; align-items: flex-start; gap: 0.8rem; padding: 0.9rem; background: #17283a; border: 1px solid rgba(148,163,184,0.16); border-radius: 0.85rem; }
+    .integration-merchant-icon { display: grid; place-items: center; flex: 0 0 2.5rem; width: 2.5rem; height: 2.5rem; color: #053b42; background: #5eead4; border-radius: 0.8rem; font-size: 1.1rem; font-weight: 800; }
+    .integration-transaction-main { flex: 1; min-width: 0; }
+    .integration-merchant-label { color: #94a3b8; font-size: 0.65rem; font-weight: 650; text-transform: uppercase; }
+    #simulatorMerchant { margin-top: 0.2rem; color: #f8fafc; font-size: 0.8rem; font-weight: 750; line-height: 1.4; overflow-wrap: anywhere; }
+    .integration-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem; margin-top: 0.65rem; }
+    #simulatorCategory { padding: 0.28rem 0.5rem; color: #a7f3d0; background: rgba(16,185,129,0.13); border: 1px solid rgba(52,211,153,0.25); border-radius: 999px; font-size: 0.68rem; font-weight: 700; }
+    #simulatorAmount { margin-left: auto; color: #f8fafc; font-size: 0.9rem; font-weight: 800; white-space: nowrap; }
+    .simulator-execution { display: inline-flex; align-items: center; gap: 0.35rem; margin-top: 0.8rem; color: #a7f3d0; font-size: 0.7rem; font-weight: 700; }
+    .simulator-value-banner { display: flex; align-items: flex-start; gap: 0.65rem; margin-top: 0.85rem; padding: 0.9rem 1rem; color: #d1fae5; background: rgba(6,78,59,0.3); border: 1px solid rgba(52,211,153,0.25); border-radius: 0.875rem; font-size: 0.8rem; line-height: 1.55; }
+    .simulator-value-banner strong { color: #ecfdf5; }
+    .guide-docs-toggle {
+      display: flex; align-items: center; justify-content: space-between; gap: 0.8rem;
+      width: 100%; min-height: 56px; padding: 0.9rem 1rem; color: #6ee7b7;
+      background: #0f172a; border: 1px solid #334155; border-radius: 1rem;
+      font-size: 0.9rem; font-weight: 700; text-align: left; cursor: pointer;
+      transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
     }
-    #bankSmsInput { min-height: 88px; resize: vertical; overflow-wrap: anywhere; }
-    #bankSelector:focus, #bankSmsInput:focus { outline: none; border-color: #34d399; box-shadow: 0 0 0 3px rgba(16,185,129,0.2); }
-    #bankSmsInput::placeholder { color: #94a3b8; opacity: 1; }
-    .bank-sdk-button {
-      display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
-      min-height: 48px; padding: 0.7rem 1rem; border: 0; border-radius: 0.75rem;
-      color: #052e25; background: #34d399; font-size: 0.9rem; font-weight: 700;
-      text-align: center; cursor: pointer; transition: background 0.2s, transform 0.2s, box-shadow 0.2s;
-    }
-    .bank-sdk-button:hover { background: #6ee7b7; box-shadow: 0 8px 18px rgba(16,185,129,0.16); }
-    .bank-sdk-button:active { transform: translateY(1px); }
-    #bankSdkStatus { border-radius: 0.875rem; line-height: 1.5; overflow-wrap: anywhere; }
-    #bankSdkStatus[class*="bg-emerald-500/10"] { color: #a7f3d0; background: rgba(16,185,129,0.12); border-color: rgba(52,211,153,0.35); }
-    #bankSdkStatus[class*="bg-rose-500/10"] { color: #fecdd3; background: rgba(244,63,94,0.12); border-color: rgba(251,113,133,0.35); }
-    .bank-sdk-output-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; margin-top: 1rem; }
-    .bank-sdk-output-panel { min-width: 0; padding: 0.9rem; background: #0b1422; border: 1px solid #334155; border-radius: 0.875rem; }
-    .bank-sdk-output-heading { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.7rem; }
-    .bank-sdk-output-panel pre { min-height: 7rem; max-height: 15rem; overflow: auto; color: #a7f3d0; font: 0.78rem/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; tab-size: 2; }
+    .guide-docs-toggle:hover { background: #17283a; border-color: #34d399; box-shadow: 0 8px 20px rgba(2,6,23,0.16); }
+    .guide-docs-toggle-label { display: flex; align-items: center; gap: 0.65rem; }
+    .guide-docs-toggle-icon { flex: 0 0 auto; font-size: 1.15rem; }
+    .guide-docs-toggle-chevron { transition: transform 0.22s ease; }
+    .guide-docs-toggle[aria-expanded="true"] .guide-docs-toggle-chevron { transform: rotate(180deg); }
+    #guide-docs-panel { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows 0.26s ease, opacity 0.2s ease; }
+    #guide-docs-panel[hidden] { display: none; }
+    #guide-docs-panel.is-open { grid-template-rows: 1fr; opacity: 1; }
+    .guide-docs-clip { min-height: 0; overflow: hidden; }
+    .guide-docs-content { margin-top: 0.75rem; padding: 1.1rem; color: #cbd5e1; background: #111f32; border: 1px solid #334155; border-radius: 1rem; }
+    .guide-docs-content > section + section { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(148,163,184,0.18); }
+    .guide-docs-content h3 { margin-bottom: 0.45rem; color: #f1f5f9; font-size: 0.9rem; font-weight: 700; }
+    .guide-docs-content p, .guide-docs-content li { color: #cbd5e1; font-size: 0.82rem; line-height: 1.65; }
+    .guide-docs-content ol { padding-left: 1.2rem; list-style: decimal; }
+    .guide-docs-content code { color: #6ee7b7; font-size: 0.8em; overflow-wrap: anywhere; }
+    .guide-sdk-sample { margin-top: 0.6rem; padding: 0.8rem; overflow-x: auto; color: #a7f3d0; background: #0b1422; border: 1px solid #334155; border-radius: 0.75rem; font: 0.76rem/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre; }
+    .guide-sdk-note { margin-top: 0.5rem; color: #94a3b8 !important; font-size: 0.74rem !important; }
+    .guide-docs-close { display: block; min-height: 44px; margin: 1rem 0 0 auto; padding: 0.6rem 1rem; color: #e2e8f0; background: #334155; border: 1px solid #475569; border-radius: 0.75rem; font-size: 0.82rem; font-weight: 650; cursor: pointer; transition: background 0.2s, border-color 0.2s; }
+    .guide-docs-close:hover { background: #475569; border-color: #64748b; }
     #transaction-list li {
       display: flex; flex-direction: column; gap: 0.75rem;
       padding: 1rem; background: #111f32; border: 1px solid #334155;
@@ -774,16 +800,31 @@
     body.light-theme .b2b-spec-label { color: #64748b; }
     body.light-theme .b2b-spec-value { color: #0f172a; }
     body.light-theme .bank-sdk-card { color: #0f172a; background: #fff; border-color: #cbd5e1; }
-    body.light-theme #bankSelector,
-    body.light-theme #bankSmsInput { color: #0f172a; background: #fff; border-color: #94a3b8; }
-    body.light-theme #bankSelector option { color: #0f172a; background: #fff; }
+    body.light-theme .simulator-preset { color: #334155; background: #fff; border-color: #cbd5e1; }
+    body.light-theme .simulator-preset[aria-pressed="true"] { color: #065f46; background: #ecfdf5; border-color: #34d399; }
+    body.light-theme .simulator-card { background: #fff; border-color: #cbd5e1; }
+    body.light-theme .simulator-card-heading { color: #334155; }
+    body.light-theme .sms-notification { background: #f1f5f9; border-color: #cbd5e1; }
+    body.light-theme .sms-sender-row,
+    body.light-theme #simulatorMerchant { color: #0f172a; }
+    body.light-theme #simulatorSmsText { color: #334155; }
+    body.light-theme .integration-transaction { background: #f8fafc; border-color: #e2e8f0; }
+    body.light-theme #simulatorAmount { color: #0f172a; }
+    body.light-theme .simulator-value-banner { color: #065f46; background: #ecfdf5; border-color: #a7f3d0; }
+    body.light-theme .simulator-value-banner strong { color: #064e3b; }
+    body.light-theme .guide-docs-toggle { color: #047857; background: #fff; border-color: #cbd5e1; }
+    body.light-theme .guide-docs-toggle:hover { background: #f0fdf4; border-color: #34d399; }
+    body.light-theme .guide-docs-content { color: #334155; background: #fff; border-color: #cbd5e1; }
+    body.light-theme .guide-docs-content > section + section { border-top-color: #e2e8f0; }
+    body.light-theme .guide-docs-content h3 { color: #0f172a; }
+    body.light-theme .guide-docs-content p,
+    body.light-theme .guide-docs-content li { color: #334155; }
+    body.light-theme .guide-docs-content code { color: #047857; }
+    body.light-theme .guide-sdk-sample { color: #065f46; background: #f8fafc; border-color: #cbd5e1; }
+    body.light-theme .guide-docs-close { color: #0f172a; background: #f1f5f9; border-color: #cbd5e1; }
     body.light-theme #transaction-list li { background: #f8fafc; border-color: #cbd5e1; }
     body.light-theme #transaction-list li > div:first-child { border-bottom-color: #e2e8f0; }
     body.light-theme #transaction-list li > div:first-child button { color: #334155; background: #fff; border-color: #cbd5e1; }
-    body.light-theme #bankSdkStatus[class*="bg-emerald-500/10"] { color: #065f46; background: #ecfdf5; border-color: #a7f3d0; }
-    body.light-theme #bankSdkStatus[class*="bg-rose-500/10"] { color: #9f1239; background: #fff1f2; border-color: #fecdd3; }
-    body.light-theme .bank-sdk-output-panel { background: #f8fafc; border-color: #cbd5e1; }
-    body.light-theme .bank-sdk-output-panel pre { color: #065f46; }
     body.light-theme .bg-slate-900,
     body.light-theme .bg-slate-900\/50,
     body.light-theme .bg-slate-900\/60,
@@ -909,11 +950,11 @@
       .input-base { width: 100%; max-width: 100%; }
       .grid { min-width: 0; }
       .bank-sdk-card { padding: 1rem; border-radius: 1rem; }
-      .bank-sdk-fields { grid-template-columns: minmax(0, 1fr); }
-      .bank-sdk-button { width: 100%; }
       .b2b-engine-card { padding: 1rem; border-radius: 1rem; }
       .b2b-engine-heading { flex-direction: column; gap: 0.65rem; }
-      .b2b-spec-grid, .bank-sdk-output-grid { grid-template-columns: minmax(0, 1fr); }
+      .b2b-spec-grid { grid-template-columns: minmax(0, 1fr); }
+      .simulator-grid { grid-template-columns: minmax(0, 1fr); }
+      .simulator-preset { flex: 1 1 9rem; }
       #transaction-list li { padding: 0.85rem; }
       #transaction-list li > div:last-child > div { gap: 0.65rem; }
     }
@@ -1219,7 +1260,7 @@
     <header class="mb-6 sm:mb-8">
       <div class="flex items-center justify-between gap-3">
         <div class="min-w-0">
-          <h1 class="text-2xl sm:text-3xl font-bold text-slate-100 truncate" data-i18n="appTitle">Smart Byudjet Tracker</h1>
+          <h1 class="text-2xl sm:text-3xl font-bold text-slate-100 truncate" data-i18n="appTitle">Aqlli Hamyoncha</h1>
           <p class="text-slate-400 text-sm mt-1" data-i18n="transactions">Kirim va chiqimlarni real vaqtda kuzatib boring</p>
         </div>
         <!-- Dual-Mode Switcher -->
@@ -1500,18 +1541,18 @@
           <img src="assets/walletprf.jpg" alt="Profile" class="w-10 h-10 rounded-full object-cover border-2 border-emerald-500/40" id="profile-avatar">
           <div class="flex flex-col">
             <span class="text-sm font-semibold text-slate-100" data-i18n="profile">Profil</span>
-            <span class="text-xs text-slate-400" data-i18n="appTitle">Smart Byudjet Tracker</span>
+            <span class="text-xs text-slate-400" data-i18n="appTitle">Aqlli Hamyoncha</span>
           </div>
         </div>
 
         <section class="b2b-engine-card" aria-labelledby="b2b-engine-title">
           <div class="b2b-engine-heading">
             <div>
-              <p class="text-xs font-semibold uppercase tracking-wider text-emerald-400">Wallet.app</p>
-              <h2 id="b2b-engine-title" class="text-xl font-bold text-slate-100 mt-1">Wallet.app B2B Engine</h2>
-              <p class="text-sm text-slate-400 mt-1">Private transaction parsing for enterprise products</p>
+              <p class="text-xs font-semibold uppercase tracking-wider text-emerald-400">Aqlli Hamyoncha SDK</p>
+              <h2 id="b2b-engine-title" class="text-xl font-bold text-slate-100 mt-1">Aqlli Hamyoncha</h2>
+              <p class="text-sm text-slate-400 mt-1">Aqlli Hamyoncha — PFM &amp; SDK Demo</p>
             </div>
-            <span class="b2b-engine-version">Enterprise SDK v1.5.0</span>
+            <span class="b2b-engine-version">Aqlli Hamyoncha SDK v1.5.0</span>
           </div>
           <div class="b2b-spec-grid" aria-label="System specifications">
             <div class="b2b-spec">
@@ -1532,54 +1573,44 @@
         <section class="bank-sdk-card" aria-labelledby="bank-sdk-title">
           <div class="b2b-engine-heading">
             <div>
-              <h2 id="bank-sdk-title" class="text-base sm:text-lg font-semibold text-slate-100">Bank SDK Sandbox</h2>
-              <p class="text-xs text-slate-400 mt-1">Multi-bank SMS parser test</p>
+              <h2 id="bank-sdk-title" class="text-base sm:text-lg font-semibold text-slate-100">📱 Payme / Click Live Integration Simulator</h2>
+              <p class="text-xs text-slate-400 mt-1">Choose a message to preview the client-side transaction result</p>
             </div>
-            <span class="b2b-engine-version">Local simulator</span>
+            <span class="b2b-engine-version">Interactive demo</span>
           </div>
-          <div class="bank-sdk-fields">
-            <div>
-              <label for="bankSelector">Bank or payment system</label>
-              <select id="bankSelector">
-                <option value="click">Click</option>
-                <option value="payme">Payme</option>
-                <option value="uzcard">Uzcard</option>
-                <option value="humo">Humo</option>
-                <option value="anorbank">Anorbank</option>
-                <option value="kapitalbank">Kapitalbank</option>
-              </select>
-            </div>
-            <div>
-              <label for="bankSmsInput">Sample SMS</label>
-              <textarea id="bankSmsInput" rows="3" spellcheck="false">Click: Hisobingizdan 50,000 UZS yechildi. Karta *1234.</textarea>
-            </div>
+          <div class="simulator-presets" role="group" aria-label="Choose an SMS preset">
+            <button type="button" class="simulator-preset" data-simulator-preset="payme" aria-pressed="false">💳 Payme SMS</button>
+            <button type="button" class="simulator-preset" data-simulator-preset="click" aria-pressed="false">🔹 Click SMS</button>
+            <button type="button" class="simulator-preset" data-simulator-preset="uzcard" aria-pressed="false">🏦 Uzcard SMS</button>
           </div>
-          <div class="mt-3 flex flex-col sm:flex-row sm:items-center gap-3">
-            <button type="button" id="bankSdkTestBtn" class="bank-sdk-button">
-              <span aria-hidden="true">&#9654;</span> Run SDK Parser
-            </button>
-            <p class="text-xs leading-relaxed text-slate-500">Demo only. No live bank API or SMS connection.</p>
-          </div>
-          <div id="bankSdkStatus" class="hidden mt-4 rounded-lg border px-3.5 py-3 text-sm" role="status" aria-live="polite"></div>
-          <div class="bank-sdk-output-grid">
-            <section class="bank-sdk-output-panel" aria-labelledby="sdk-code-title">
-              <div class="bank-sdk-output-heading">
-                <h3 id="sdk-code-title" class="text-sm font-semibold text-slate-100">SDK Integration</h3>
-                <span class="text-xs text-slate-400">JavaScript</span>
+          <div class="simulator-grid">
+            <article class="simulator-card" aria-labelledby="incoming-sms-title">
+              <h3 id="incoming-sms-title" class="simulator-card-heading"><span class="simulator-step">01</span> Incoming Raw SMS</h3>
+              <div class="sms-notification" role="status" aria-live="polite">
+                <div class="sms-sender-row"><span id="simulatorSender">PAYME</span><time class="sms-time">now</time></div>
+                <p id="simulatorSmsText">Payme Xarid: 120,000 UZS KORZINKA SUPERMARKET. Karta *1234.</p>
               </div>
-              <pre><code id="bankSdkCode"></code></pre>
-            </section>
-            <section class="bank-sdk-output-panel" aria-labelledby="sdk-json-title">
-              <div class="bank-sdk-output-heading">
-                <h3 id="sdk-json-title" class="text-sm font-semibold text-slate-100">JSON Output</h3>
-                <span class="text-xs text-slate-400">Live result</span>
+            </article>
+            <article class="simulator-card" aria-labelledby="integration-result-title" aria-live="polite">
+              <h3 id="integration-result-title" class="simulator-card-heading"><span class="simulator-step">02</span> Instant App Integration Result</h3>
+              <div class="integration-transaction">
+                <span id="simulatorMerchantIcon" class="integration-merchant-icon" aria-hidden="true">K</span>
+                <div class="integration-transaction-main">
+                  <span class="integration-merchant-label">Merchant Name</span>
+                  <p id="simulatorMerchant">KORZINKA SUPERMARKET</p>
+                  <div class="integration-meta">
+                    <span id="simulatorCategory">Oziq-ovqat</span>
+                    <strong id="simulatorAmount">-120 000 UZS</strong>
+                  </div>
+                </div>
               </div>
-              <pre><code id="bankSdkJson" aria-live="polite">{
-  "status": "ready",
-  "message": "Run the parser to see the JSON result."
-}</code></pre>
-            </section>
+              <span class="simulator-execution">⚡ <span id="simulatorExecution">1ms Local Regex Engine</span></span>
+            </article>
           </div>
+          <aside class="simulator-value-banner">
+            <span aria-hidden="true">💡</span>
+            <p><strong>Banklar uchun foydasi:</strong> Ushbu SDK ulanishi bilan ilovangiz mijoz xarajatlarini avtomatik analiz qiladi va serveringizga 0% yuklama beradi.</p>
+          </aside>
         </section>
 
         <!-- Hisobotlar & Eksport -->
@@ -1644,10 +1675,54 @@
           <button type="button" onclick="resetAllData()" class="w-full mt-3 bg-rose-600/90 hover:bg-rose-500 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors">🗑️ Ma'lumotlarni tozalash (Reset)</button>
         </div>
 
+        <section aria-labelledby="guide-docs-title">
+          <button type="button" id="guide-docs-toggle" class="guide-docs-toggle" aria-expanded="false" aria-controls="guide-docs-panel">
+            <span class="guide-docs-toggle-label"><span class="guide-docs-toggle-icon" aria-hidden="true">📖</span><span id="guide-docs-title">Qo'llanma va B2B Integratsiya Hujjatlari</span></span>
+            <span class="guide-docs-toggle-chevron" aria-hidden="true">⌄</span>
+          </button>
+          <div id="guide-docs-panel" hidden>
+            <div class="guide-docs-clip">
+              <div class="guide-docs-content">
+                <section aria-labelledby="guide-about-title">
+                  <h3 id="guide-about-title">1. Ilova haqida</h3>
+                  <p>Aqlli Hamyoncha SDK — Payme, Click va mahalliy banklar uchun 100% offlayn ishlashga mo'ljallangan PFM va Smart SMS Parser moduli. Tranzaksiyalarni tahlil qilish va saqlash qurilmada bajariladi; server xarajati $0.</p>
+                </section>
+                <section aria-labelledby="guide-user-title">
+                  <h3 id="guide-user-title">2. Foydalanuvchilar uchun</h3>
+                  <ol>
+                    <li>Bankdan kelgan SMS matnini nusxalang. SMS parser funksiyasi mavjud bo'lgan ilova maydoniga matnni joylashtiring; jo'natishdan oldin summa va tranzaksiya turini tekshiring.</li>
+                    <li>Valyuta tugmasi orqali UZS, USD yoki RUB ni tanlang. Ilova joriy konvertatsiya sozlamasidan foydalanadi; yakuniy summani tasdiqlashdan oldin tekshiring.</li>
+                  </ol>
+                  <p class="guide-sdk-note">Joriy demo simulator faqat namunaviy SMSlarni ko'rsatadi; u SMS qutisiga ulanmaydi va bank xabarlarini o'zi o'qimaydi.</p>
+                </section>
+                <section aria-labelledby="guide-sdk-title">
+                  <h3 id="guide-sdk-title">3. Banklar va Hamkorlar uchun (SDK Docs)</h3>
+                  <p>Integratsiya qatlamida SMS matnini parserga uzating:</p>
+                  <pre class="guide-sdk-sample"><code>const result = WalletSDK.parseSMS(text);</code></pre>
+                  <p>JSON javob namunasi:</p>
+                  <pre class="guide-sdk-sample"><code>{
+  "amount": 120000,
+  "currency": "UZS",
+  "type": "expense",
+  "merchant": "KORZINKA SUPERMARKET",
+  "category": "Oziq-ovqat"
+}</code></pre>
+                  <p class="guide-sdk-note">SDK kontraktining namoyish namunasi. Ushbu PWA ichidagi simulator hozirda o'zining lokal parseridan foydalanadi.</p>
+                </section>
+                <section aria-labelledby="guide-security-title">
+                  <h3 id="guide-security-title">4. Xavfsizlik</h3>
+                  <p>Aqlli Hamyoncha SDK tranzaksiya ma'lumotlarini foydalanuvchi qurilmasining <code>localStorage</code> qismida saqlaydi. Demo parser SMS matnini tashqi serverga yubormaydi. Qurilmadagi ma'lumotlarni himoya qilish va zaxira nusxasini saqlash foydalanuvchi zimmasida.</p>
+                </section>
+                <button type="button" id="guide-docs-close" class="guide-docs-close">Yopish</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
       </div>
     </div>
 
-    <footer class="text-center text-slate-600 text-xs mt-8 mb-4">Smart Byudjet Tracker &copy; 2026</footer>
+    <footer class="text-center text-slate-600 text-xs mt-8 mb-4">Aqlli Hamyoncha &copy; 2026</footer>
   </div>
 
   <!-- Simple backup and restore -->

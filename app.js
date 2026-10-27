@@ -1878,14 +1878,29 @@ function renderArchivedPeriods() {
   if (transactionForm) transactionForm.addEventListener('submit', function (e) { e.preventDefault(); addTransaction(); });
   if (addTransactionBtn) addTransactionBtn.addEventListener('click', function (e) { e.preventDefault(); addTransaction(); });
 
-  // ==================== BANK SMS SDK SANDBOX ====================
-  const BANK_SMS_SAMPLES = {
-    click: 'Click: Hisobingizdan 50,000 UZS yechildi. Karta *1234.',
-    payme: 'Payme Xarid: 120,000 UZS KORZINKA. Karta *1234.',
-    uzcard: 'Uzcard *1234. Xarid: 45,000 UZS. Oqtepa Lavash.',
-    humo: 'HUMO *1234. Xarid: 32,000 UZS. Safia Cafe.',
-    anorbank: 'Anorbank: Hisobingizga 250,000 UZS kirim qilindi.',
-    kapitalbank: 'Kapitalbank: 75 000 UZS xarid. Karta *1234.'
+  // ==================== BANK SMS LIVE SIMULATOR ====================
+  const BANK_SIMULATOR_PRESETS = {
+    payme: {
+      sender: 'PAYME',
+      sms: 'Payme Xarid: 120,000 UZS KORZINKA SUPERMARKET. Karta *1234.',
+      merchant: 'KORZINKA SUPERMARKET',
+      category: 'Oziq-ovqat',
+      icon: 'K'
+    },
+    click: {
+      sender: 'CLICK',
+      sms: 'Click: Hisobingizdan 50,000 UZS yechildi. MAKRO SUPERMARKET. Karta *1234.',
+      merchant: 'MAKRO SUPERMARKET',
+      category: 'Oziq-ovqat',
+      icon: 'M'
+    },
+    uzcard: {
+      sender: 'UZCARD',
+      sms: 'Karta *1234. Xarid: 45,000 UZS. Oqtepa Lavash.',
+      merchant: 'OQTEPA LAVASH',
+      category: 'Restoranlar',
+      icon: 'O'
+    }
   };
 
   function parseBankSMS(text) {
@@ -1904,89 +1919,79 @@ function renderArchivedPeriods() {
     return { amount, type: isIncome ? 'income' : 'expense' };
   }
 
-  function testBankSDK() {
-    const selector = document.getElementById('bankSelector');
-    const smsInput = document.getElementById('bankSmsInput');
-    const status = document.getElementById('bankSdkStatus');
-    const jsonOutput = document.getElementById('bankSdkJson');
-    if (!selector || !smsInput || !status) return;
+  function updateBankSimulator(presetKey) {
+    const preset = BANK_SIMULATOR_PRESETS[presetKey];
+    if (!preset) return;
 
-    const bankName = selector.options[selector.selectedIndex].text;
-    const smsText = smsInput.value;
     const startedAt = performance.now();
-    status.className = 'mt-4 rounded-lg border px-3.5 py-3 text-sm';
-
     try {
-      const parsed = parseBankSMS(smsText);
-      const isFundraising = currentMode === 'fundraising';
-      const scope = isFundraising ? getFundraisingTargetScope() : 'personal';
-      let category = 'Other';
-      if (isFundraising) {
-        if (scope === 'hammasi') category = { main: 'personal', sub: 'Bank SDK' };
-        else if (scope === 'oila' || scope === 'guruh') category = { main: scope, sub: 'Bank SDK' };
-        else category = 'Umumiy';
-      }
-
-      const transaction = {
-        id: Date.now(),
-        amount: parsed.amount,
-        type: parsed.type,
-        category,
-        date: new Date().toISOString().slice(0, 10),
-        description: `${bankName} SMS SDK test`,
-        source: 'bank-sdk-sandbox',
-        rawSms: smsText
-      };
-      const transactions = getTransactions();
-      transactions.push(transaction);
-      setTransactions(transactions);
-      renderTransactions();
-      updateDashboard();
-
+      const parsed = parseBankSMS(preset.sms);
       const durationMs = Math.max(1, Math.round(performance.now() - startedAt));
-      const durationLabel = durationMs < 10 ? `${durationMs} ms (<0.01 s)` : `${durationMs} ms`;
-      if (jsonOutput) {
-        jsonOutput.textContent = JSON.stringify({
-          success: true,
-          provider: selector.value,
-          transaction: { amount: parsed.amount, currency: 'UZS', type: parsed.type },
-          execution: { durationMs, serverCost: '$0', storage: 'localStorage' }
-        }, null, 2);
-      }
-      status.className = 'mt-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-3 text-sm text-emerald-200';
-      status.textContent = `✓ Parsed locally in ${durationLabel} · Server cost: $0 · ${parsed.type === 'income' ? 'Kirim' : 'Chiqim'} ${parsed.amount.toLocaleString('uz-UZ')} UZS`;
+      const formattedAmount = new Intl.NumberFormat('uz-UZ').format(parsed.amount).replace(/\s/g, ' ');
+      const sender = document.getElementById('simulatorSender');
+      const smsText = document.getElementById('simulatorSmsText');
+      const merchantIcon = document.getElementById('simulatorMerchantIcon');
+      const merchant = document.getElementById('simulatorMerchant');
+      const category = document.getElementById('simulatorCategory');
+      const amount = document.getElementById('simulatorAmount');
+      const execution = document.getElementById('simulatorExecution');
+
+      if (sender) sender.textContent = preset.sender;
+      if (smsText) smsText.textContent = preset.sms;
+      if (merchantIcon) merchantIcon.textContent = preset.icon;
+      if (merchant) merchant.textContent = preset.merchant;
+      if (category) category.textContent = preset.category;
+      if (amount) amount.textContent = `${parsed.type === 'income' ? '+' : '-'}${formattedAmount} UZS`;
+      if (execution) execution.textContent = `${durationMs}ms Local Regex Engine`;
+
+      document.querySelectorAll('[data-simulator-preset]').forEach((button) => {
+        const isSelected = button.dataset.simulatorPreset === presetKey;
+        button.setAttribute('aria-pressed', String(isSelected));
+      });
     } catch (error) {
-      if (jsonOutput) {
-        jsonOutput.textContent = JSON.stringify({ success: false, provider: selector.value, error: error.message }, null, 2);
-      }
-      status.className = 'mt-4 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3.5 py-3 text-sm text-rose-200';
-      status.textContent = `Parse amalga oshmadi: ${error.message}`;
+      console.error('[Bank simulator] Failed to parse preset:', error);
     }
   }
 
-  const bankSelector = document.getElementById('bankSelector');
-  const bankSmsInput = document.getElementById('bankSmsInput');
-  const bankSdkTestBtn = document.getElementById('bankSdkTestBtn');
-  const bankSdkCode = document.getElementById('bankSdkCode');
-  const bankSdkJson = document.getElementById('bankSdkJson');
-  function updateBankSdkCode() {
-    if (!bankSelector || !bankSmsInput || !bankSdkCode) return;
-    bankSdkCode.textContent = `import { WalletSDK } from '@wlt/sms-parser';\nconst result = WalletSDK.parseSMS(${JSON.stringify(bankSmsInput.value)});`;
-    if (bankSdkJson) {
-      bankSdkJson.textContent = JSON.stringify({ status: 'ready', provider: bankSelector.value, message: 'Run the parser to see the JSON result.' }, null, 2);
-    }
-  }
-  if (bankSelector && bankSmsInput) {
-    bankSelector.addEventListener('change', () => {
-      bankSmsInput.value = BANK_SMS_SAMPLES[bankSelector.value] || '';
-      updateBankSdkCode();
-    });
-    bankSmsInput.addEventListener('input', updateBankSdkCode);
-    updateBankSdkCode();
-  }
-  if (bankSdkTestBtn) bankSdkTestBtn.addEventListener('click', testBankSDK);
+  document.querySelectorAll('[data-simulator-preset]').forEach((button) => {
+    button.addEventListener('click', () => updateBankSimulator(button.dataset.simulatorPreset));
+  });
+  updateBankSimulator('payme');
   window.parseBankSMS = parseBankSMS;
-  window.testBankSDK = testBankSDK;
+
+  const guideDocsToggle = document.getElementById('guide-docs-toggle');
+  const guideDocsPanel = document.getElementById('guide-docs-panel');
+  const guideDocsClose = document.getElementById('guide-docs-close');
+  let guideDocsCloseTimer = null;
+
+  function setGuideDocsOpen(isOpen) {
+    if (!guideDocsToggle || !guideDocsPanel) return;
+    clearTimeout(guideDocsCloseTimer);
+    guideDocsToggle.setAttribute('aria-expanded', String(isOpen));
+
+    if (isOpen) {
+      guideDocsPanel.hidden = false;
+      requestAnimationFrame(() => guideDocsPanel.classList.add('is-open'));
+      return;
+    }
+
+    guideDocsPanel.classList.remove('is-open');
+    guideDocsCloseTimer = setTimeout(() => {
+      if (guideDocsToggle.getAttribute('aria-expanded') === 'false') guideDocsPanel.hidden = true;
+    }, 270);
+  }
+
+  if (guideDocsToggle) {
+    guideDocsToggle.addEventListener('click', () => {
+      setGuideDocsOpen(guideDocsToggle.getAttribute('aria-expanded') !== 'true');
+    });
+  }
+  if (guideDocsClose) {
+    guideDocsClose.addEventListener('click', () => {
+      setGuideDocsOpen(false);
+      guideDocsToggle?.focus();
+    });
+  }
 
   // ==================== DELETE TRANSACTION ====================
   // Store last deleted transaction for undo
@@ -2480,7 +2485,7 @@ function renderArchivedPeriods() {
     printWindow.document.write(`
       <html>
         <head>
-          <title>Smart Byudjet Tracker - Hisobot</title>
+          <title>Aqlli Hamyoncha - Hisobot</title>
           <style>
             body { font-family: sans-serif; padding: 20px; color: #0f172a; }
             h2 { color: #0f172a; text-align: center; margin-bottom: 4px; }
@@ -2491,7 +2496,7 @@ function renderArchivedPeriods() {
           </style>
         </head>
         <body>
-          <h2>Smart Byudjet Tracker — Moliyaviy Hisobot</h2>
+          <h2>Aqlli Hamyoncha — Moliyaviy Hisobot</h2>
           <div class="summary">
             Jami Kirim: ${(totalIncome || 0).toLocaleString('uz-UZ')} so'm &nbsp;|&nbsp;
             Jami Chiqim: ${(totalExpenses || 0).toLocaleString('uz-UZ')} so'm &nbsp;|&nbsp;
