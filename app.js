@@ -1882,7 +1882,8 @@ function renderArchivedPeriods() {
   const BANK_SMS_SAMPLES = {
     click: 'Click: Hisobingizdan 50,000 UZS yechildi. Karta *1234.',
     payme: 'Payme Xarid: 120,000 UZS KORZINKA. Karta *1234.',
-    uzcard: 'Karta *1234. Xarid: 45,000 UZS. Oqtepa Lavash.',
+    uzcard: 'Uzcard *1234. Xarid: 45,000 UZS. Oqtepa Lavash.',
+    humo: 'HUMO *1234. Xarid: 32,000 UZS. Safia Cafe.',
     anorbank: 'Anorbank: Hisobingizga 250,000 UZS kirim qilindi.',
     kapitalbank: 'Kapitalbank: 75 000 UZS xarid. Karta *1234.'
   };
@@ -1907,6 +1908,7 @@ function renderArchivedPeriods() {
     const selector = document.getElementById('bankSelector');
     const smsInput = document.getElementById('bankSmsInput');
     const status = document.getElementById('bankSdkStatus');
+    const jsonOutput = document.getElementById('bankSdkJson');
     if (!selector || !smsInput || !status) return;
 
     const bankName = selector.options[selector.selectedIndex].text;
@@ -1943,9 +1945,20 @@ function renderArchivedPeriods() {
 
       const durationMs = Math.max(1, Math.round(performance.now() - startedAt));
       const durationLabel = durationMs < 10 ? `${durationMs} ms (<0.01 s)` : `${durationMs} ms`;
+      if (jsonOutput) {
+        jsonOutput.textContent = JSON.stringify({
+          success: true,
+          provider: selector.value,
+          transaction: { amount: parsed.amount, currency: 'UZS', type: parsed.type },
+          execution: { durationMs, serverCost: '$0', storage: 'localStorage' }
+        }, null, 2);
+      }
       status.className = 'mt-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-3 text-sm text-emerald-200';
       status.textContent = `✓ Parsed locally in ${durationLabel} · Server cost: $0 · ${parsed.type === 'income' ? 'Kirim' : 'Chiqim'} ${parsed.amount.toLocaleString('uz-UZ')} UZS`;
     } catch (error) {
+      if (jsonOutput) {
+        jsonOutput.textContent = JSON.stringify({ success: false, provider: selector.value, error: error.message }, null, 2);
+      }
       status.className = 'mt-4 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3.5 py-3 text-sm text-rose-200';
       status.textContent = `Parse amalga oshmadi: ${error.message}`;
     }
@@ -1954,10 +1967,22 @@ function renderArchivedPeriods() {
   const bankSelector = document.getElementById('bankSelector');
   const bankSmsInput = document.getElementById('bankSmsInput');
   const bankSdkTestBtn = document.getElementById('bankSdkTestBtn');
+  const bankSdkCode = document.getElementById('bankSdkCode');
+  const bankSdkJson = document.getElementById('bankSdkJson');
+  function updateBankSdkCode() {
+    if (!bankSelector || !bankSmsInput || !bankSdkCode) return;
+    bankSdkCode.textContent = `import { WalletSDK } from '@wlt/sms-parser';\nconst result = WalletSDK.parseSMS(${JSON.stringify(bankSmsInput.value)});`;
+    if (bankSdkJson) {
+      bankSdkJson.textContent = JSON.stringify({ status: 'ready', provider: bankSelector.value, message: 'Run the parser to see the JSON result.' }, null, 2);
+    }
+  }
   if (bankSelector && bankSmsInput) {
     bankSelector.addEventListener('change', () => {
       bankSmsInput.value = BANK_SMS_SAMPLES[bankSelector.value] || '';
+      updateBankSdkCode();
     });
+    bankSmsInput.addEventListener('input', updateBankSdkCode);
+    updateBankSdkCode();
   }
   if (bankSdkTestBtn) bankSdkTestBtn.addEventListener('click', testBankSDK);
   window.parseBankSMS = parseBankSMS;

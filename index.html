@@ -19,8 +19,9 @@
     /* ========== RESET & BASE ========== */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html { font-size: 16px; }
+    button, input, select, textarea { font: inherit; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       background-color: #1e293b;
       color: #f1f5f9;
       min-height: 100vh;
@@ -152,26 +153,31 @@
     /* ========== HISTORY SECTION ========== */
     .history-section, .archive-section {
       background: #1e293b; border: 1px solid #334155;
-      border-radius: 1rem; padding: 1.25rem; margin-bottom: 1.5rem;
+      border-radius: 1.25rem; padding: 1.25rem; margin-bottom: 1.5rem;
+      box-shadow: 0 12px 28px rgba(2,6,23,0.14);
     }
 
     /* ========== INPUTS ========== */
     .input-base {
       width: 100%; background: #0f172a; color: #f1f5f9;
-      border: 1px solid #334155; border-radius: 0.5rem;
+      border: 1px solid #475569; border-radius: 0.75rem;
       padding: 0.6rem 0.75rem; font-size: 0.9rem; outline: none;
-      transition: border-color 0.2s;
+      transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
     }
-    .input-base:focus { border-color: #10b981; }
+    .input-base::placeholder { color: #94a3b8; opacity: 1; }
+    .input-base:focus { border-color: #34d399; box-shadow: 0 0 0 3px rgba(16,185,129,0.2); }
+    .input-base:focus-visible, button:focus-visible, select:focus-visible, textarea:focus-visible {
+      outline: 2px solid #34d399; outline-offset: 2px;
+    }
 
     /* ========== BUTTONS ========== */
     .btn-primary {
-      display: block; width: 100%; background: #10b981; color: #fff;
-      border: none; border-radius: 0.6rem; padding: 0.65rem 1rem;
+      display: block; width: 100%; background: #10b981; color: #052e25;
+      border: none; border-radius: 0.75rem; padding: 0.65rem 1rem;
       font-size: 0.9rem; font-weight: 600; cursor: pointer;
-      transition: background 0.2s; margin-bottom: 0.5rem;
+      transition: background 0.2s, transform 0.2s, box-shadow 0.2s; margin-bottom: 0.5rem;
     }
-    .btn-primary:hover { background: #059669; }
+    .btn-primary:hover { background: #34d399; box-shadow: 0 6px 16px rgba(16,185,129,0.18); }
     .btn-secondary {
       display: block; width: 100%; background: #334155; color: #f1f5f9;
       border: none; border-radius: 0.6rem; padding: 0.65rem 1rem;
@@ -659,6 +665,83 @@
       box-shadow: 0 0 0 2px rgba(16,185,129,0.5);
     }
     textarea.input-base { height: auto; min-height: 48px; }
+    .bank-sdk-card {
+      margin: 0 0 1.5rem; padding: 1.25rem;
+      color: #f1f5f9; background: #111f32;
+      border: 1px solid rgba(52,211,153,0.28); border-radius: 1.25rem;
+      box-shadow: 0 16px 36px rgba(2,6,23,0.2);
+    }
+    .b2b-engine-card {
+      margin: 0 0 1rem; padding: 1.25rem;
+      color: #f1f5f9; background: linear-gradient(135deg, #10243a, #0f172a 72%);
+      border: 1px solid #334155; border-radius: 1.25rem;
+      box-shadow: 0 16px 36px rgba(2,6,23,0.2);
+    }
+    .b2b-engine-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+    .b2b-engine-version {
+      flex: 0 0 auto; padding: 0.35rem 0.6rem; color: #a7f3d0;
+      background: rgba(16,185,129,0.12); border: 1px solid rgba(52,211,153,0.3);
+      border-radius: 999px; font-size: 0.7rem; font-weight: 700;
+    }
+    .b2b-spec-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.65rem; }
+    .b2b-spec {
+      min-width: 0; padding: 0.85rem; background: rgba(30,41,59,0.75);
+      border: 1px solid rgba(148,163,184,0.18); border-radius: 0.875rem;
+    }
+    .b2b-spec-label { display: block; color: #94a3b8; font-size: 0.7rem; font-weight: 600; }
+    .b2b-spec-value { display: block; margin-top: 0.4rem; color: #f8fafc; font-size: 0.95rem; font-weight: 700; line-height: 1.4; overflow-wrap: anywhere; }
+    .bank-sdk-fields {
+      display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.4fr);
+      gap: 0.75rem;
+    }
+    .bank-sdk-card label { display: block; margin-bottom: 0.4rem; color: #cbd5e1; font-size: 0.8rem; font-weight: 600; }
+    #bankSelector, #bankSmsInput {
+      display: block; width: 100%; min-width: 0; min-height: 48px;
+      padding: 0.75rem 0.9rem; color: #f8fafc; background: #0f172a;
+      border: 1px solid #475569; border-radius: 0.75rem; font-size: 0.95rem;
+      line-height: 1.5; transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
+    }
+    #bankSmsInput { min-height: 88px; resize: vertical; overflow-wrap: anywhere; }
+    #bankSelector:focus, #bankSmsInput:focus { outline: none; border-color: #34d399; box-shadow: 0 0 0 3px rgba(16,185,129,0.2); }
+    #bankSmsInput::placeholder { color: #94a3b8; opacity: 1; }
+    .bank-sdk-button {
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+      min-height: 48px; padding: 0.7rem 1rem; border: 0; border-radius: 0.75rem;
+      color: #052e25; background: #34d399; font-size: 0.9rem; font-weight: 700;
+      text-align: center; cursor: pointer; transition: background 0.2s, transform 0.2s, box-shadow 0.2s;
+    }
+    .bank-sdk-button:hover { background: #6ee7b7; box-shadow: 0 8px 18px rgba(16,185,129,0.16); }
+    .bank-sdk-button:active { transform: translateY(1px); }
+    #bankSdkStatus { border-radius: 0.875rem; line-height: 1.5; overflow-wrap: anywhere; }
+    #bankSdkStatus[class*="bg-emerald-500/10"] { color: #a7f3d0; background: rgba(16,185,129,0.12); border-color: rgba(52,211,153,0.35); }
+    #bankSdkStatus[class*="bg-rose-500/10"] { color: #fecdd3; background: rgba(244,63,94,0.12); border-color: rgba(251,113,133,0.35); }
+    .bank-sdk-output-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; margin-top: 1rem; }
+    .bank-sdk-output-panel { min-width: 0; padding: 0.9rem; background: #0b1422; border: 1px solid #334155; border-radius: 0.875rem; }
+    .bank-sdk-output-heading { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.7rem; }
+    .bank-sdk-output-panel pre { min-height: 7rem; max-height: 15rem; overflow: auto; color: #a7f3d0; font: 0.78rem/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; tab-size: 2; }
+    #transaction-list li {
+      display: flex; flex-direction: column; gap: 0.75rem;
+      padding: 1rem; background: #111f32; border: 1px solid #334155;
+      border-radius: 1rem; box-shadow: 0 8px 22px rgba(2,6,23,0.16);
+    }
+    #transaction-list li > div:first-child {
+      display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+      padding-bottom: 0.65rem; border-bottom: 1px solid rgba(148,163,184,0.16);
+    }
+    #transaction-list li > div:first-child > div { display: flex; align-items: center; gap: 0.4rem; }
+    #transaction-list li > div:first-child button {
+      display: grid; place-items: center; width: 40px; height: 40px; padding: 0;
+      border: 1px solid #334155; border-radius: 0.75rem; background: #1e293b;
+      color: #cbd5e1; cursor: pointer; transition: color 0.2s, background 0.2s, border-color 0.2s;
+    }
+    #transaction-list li > div:first-child button:hover { background: #334155; }
+    #transaction-list li > div:first-child button[onclick^="editTransaction"]:hover { color: #6ee7b7; border-color: #10b981; }
+    #transaction-list li > div:first-child button[onclick^="deleteTransaction"]:hover { color: #fda4af; border-color: #fb7185; }
+    #transaction-list li > div:last-child { display: flex; flex-direction: column; gap: 0.65rem; }
+    #transaction-list li > div:last-child > div { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+    #transaction-list li > div:last-child > div:last-child > span:last-child {
+      flex: 1; min-width: 0; overflow-wrap: anywhere; text-align: right; line-height: 1.5;
+    }
     input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
     input[type="number"]::-webkit-inner-spin-button,
     input[type="number"]::-webkit-outer-spin-button {
@@ -683,6 +766,24 @@
     body.light-theme .input-base {
       background-color: #fff; color: #0f172a; border-color: #94a3b8;
     }
+    body.light-theme .input-base::placeholder,
+    body.light-theme #bankSmsInput::placeholder { color: #64748b; opacity: 1; }
+    body.light-theme .b2b-engine-card { color: #0f172a; background: linear-gradient(135deg, #ecfdf5, #fff 72%); border-color: #cbd5e1; }
+    body.light-theme .b2b-engine-version { color: #065f46; background: #ecfdf5; border-color: #a7f3d0; }
+    body.light-theme .b2b-spec { background: #f8fafc; border-color: #e2e8f0; }
+    body.light-theme .b2b-spec-label { color: #64748b; }
+    body.light-theme .b2b-spec-value { color: #0f172a; }
+    body.light-theme .bank-sdk-card { color: #0f172a; background: #fff; border-color: #cbd5e1; }
+    body.light-theme #bankSelector,
+    body.light-theme #bankSmsInput { color: #0f172a; background: #fff; border-color: #94a3b8; }
+    body.light-theme #bankSelector option { color: #0f172a; background: #fff; }
+    body.light-theme #transaction-list li { background: #f8fafc; border-color: #cbd5e1; }
+    body.light-theme #transaction-list li > div:first-child { border-bottom-color: #e2e8f0; }
+    body.light-theme #transaction-list li > div:first-child button { color: #334155; background: #fff; border-color: #cbd5e1; }
+    body.light-theme #bankSdkStatus[class*="bg-emerald-500/10"] { color: #065f46; background: #ecfdf5; border-color: #a7f3d0; }
+    body.light-theme #bankSdkStatus[class*="bg-rose-500/10"] { color: #9f1239; background: #fff1f2; border-color: #fecdd3; }
+    body.light-theme .bank-sdk-output-panel { background: #f8fafc; border-color: #cbd5e1; }
+    body.light-theme .bank-sdk-output-panel pre { color: #065f46; }
     body.light-theme .bg-slate-900,
     body.light-theme .bg-slate-900\/50,
     body.light-theme .bg-slate-900\/60,
@@ -807,6 +908,14 @@
       .sheet-tab { min-width: 0; white-space: normal; }
       .input-base { width: 100%; max-width: 100%; }
       .grid { min-width: 0; }
+      .bank-sdk-card { padding: 1rem; border-radius: 1rem; }
+      .bank-sdk-fields { grid-template-columns: minmax(0, 1fr); }
+      .bank-sdk-button { width: 100%; }
+      .b2b-engine-card { padding: 1rem; border-radius: 1rem; }
+      .b2b-engine-heading { flex-direction: column; gap: 0.65rem; }
+      .b2b-spec-grid, .bank-sdk-output-grid { grid-template-columns: minmax(0, 1fr); }
+      #transaction-list li { padding: 0.85rem; }
+      #transaction-list li > div:last-child > div { gap: 0.65rem; }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
@@ -1024,11 +1133,11 @@
           
           <!-- Quick Amount Buttons for Target Edit Modal -->
           <div class="flex flex-wrap gap-1.5 my-2">
-            <button type="button" onclick="appendTargetZeros('000')" class="px-2 py-1 text-xs bg-slate-800 text-emerald-400 border border-emerald-500/30 rounded font-mono hover:bg-slate-700">+000 (Ming)</button>
-            <button type="button" onclick="addAmountToTargetInput(10000)" class="px-2 py-1 text-xs bg-slate-800 text-slate-300 border border-slate-700 rounded font-mono hover:bg-slate-700">+10k</button>
-            <button type="button" onclick="addAmountToTargetInput(50000)" class="px-2 py-1 text-xs bg-slate-800 text-slate-300 border border-slate-700 rounded font-mono hover:bg-slate-700">+50k</button>
-            <button type="button" onclick="addAmountToTargetInput(100000)" class="px-2 py-1 text-xs bg-slate-800 text-slate-300 border border-slate-700 rounded font-mono hover:bg-slate-700">+100k</button>
-            <button type="button" onclick="addAmountToTargetInput(500000)" class="px-2 py-1 text-xs bg-slate-800 text-slate-300 border border-slate-700 rounded font-mono hover:bg-slate-700">+500k</button>
+            <button type="button" onclick="appendTargetZeros('000')" class="px-2 py-1 text-xs bg-slate-800 text-emerald-400 border border-emerald-500/30 rounded hover:bg-slate-700">+000 (Ming)</button>
+            <button type="button" onclick="addAmountToTargetInput(10000)" class="px-2 py-1 text-xs bg-slate-800 text-slate-300 border border-slate-700 rounded hover:bg-slate-700">+10k</button>
+            <button type="button" onclick="addAmountToTargetInput(50000)" class="px-2 py-1 text-xs bg-slate-800 text-slate-300 border border-slate-700 rounded hover:bg-slate-700">+50k</button>
+            <button type="button" onclick="addAmountToTargetInput(100000)" class="px-2 py-1 text-xs bg-slate-800 text-slate-300 border border-slate-700 rounded hover:bg-slate-700">+100k</button>
+            <button type="button" onclick="addAmountToTargetInput(500000)" class="px-2 py-1 text-xs bg-slate-800 text-slate-300 border border-slate-700 rounded hover:bg-slate-700">+500k</button>
             <button type="button" onclick="clearTargetInput()" class="px-2 py-1 text-xs bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded font-bold hover:bg-rose-500/30">C</button>
           </div>
           
@@ -1214,42 +1323,6 @@
       <button type="button" id="reset-archive-btn" class="btn-reset">Yangi oy / Davrni boshlash (Reset &amp; Archive) &#128260;</button>
   </div>
 
-    <!-- Multi-bank SMS SDK Sandbox -->
-    <section class="bg-slate-900 border border-emerald-500/30 rounded-xl p-4 sm:p-5 mb-6 sm:mb-8 shadow-lg shadow-black/10" aria-labelledby="bank-sdk-title">
-      <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
-        <div>
-          <h2 id="bank-sdk-title" class="text-base sm:text-lg font-semibold text-slate-100">🏦 Bank SDK Sandbox (Multi-Bank Parser Test)</h2>
-          <p class="text-xs text-slate-400 mt-1">SMS namunalarini qurilmaning o'zida sinash</p>
-        </div>
-        <span class="inline-flex items-center gap-1.5 self-start rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-300">
-          <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>Local simulator
-        </span>
-      </div>
-      <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.4fr)] gap-3">
-        <div>
-          <label for="bankSelector" class="block text-xs font-medium text-slate-300 mb-1.5">Bank yoki to'lov tizimi</label>
-          <select id="bankSelector" class="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm text-slate-100 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
-            <option value="click">Click</option>
-            <option value="payme">Payme</option>
-            <option value="uzcard">Uzcard / Humo</option>
-            <option value="anorbank">Anorbank</option>
-            <option value="kapitalbank">Kapitalbank</option>
-          </select>
-        </div>
-        <div>
-          <label for="bankSmsInput" class="block text-xs font-medium text-slate-300 mb-1.5">SMS matni</label>
-          <textarea id="bankSmsInput" rows="3" spellcheck="false" class="w-full resize-y rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-sm leading-relaxed text-slate-100 placeholder:text-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">Click: Hisobingizdan 50,000 UZS yechildi. Karta *1234.</textarea>
-        </div>
-      </div>
-      <div class="mt-3 flex flex-col sm:flex-row sm:items-center gap-3">
-        <button type="button" id="bankSdkTestBtn" class="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-2 focus:ring-offset-slate-900">
-          <span aria-hidden="true">🚀</span> SDK Orqali Sinash (Test Parse)
-        </button>
-        <p class="text-[11px] leading-relaxed text-slate-500">Demo rejimi: haqiqiy bank API yoki SMS ulanishi mavjud emas.</p>
-      </div>
-      <div id="bankSdkStatus" class="hidden mt-4 rounded-lg border px-3.5 py-3 text-sm" role="status" aria-live="polite"></div>
-    </section>
-
     <!-- Bottom Sheet Modal: Add Transaction -->
     <div id="add-transaction-sheet" role="dialog" aria-modal="true" aria-label="Add Transaction" aria-hidden="true">
       <!-- Backdrop -->
@@ -1430,6 +1503,84 @@
             <span class="text-xs text-slate-400" data-i18n="appTitle">Smart Byudjet Tracker</span>
           </div>
         </div>
+
+        <section class="b2b-engine-card" aria-labelledby="b2b-engine-title">
+          <div class="b2b-engine-heading">
+            <div>
+              <p class="text-xs font-semibold uppercase tracking-wider text-emerald-400">Wallet.app</p>
+              <h2 id="b2b-engine-title" class="text-xl font-bold text-slate-100 mt-1">Wallet.app B2B Engine</h2>
+              <p class="text-sm text-slate-400 mt-1">Private transaction parsing for enterprise products</p>
+            </div>
+            <span class="b2b-engine-version">Enterprise SDK v1.5.0</span>
+          </div>
+          <div class="b2b-spec-grid" aria-label="System specifications">
+            <div class="b2b-spec">
+              <span class="b2b-spec-label">Server Overhead</span>
+              <strong class="b2b-spec-value">0% ($0/mo)</strong>
+            </div>
+            <div class="b2b-spec">
+              <span class="b2b-spec-label">Processing Speed</span>
+              <strong class="b2b-spec-value">&lt; 2 ms</strong>
+            </div>
+            <div class="b2b-spec">
+              <span class="b2b-spec-label">Privacy Architecture</span>
+              <strong class="b2b-spec-value">100% Client-Side / Local Storage</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="bank-sdk-card" aria-labelledby="bank-sdk-title">
+          <div class="b2b-engine-heading">
+            <div>
+              <h2 id="bank-sdk-title" class="text-base sm:text-lg font-semibold text-slate-100">Bank SDK Sandbox</h2>
+              <p class="text-xs text-slate-400 mt-1">Multi-bank SMS parser test</p>
+            </div>
+            <span class="b2b-engine-version">Local simulator</span>
+          </div>
+          <div class="bank-sdk-fields">
+            <div>
+              <label for="bankSelector">Bank or payment system</label>
+              <select id="bankSelector">
+                <option value="click">Click</option>
+                <option value="payme">Payme</option>
+                <option value="uzcard">Uzcard</option>
+                <option value="humo">Humo</option>
+                <option value="anorbank">Anorbank</option>
+                <option value="kapitalbank">Kapitalbank</option>
+              </select>
+            </div>
+            <div>
+              <label for="bankSmsInput">Sample SMS</label>
+              <textarea id="bankSmsInput" rows="3" spellcheck="false">Click: Hisobingizdan 50,000 UZS yechildi. Karta *1234.</textarea>
+            </div>
+          </div>
+          <div class="mt-3 flex flex-col sm:flex-row sm:items-center gap-3">
+            <button type="button" id="bankSdkTestBtn" class="bank-sdk-button">
+              <span aria-hidden="true">&#9654;</span> Run SDK Parser
+            </button>
+            <p class="text-xs leading-relaxed text-slate-500">Demo only. No live bank API or SMS connection.</p>
+          </div>
+          <div id="bankSdkStatus" class="hidden mt-4 rounded-lg border px-3.5 py-3 text-sm" role="status" aria-live="polite"></div>
+          <div class="bank-sdk-output-grid">
+            <section class="bank-sdk-output-panel" aria-labelledby="sdk-code-title">
+              <div class="bank-sdk-output-heading">
+                <h3 id="sdk-code-title" class="text-sm font-semibold text-slate-100">SDK Integration</h3>
+                <span class="text-xs text-slate-400">JavaScript</span>
+              </div>
+              <pre><code id="bankSdkCode"></code></pre>
+            </section>
+            <section class="bank-sdk-output-panel" aria-labelledby="sdk-json-title">
+              <div class="bank-sdk-output-heading">
+                <h3 id="sdk-json-title" class="text-sm font-semibold text-slate-100">JSON Output</h3>
+                <span class="text-xs text-slate-400">Live result</span>
+              </div>
+              <pre><code id="bankSdkJson" aria-live="polite">{
+  "status": "ready",
+  "message": "Run the parser to see the JSON result."
+}</code></pre>
+            </section>
+          </div>
+        </section>
 
         <!-- Hisobotlar & Eksport -->
         <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-4 shadow-sm">
