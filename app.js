@@ -1878,6 +1878,91 @@ function renderArchivedPeriods() {
   if (transactionForm) transactionForm.addEventListener('submit', function (e) { e.preventDefault(); addTransaction(); });
   if (addTransactionBtn) addTransactionBtn.addEventListener('click', function (e) { e.preventDefault(); addTransaction(); });
 
+  // ==================== BANK SMS SDK SANDBOX ====================
+  const BANK_SMS_SAMPLES = {
+    click: 'Click: Hisobingizdan 50,000 UZS yechildi. Karta *1234.',
+    payme: 'Payme Xarid: 120,000 UZS KORZINKA. Karta *1234.',
+    uzcard: 'Karta *1234. Xarid: 45,000 UZS. Oqtepa Lavash.',
+    anorbank: 'Anorbank: Hisobingizga 250,000 UZS kirim qilindi.',
+    kapitalbank: 'Kapitalbank: 75 000 UZS xarid. Karta *1234.'
+  };
+
+  function parseBankSMS(text) {
+    const message = String(text || '').trim();
+    if (!message) throw new Error('SMS matnini kiriting.');
+
+    const currencyAmount = message.match(/(\d[\d\s.,]*\d|\d+)\s*(?:UZS|SUM|SO['’ʻ]?M)\b/i);
+    const contextualAmount = message.match(/\b(?:xarid|yechildi|yechib olindi|kirim|tushdi|o'tkazma|otkazma)\b[^\d]{0,24}(\d[\d\s.,]*\d|\d+)/i);
+    const amountText = currencyAmount ? currencyAmount[1] : contextualAmount && contextualAmount[1];
+    const amount = amountText ? Number.parseInt(amountText.replace(/\D/g, ''), 10) : NaN;
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new Error('SMS ichidan UZS summasini aniqlab bo‘lmadi.');
+    }
+
+    const isIncome = /\b(kirim|tushdi|qabul qilindi|hisobingizga|credited|deposit)\b/i.test(message);
+    return { amount, type: isIncome ? 'income' : 'expense' };
+  }
+
+  function testBankSDK() {
+    const selector = document.getElementById('bankSelector');
+    const smsInput = document.getElementById('bankSmsInput');
+    const status = document.getElementById('bankSdkStatus');
+    if (!selector || !smsInput || !status) return;
+
+    const bankName = selector.options[selector.selectedIndex].text;
+    const smsText = smsInput.value;
+    const startedAt = performance.now();
+    status.className = 'mt-4 rounded-lg border px-3.5 py-3 text-sm';
+
+    try {
+      const parsed = parseBankSMS(smsText);
+      const isFundraising = currentMode === 'fundraising';
+      const scope = isFundraising ? getFundraisingTargetScope() : 'personal';
+      let category = 'Other';
+      if (isFundraising) {
+        if (scope === 'hammasi') category = { main: 'personal', sub: 'Bank SDK' };
+        else if (scope === 'oila' || scope === 'guruh') category = { main: scope, sub: 'Bank SDK' };
+        else category = 'Umumiy';
+      }
+
+      const transaction = {
+        id: Date.now(),
+        amount: parsed.amount,
+        type: parsed.type,
+        category,
+        date: new Date().toISOString().slice(0, 10),
+        description: `${bankName} SMS SDK test`,
+        source: 'bank-sdk-sandbox',
+        rawSms: smsText
+      };
+      const transactions = getTransactions();
+      transactions.push(transaction);
+      setTransactions(transactions);
+      renderTransactions();
+      updateDashboard();
+
+      const durationMs = Math.max(1, Math.round(performance.now() - startedAt));
+      const durationLabel = durationMs < 10 ? `${durationMs} ms (<0.01 s)` : `${durationMs} ms`;
+      status.className = 'mt-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3.5 py-3 text-sm text-emerald-200';
+      status.textContent = `✓ Parsed locally in ${durationLabel} · Server cost: $0 · ${parsed.type === 'income' ? 'Kirim' : 'Chiqim'} ${parsed.amount.toLocaleString('uz-UZ')} UZS`;
+    } catch (error) {
+      status.className = 'mt-4 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3.5 py-3 text-sm text-rose-200';
+      status.textContent = `Parse amalga oshmadi: ${error.message}`;
+    }
+  }
+
+  const bankSelector = document.getElementById('bankSelector');
+  const bankSmsInput = document.getElementById('bankSmsInput');
+  const bankSdkTestBtn = document.getElementById('bankSdkTestBtn');
+  if (bankSelector && bankSmsInput) {
+    bankSelector.addEventListener('change', () => {
+      bankSmsInput.value = BANK_SMS_SAMPLES[bankSelector.value] || '';
+    });
+  }
+  if (bankSdkTestBtn) bankSdkTestBtn.addEventListener('click', testBankSDK);
+  window.parseBankSMS = parseBankSMS;
+  window.testBankSDK = testBankSDK;
+
   // ==================== DELETE TRANSACTION ====================
   // Store last deleted transaction for undo
   let lastDeletedTransaction = null;
