@@ -632,14 +632,28 @@
   function updateCurrencyToggleUI() {
     const toggleBtns = document.querySelectorAll('.currency-input-toggle');
     toggleBtns.forEach(btn => {
-      btn.textContent = currentCurrency === 'UZS' ? 'UZS' : 'USD';
-      btn.title = currentCurrency === 'UZS' ? 'Switch to USD' : 'Switch to UZS';
+      btn.textContent = currentCurrency;
+      btn.title = currentCurrency === 'UZS' ? t('switchToUSD') : t('switchToUZS');
     });
+    updateCurrencySymbolLabels();
     localStorage.setItem('app_currency_input', currentCurrency);
+  }
+  window.updateCurrencyToggleUI = updateCurrencyToggleUI;
+
+  function updateCurrencySymbolLabels() {
+    const symbols = { UZS: "so'm", USD: '$', RUB: '₽' };
+    const symbol = symbols[currentCurrency] || symbols.UZS;
+    document.querySelectorAll('[data-currency-symbol]').forEach(label => {
+      label.textContent = symbol;
+    });
   }
 
   function toggleInputCurrency() {
     currentCurrency = currentCurrency === 'UZS' ? 'USD' : 'UZS';
+    if (currencySelect) {
+      currencySelect.value = currentCurrency;
+      localStorage.setItem('app_currency', currentCurrency);
+    }
     updateCurrencyToggleUI();
     const amountInput = document.getElementById('amount');
     if (amountInput) {
@@ -953,6 +967,104 @@
     modal.setAttribute('aria-hidden', 'false');
   }
 
+  const APP_VIEWS = ['home', 'history', 'analytics', 'debts', 'settings'];
+  function setActiveAppView(view) {
+    if (!APP_VIEWS.includes(view)) return;
+    document.querySelectorAll('[data-app-view]').forEach(section => {
+      section.classList.toggle('active-view', section.dataset.appView === view);
+    });
+    document.querySelectorAll('[data-nav-view]').forEach(button => {
+      if (button.dataset.navView === view) button.setAttribute('aria-current', 'page');
+      else button.removeAttribute('aria-current');
+    });
+    window.scrollTo(0, 0);
+  }
+  document.querySelectorAll('[data-nav-view]').forEach(button => {
+    button.addEventListener('click', () => setActiveAppView(button.dataset.navView));
+  });
+  document.querySelectorAll('[data-go-view]').forEach(button => {
+    button.addEventListener('click', () => setActiveAppView(button.dataset.goView));
+  });
+  setActiveAppView('home');
+
+  function initFirstRunOnboarding() {
+    const modal = document.getElementById('first-run-onboarding');
+    if (!modal || localStorage.getItem('first_run_onboarding_done')) return;
+    let activeStep = 1;
+    const balanceInput = document.getElementById('first-run-balance');
+    const goalTitleInput = document.getElementById('first-run-goal-title');
+    const goalAmountInput = document.getElementById('first-run-goal-amount');
+    const setStep = step => {
+      activeStep = step;
+      modal.querySelectorAll('[data-onboarding-step]').forEach(section => {
+        section.hidden = Number(section.dataset.onboardingStep) !== step;
+      });
+      const stepLabel = document.getElementById('onboarding-step-count');
+      const title = document.getElementById('onboarding-title');
+      if (stepLabel) stepLabel.textContent = `${step} / 3`;
+      if (title) title.textContent = [t('onboardingBalance'), t('onboardingGoal'), t('onboardingDone')][step - 1];
+    };
+    const finish = () => {
+      localStorage.setItem('first_run_onboarding_done', '1');
+      closeOverlayModal(modal);
+      updateDashboard();
+    };
+    const saveBalanceIfProvided = () => {
+      const rawValue = balanceInput.value.trim();
+      if (!rawValue) return true;
+      const balance = Number(rawValue);
+      if (!Number.isFinite(balance) || balance < 0 || !balanceInput.reportValidity()) return false;
+      startingBalance = balance;
+      localStorage.setItem('starting_balance', String(balance));
+      return true;
+    };
+    const saveGoalIfProvided = () => {
+      const title = goalTitleInput.value.trim();
+      const rawAmount = goalAmountInput.value.trim();
+      if (!title && !rawAmount) return true;
+      const amount = Number(rawAmount);
+      if (!title || !rawAmount || !Number.isFinite(amount) || amount <= 0) {
+        goalTitleInput.setCustomValidity(t('goalNeedsTitleAndAmount'));
+        goalAmountInput.setCustomValidity(t('goalNeedsTitleAndAmount'));
+        goalTitleInput.reportValidity();
+        return false;
+      }
+      goalTitleInput.setCustomValidity('');
+      goalAmountInput.setCustomValidity('');
+      setFundraisingTitle(title);
+      setFundraisingTarget(amount);
+      setFundraisingTargetTitle(title);
+      setFundraisingTargetAmount(amount);
+      setFundraisingTargetType('guruh');
+      return true;
+    };
+    modal.querySelectorAll('[data-onboarding-next]').forEach(button => {
+      button.addEventListener('click', () => {
+        if (activeStep === 1 && !saveBalanceIfProvided()) return;
+        if (activeStep === 2 && !saveGoalIfProvided()) return;
+        setStep(Math.min(3, activeStep + 1));
+      });
+    });
+    modal.querySelectorAll('[data-onboarding-skip]').forEach(button => {
+      button.addEventListener('click', () => {
+        if (activeStep === 1) setStep(2);
+        else if (activeStep === 2) setStep(3);
+        else finish();
+      });
+    });
+    modal.querySelectorAll('[data-onboarding-finish]').forEach(button => button.addEventListener('click', finish));
+    const hasExistingData = startingBalance > 0
+      || transactionCache.transactions.length > 0
+      || transactionCache.fundraising_transactions.length > 0;
+    if (hasExistingData) {
+      localStorage.setItem('first_run_onboarding_done', '1');
+      return;
+    }
+    openOverlayModal(modal);
+    setStep(1);
+    if (balanceInput) balanceInput.focus();
+  }
+
   function closeOverlayModal(modal) {
     if (!modal) return;
     modal.classList.add('hidden');
@@ -961,7 +1073,7 @@
     modal.style.display = 'none';
   }
 
-  [onboardingModal, $('fundraising-onboarding-modal'), archiveModal, editBalanceModal, backupModal].forEach(function (modal) {
+  [onboardingModal, archiveModal, editBalanceModal, backupModal].forEach(function (modal) {
     if (!modal) return;
     modal.addEventListener('click', function (event) {
       if (event.target === modal || event.target.closest('[data-close-modal]')) {
@@ -971,7 +1083,7 @@
   });
   document.addEventListener('keydown', function (event) {
     if (event.key !== 'Escape') return;
-    [onboardingModal, $('fundraising-onboarding-modal'), archiveModal, editBalanceModal, backupModal].forEach(function (modal) {
+    [onboardingModal, archiveModal, editBalanceModal, backupModal].forEach(function (modal) {
       if (modal && !modal.classList.contains('hidden')) closeOverlayModal(modal);
     });
   });
@@ -996,18 +1108,7 @@
   }
   if (initialBalanceTrigger) {
     initialBalanceTrigger.addEventListener('click', function () {
-      if (currentMode === 'fundraising') {
-        showFundraisingOnboarding();
-        return;
-      }
-      const title = $('onboarding-modal-title');
-      if (title) title.textContent = "Boshlang'ich summani kiriting";
-      if (onboardingInput) {
-        onboardingInput.value = '';
-        onboardingInput.dispatchEvent(new Event('input', { bubbles: true }));
-      }
-      openOverlayModal(onboardingModal);
-      if (onboardingInput) onboardingInput.focus();
+      openEditBalanceModal();
     });
   }
 
@@ -1064,10 +1165,14 @@
   // Currency selector
   if (currencySelect) {
     currencySelect.value = localStorage.getItem('app_currency') || 'UZS';
+    currentCurrency = currencySelect.value;
     currencySelect.addEventListener('change', function () {
+      currentCurrency = currencySelect.value;
       localStorage.setItem('app_currency', currencySelect.value);
+      updateCurrencyToggleUI();
     });
   }
+  updateCurrencyToggleUI();
 
   // Restore saved theme on load
   (function restoreTheme() {
@@ -1111,78 +1216,13 @@
       currentMode = currentMode === 'smart' ? 'fundraising' : 'smart';
       localStorage.setItem('app_mode', currentMode);
       applyModeLabels();
-      
-      // Trigger fundraising onboarding if switching to fundraising mode and no target set
-      if (currentMode === 'fundraising') {
-        const target = getFundraisingTarget();
-        const title = getFundraisingTitle();
-        if (!target || !title) {
-          showFundraisingOnboarding();
-        }
-      }
-      
+
       // Update category dropdowns for the new mode
       updateCategorySelectsForMode();
       
       updateDashboard();
     }
     window.toggleAppMode = toggleAppMode;
-
-    // ==================== FUNDRAISING ONBOARDING ====================
-    function showFundraisingOnboarding() {
-      const modal = document.getElementById('fundraising-onboarding-modal');
-      if (!modal) return;
-      
-      openOverlayModal(modal);
-      
-      // Focus on title input first
-      const titleInput = document.getElementById('fundraising-title-input');
-      if (titleInput) titleInput.focus();
-    }
-    function saveFundraisingSetup(e) {
-      if (e) e.preventDefault();
-      
-      const titleInput = document.getElementById('fundraising-title-input');
-      const targetInput = document.getElementById('fundraising-target-input');
-      const groupTypeSelect = document.getElementById('fundraising-group-type-input');
-      
-      const title = titleInput ? titleInput.value.trim() : '';
-      const target = targetInput ? parseFloat(targetInput.value) || 0 : 0;
-      const groupType = groupTypeSelect ? groupTypeSelect.value : 'guruh';
-      
-      if (!title || target <= 0) {
-        alert("Iltimos, maqsad nomi va yig'ilishi kerak bo'lgan summani to'g'ri kiriting!");
-        return;
-      }
-
-      // Save to mode-isolated localStorage
-      setFundraisingTitle(title);
-      setFundraisingTarget(target);
-      setFundraisingTargetTitle(title);
-      setFundraisingTargetAmount(target);
-      setFundraisingTargetType(groupType);
-      
-      // Hide modal
-      const modal = document.getElementById('fundraising-onboarding-modal');
-      closeOverlayModal(modal);
-      
-      // Clear form
-      if (titleInput) titleInput.value = '';
-      if (targetInput) targetInput.value = '';
-      if (groupTypeSelect) groupTypeSelect.value = 'guruh';
-      
-      // Update category dropdowns for the new target group type
-      updateCategorySelectsForMode();
-      
-      // Re-render UI
-      updateDashboard();
-    }
-    function closeFundraisingOnboarding() {
-      const modal = document.getElementById('fundraising-onboarding-modal');
-      closeOverlayModal(modal);
-    }
-    window.saveFundraisingSetup = saveFundraisingSetup;
-    window.closeFundraisingOnboarding = closeFundraisingOnboarding;
 
     // ==================== UPDATE & RENDER ====================
   function updateDashboard() {
@@ -1209,6 +1249,7 @@
 
       // Update fundraising progress and target cards
       updateFundraisingCards();
+      renderAnalytics();
 
       // Update split calculator
       updateSplitCalculator();
@@ -1219,6 +1260,206 @@
       renderTransactions();
       renderArchivedPeriods();
     } catch (e) { console.error('[dashboard] updateDashboard:', e); }
+  }
+
+  const ANALYTICS_COLORS = ['#34d399', '#60a5fa', '#fbbf24', '#fb7185', '#a78bfa', '#2dd4bf', '#f97316'];
+  const analyticsPeriodSelect = document.getElementById('analytics-period');
+  const analyticsStartInput = document.getElementById('analytics-start-date');
+  const analyticsEndInput = document.getElementById('analytics-end-date');
+  const analyticsStartWrap = document.getElementById('analytics-start-wrap');
+  const analyticsEndWrap = document.getElementById('analytics-end-wrap');
+
+  function localDateKey(date) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  }
+
+  function getAnalyticsRange() {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const period = analyticsPeriodSelect ? analyticsPeriodSelect.value : 'month';
+    let start;
+    let end = today;
+    if (period === 'week') {
+      start = new Date(today);
+      start.setDate(start.getDate() - 6);
+    } else if (period === 'custom') {
+      start = analyticsStartInput && analyticsStartInput.value ? new Date(`${analyticsStartInput.value}T00:00:00`) : null;
+      end = analyticsEndInput && analyticsEndInput.value ? new Date(`${analyticsEndInput.value}T00:00:00`) : null;
+      if (!start || !end || !Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || start > end) return null;
+    } else {
+      start = new Date(today.getFullYear(), today.getMonth(), 1);
+    }
+    return { start, end, startKey: localDateKey(start), endKey: localDateKey(end) };
+  }
+
+  function getAnalyticsCategory(category) {
+    const value = category && typeof category === 'object'
+      ? category.sub || category.main || t('other')
+      : category || t('other');
+    return getCategoryLabel(String(value));
+  }
+
+  function renderAnalytics() {
+    const donut = document.getElementById('category-donut-chart');
+    const bars = document.getElementById('income-expense-chart');
+    if (!donut || !bars) return;
+
+    const range = getAnalyticsRange();
+    const periodLabel = document.getElementById('analytics-period-label');
+    const invalidRange = !range;
+    if (analyticsStartWrap) analyticsStartWrap.hidden = !analyticsPeriodSelect || analyticsPeriodSelect.value !== 'custom';
+    if (analyticsEndWrap) analyticsEndWrap.hidden = !analyticsPeriodSelect || analyticsPeriodSelect.value !== 'custom';
+    if (periodLabel) {
+      periodLabel.textContent = range
+        ? `${new Intl.DateTimeFormat('uz-UZ', { day: 'numeric', month: 'short' }).format(range.start)} – ${new Intl.DateTimeFormat('uz-UZ', { day: 'numeric', month: 'short' }).format(range.end)}`
+        : t('analyticsInvalidRange');
+    }
+
+    const transactions = range ? getTransactions().filter(transaction => {
+      return /^\d{4}-\d{2}-\d{2}$/.test(transaction.date || '')
+        && transaction.date >= range.startKey && transaction.date <= range.endKey
+        && (transaction.type === 'income' || transaction.type === 'expense')
+        && Number.isFinite(Number(transaction.amount)) && Number(transaction.amount) > 0;
+    }) : [];
+
+    const expenseTotals = new Map();
+    let totalIncome = 0;
+    let totalExpenses = 0;
+    transactions.forEach(transaction => {
+      const amount = Number(transaction.amount);
+      if (transaction.type === 'income') totalIncome += amount;
+      else {
+        totalExpenses += amount;
+        const category = getAnalyticsCategory(transaction.category);
+        expenseTotals.set(category, (expenseTotals.get(category) || 0) + amount);
+      }
+    });
+
+    renderCategoryDonut(donut, expenseTotals, totalExpenses);
+    renderIncomeExpenseBars(bars, transactions, range);
+
+    const noCategories = expenseTotals.size === 0;
+    const categoryEmpty = document.getElementById('category-chart-empty');
+    const topEmpty = document.getElementById('top-categories-empty');
+    const periodEmpty = document.getElementById('income-expense-empty');
+    if (categoryEmpty) categoryEmpty.classList.toggle('hidden', !noCategories || invalidRange);
+    if (topEmpty) topEmpty.classList.toggle('hidden', !noCategories || invalidRange);
+    if (periodEmpty) periodEmpty.classList.toggle('hidden', transactions.length > 0 || invalidRange);
+    renderTopCategories(expenseTotals, totalExpenses);
+  }
+
+  function renderCategoryDonut(svg, categoryTotals, total) {
+    const legend = document.getElementById('category-chart-legend');
+    const totalLabel = document.getElementById('category-chart-total');
+    const sorted = Array.from(categoryTotals.entries()).sort((a, b) => b[1] - a[1]);
+    const visibleCategories = sorted.slice(0, 6);
+    if (sorted.length > 6) {
+      visibleCategories.push([t('other'), sorted.slice(6).reduce((sum, item) => sum + item[1], 0)]);
+    }
+    const circumference = 2 * Math.PI * 56;
+    let offset = 0;
+    const circles = visibleCategories.map((entry, index) => {
+      const length = total > 0 ? (entry[1] / total) * circumference : 0;
+      const circle = `<circle cx="90" cy="90" r="56" fill="none" stroke="${ANALYTICS_COLORS[index % ANALYTICS_COLORS.length]}" stroke-width="24" stroke-dasharray="${length} ${circumference - length}" stroke-dashoffset="${-offset}" transform="rotate(-90 90 90)"><title>${escapeHtml(entry[0])}: ${formatCurrency(entry[1])}</title></circle>`;
+      offset += length;
+      return circle;
+    }).join('');
+    const centerText = total > 0 ? new Intl.NumberFormat('uz-UZ', { notation: 'compact', maximumFractionDigits: 1 }).format(total) : '0';
+    svg.setAttribute('viewBox', '0 0 180 180');
+    svg.setAttribute('aria-label', t('categoryChartAria'));
+    svg.innerHTML = `<title>${escapeHtml(t('categoryChartAria'))}</title><circle cx="90" cy="90" r="56" fill="none" stroke="rgba(148,163,184,.16)" stroke-width="24"/>${circles}<text x="90" y="87" text-anchor="middle" fill="currentColor" font-size="19" font-weight="700">${escapeHtml(centerText)}</text><text x="90" y="106" text-anchor="middle" fill="#94a3b8" font-size="10">${escapeHtml(t('expense'))}</text>`;
+    if (totalLabel) totalLabel.textContent = formatCurrency(total);
+    if (legend) {
+      legend.innerHTML = visibleCategories.map((entry, index) => {
+        const percent = total > 0 ? Math.round(entry[1] / total * 100) : 0;
+        return `<div class="analytics-legend-row"><span class="analytics-swatch" style="background:${ANALYTICS_COLORS[index % ANALYTICS_COLORS.length]}"></span><span class="analytics-legend-label">${escapeHtml(entry[0])}</span><strong>${percent}%</strong></div>`;
+      }).join('');
+    }
+  }
+
+  function renderIncomeExpenseBars(svg, transactions, range) {
+    const locale = ({ uz: 'uz-UZ', ru: 'ru-RU', en: 'en-US' })[window.getCurrentLang ? window.getCurrentLang() : 'uz'] || 'uz-UZ';
+    const buckets = new Map();
+    if (range) {
+      const days = Math.floor((range.end - range.start) / 86400000) + 1;
+      if (days <= 31) {
+        for (let cursor = new Date(range.start); cursor <= range.end; cursor.setDate(cursor.getDate() + 1)) {
+          const date = new Date(cursor);
+          const key = localDateKey(date);
+          buckets.set(key, { label: new Intl.DateTimeFormat(locale, days <= 7 ? { weekday: 'short' } : { day: 'numeric' }).format(date), income: 0, expense: 0 });
+        }
+      } else {
+        const cursor = new Date(range.start.getFullYear(), range.start.getMonth(), 1);
+        const finalMonth = new Date(range.end.getFullYear(), range.end.getMonth(), 1);
+        while (cursor <= finalMonth) {
+          const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`;
+          buckets.set(key, { label: new Intl.DateTimeFormat(locale, { month: 'short', year: days > 365 ? '2-digit' : undefined }).format(cursor), income: 0, expense: 0 });
+          cursor.setMonth(cursor.getMonth() + 1);
+        }
+      }
+      const useMonths = days > 31;
+      transactions.forEach(transaction => {
+        const key = useMonths ? transaction.date.slice(0, 7) : transaction.date;
+        const bucket = buckets.get(key);
+        if (bucket) bucket[transaction.type] += Number(transaction.amount);
+      });
+    }
+
+    const entries = Array.from(buckets.values());
+    const width = Math.max(420, entries.length * 62 + 48);
+    const height = 220;
+    const plotTop = 12;
+    const plotBottom = 174;
+    const plotHeight = plotBottom - plotTop;
+    const maxValue = Math.max(1, ...entries.flatMap(entry => [entry.income, entry.expense]));
+    const slot = width / Math.max(entries.length, 1);
+    const barWidth = Math.min(18, slot * .28);
+    let markup = `<title>${escapeHtml(t('incomeExpenseChartAria'))}</title><line x1="24" y1="${plotBottom}" x2="${width - 8}" y2="${plotBottom}" stroke="rgba(148,163,184,.36)"/>`;
+    entries.forEach((entry, index) => {
+      const center = 24 + slot * (index + .5);
+      const incomeHeight = entry.income / maxValue * plotHeight;
+      const expenseHeight = entry.expense / maxValue * plotHeight;
+      const incomeY = plotBottom - incomeHeight;
+      const expenseY = plotBottom - expenseHeight;
+      const label = escapeHtml(entry.label);
+      markup += `<rect x="${center - barWidth - 2}" y="${incomeY}" width="${barWidth}" height="${Math.max(0, incomeHeight)}" rx="3" fill="#34d399"><title>${label} · ${escapeHtml(t('income'))}: ${formatCurrency(entry.income)}</title></rect>`;
+      markup += `<rect x="${center + 2}" y="${expenseY}" width="${barWidth}" height="${Math.max(0, expenseHeight)}" rx="3" fill="#fb7185"><title>${label} · ${escapeHtml(t('expense'))}: ${formatCurrency(entry.expense)}</title></rect>`;
+      if (entries.length <= 14 || index % Math.ceil(entries.length / 14) === 0) {
+        markup += `<text x="${center}" y="199" text-anchor="middle" fill="#94a3b8" font-size="10">${label}</text>`;
+      }
+    });
+    svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    svg.setAttribute('width', String(width));
+    svg.setAttribute('height', String(height));
+    svg.style.width = `${width}px`;
+    svg.setAttribute('aria-label', t('incomeExpenseChartAria'));
+    svg.innerHTML = markup;
+  }
+
+  function renderTopCategories(categoryTotals, total) {
+    const list = document.getElementById('top-categories-list');
+    if (!list) return;
+    const entries = Array.from(categoryTotals.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const max = entries.length ? entries[0][1] : 0;
+    list.innerHTML = entries.map((entry, index) => {
+      const width = max > 0 ? entry[1] / max * 100 : 0;
+      const color = ANALYTICS_COLORS[index % ANALYTICS_COLORS.length];
+      return `<div class="analytics-top-row"><span class="analytics-top-label">${escapeHtml(entry[0])}</span><strong class="analytics-top-value">${formatCurrency(entry[1])}</strong><span class="analytics-top-track"><span class="analytics-top-fill" style="display:block;width:${width}%;background:${color}"></span></span></div>`;
+    }).join('');
+  }
+
+  if (analyticsPeriodSelect) {
+    analyticsPeriodSelect.addEventListener('change', () => {
+      if (analyticsPeriodSelect.value === 'custom') {
+        const now = new Date();
+        if (analyticsStartInput && !analyticsStartInput.value) analyticsStartInput.value = localDateKey(new Date(now.getFullYear(), now.getMonth(), 1));
+        if (analyticsEndInput && !analyticsEndInput.value) analyticsEndInput.value = localDateKey(now);
+      }
+      renderAnalytics();
+    });
+    [analyticsStartInput, analyticsEndInput].forEach(input => {
+      if (input) input.addEventListener('change', renderAnalytics);
+    });
   }
 
   function updateStartingBalanceBanner() {
@@ -1331,6 +1572,7 @@
     const transactions = getTransactions();
     if (!transactions || transactions.length === 0) {
       container.innerHTML = `<p class="text-center text-slate-400 py-6 text-sm" data-i18n="noTransactions">Hozircha tranzaksiyalar yo'q</p>`;
+      renderRecentTransactions();
       return;
     }
 
@@ -1710,6 +1952,16 @@
     }
 
     container.innerHTML = html;
+    renderRecentTransactions();
+  }
+
+  function renderRecentTransactions() {
+    const recentList = document.getElementById('recent-transaction-list');
+    const emptyState = document.getElementById('recent-empty-state');
+    const transactionItems = document.querySelectorAll('#transaction-list li');
+    if (!recentList || !emptyState) return;
+    recentList.replaceChildren(...Array.from(transactionItems).slice(0, 3).map(item => item.cloneNode(true)));
+    emptyState.classList.toggle('hidden', transactionItems.length > 0);
   }
 
 function renderArchivedPeriods() {
@@ -1829,12 +2081,13 @@ function renderArchivedPeriods() {
 
   // ==================== ADD TRANSACTION ====================
   async function addTransaction() {
+    if (transactionForm && !transactionForm.reportValidity()) return false;
     const amount = parseFloat(document.getElementById('amount').value);
     const type = document.getElementById('type').value;
     let category = document.getElementById('category').value;
     const date = document.getElementById('date').value || new Date().toISOString().split('T')[0];
     const description = document.getElementById('note').value.trim();
-    if (isNaN(amount) || amount <= 0) {
+    if (!Number.isFinite(amount) || amount <= 0 || amount > Number.MAX_SAFE_INTEGER) {
       alert("Iltimos, to'g'ri summa kiriting!");
       return false;
     }
@@ -2047,7 +2300,7 @@ function renderArchivedPeriods() {
     toast.innerHTML = `
       <div class="flex items-center gap-3">
         <span>Tranzaksiya o'chirildi</span>
-        <button id="undo-delete-btn" class="px-3 py-1 bg-white/20 hover:bg-white/30 rounded text-sm font-medium transition-colors">Bejar qilish</button>
+        <button id="undo-delete-btn" class="px-3 py-1 bg-white/20 hover:bg-white/30 rounded text-sm font-medium transition-colors">Bekor qilish</button>
       </div>
     `;
     
@@ -2131,9 +2384,11 @@ function renderArchivedPeriods() {
   if (editModal) editModal.addEventListener('click', (e) => { if (e.target === editModal) closeEditModal(); });
   if (editSaveBtn) editSaveBtn.addEventListener('click', async function (e) {
     e.preventDefault();
+    const editForm = document.getElementById('edit-form');
+    if (editForm && !editForm.reportValidity()) return;
     const id = Number(editIdInput.value);
     const amount = parseFloat(editAmountInput.value);
-    if (isNaN(amount) || amount <= 0) return alert("Iltimos, to'g'ri summa kiriting!");
+    if (!Number.isFinite(amount) || amount <= 0 || amount > Number.MAX_SAFE_INTEGER) return alert("Iltimos, to'g'ri summa kiriting!");
     
     let category = editCategorySelect.value;
     const isFundraising = currentMode === 'fundraising';
@@ -2246,10 +2501,9 @@ function renderArchivedPeriods() {
       }
       
       // Update the label for the amount input
-      const amountLabel = modal.querySelector('label[for="edit-balance-input"]');
-      if (amountLabel) {
-        amountLabel.textContent = "Yig'ilishi kerak bo'lgan summa ($)";
-      }
+      const amountLabel = document.getElementById('edit-balance-amount-label');
+      const amountLabelText = amountLabel && amountLabel.querySelector('[data-i18n]');
+      if (amountLabelText) amountLabelText.textContent = t('targetAmount');
       
       // Show the modal
       openOverlayModal(modal);
@@ -2261,6 +2515,10 @@ function renderArchivedPeriods() {
       const modalTitle = document.getElementById('onboarding-modal-title');
 
       if (!modal || !amountInput) return;
+
+      const amountLabel = document.getElementById('edit-balance-amount-label');
+      const amountLabelText = amountLabel && amountLabel.querySelector('[data-i18n]');
+      if (amountLabelText) amountLabelText.textContent = t('startingBalance');
 
       const currentBalance = localStorage.getItem('starting_balance') || '0';
       const hasBalance = Number.parseFloat(currentBalance) > 0;
@@ -2427,6 +2685,7 @@ function renderArchivedPeriods() {
 
   // ==================== DELETE ARCHIVE ====================
   function deleteArchive(id) {
+    if (!confirm('Ushbu arxivlangan davrni o\'chirmoqchimisiz?')) return;
     const periods = getArchivedPeriods().filter((p) => p.id !== id);
     setArchivedPeriods(periods);
     renderArchivedPeriods();
@@ -2836,6 +3095,8 @@ function renderArchivedPeriods() {
       } else if (enteredHash === savedHash) {
         // Correct PIN
         if (pinModal) pinModal.classList.add('hidden');
+        initFirstRunOnboarding();
+        if (window.maybeShowInstallPrompt) window.maybeShowInstallPrompt();
       } else {
         // Incorrect PIN
         showToast("❌ PIN-kod noto'g'ri! Qayta urinib ko'ring.", "error");
@@ -2938,12 +3199,7 @@ function renderArchivedPeriods() {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
     if (isIOS) {
-      // iOS Safari: show the dedicated bottom-sheet install modal with step-by-step visual cues
-      const iosModal = document.getElementById('ios-install-modal');
-      if (iosModal) {
-        iosModal.classList.remove('hidden');
-        iosModal.classList.add('flex');
-      }
+      if (window.maybeShowInstallPrompt) window.maybeShowInstallPrompt();
       return;
     }
 
@@ -2963,62 +3219,42 @@ function renderArchivedPeriods() {
       });
     } else {
       // Fallback if browser doesn't support programmatic prompt or event already fired
-      alert("O'rnatish uchun brauzeringiz menyusidagi (3 ta nuqta) 'Ekran / Bosh ekranga qo'shish' (Add to Home screen) tugmasini bosing.");
+      alert(t('installPwaFallback'));
     }
   }
   window.installPWA = installPWA;
 
-  // iOS bottom-sheet dismiss button
-  const iosDismissBtn = document.getElementById('ios-install-dismiss');
-  if (iosDismissBtn) iosDismissBtn.addEventListener('click', function () {
-    const iosModal = document.getElementById('ios-install-modal');
-    if (iosModal) { iosModal.classList.add('hidden'); iosModal.classList.remove('flex'); }
-  });
-
   (function initPWA() {
-    // If already installed (standalone mode), never show any prompt
-    if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) return;
-
-    // If user dismissed the banner recently (24h), don't re-show
-    if (localStorage.getItem('pwa_install_dismissed') && (Date.now() - parseInt(localStorage.getItem('pwa_install_dismissed'))) < 86400000) return;
-
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-
-    function showBanner() { if (pwaModal) pwaModal.classList.remove('hidden'); }
-    function hideBanner() { if (pwaModal) pwaModal.classList.add('hidden'); }
-
-    // iOS: show step-by-step guidance banner (no beforeinstallprompt on Safari)
     if (isIOS) {
-      if (pwaBannerTitle) pwaBannerTitle.textContent = 'Bosh ekranga qo\'shish';
-      if (pwaBannerDesc) pwaBannerDesc.innerHTML = 'Ilovani o\'rnatish uchun Safari menyusidagi \'Ulashish\' (Share) tugmasini bosing va \'Bosh ekranga qo\'shish\' ni tanlang.';
+      if (pwaBannerTitle) pwaBannerTitle.textContent = t('addToHomeScreen');
+      if (pwaBannerDesc) pwaBannerDesc.textContent = t('iosInstallHelp');
       if (iosInstructions) iosInstructions.classList.remove('hidden');
       if (pwaInstallBtn) pwaInstallBtn.classList.add('hidden');
-      showBanner();
-      if (pwaDismissBtn) {
-        pwaDismissBtn.addEventListener('click', function () {
-          localStorage.setItem('pwa_install_dismissed', Date.now().toString());
-          hideBanner();
-        });
-      }
-      return;
     }
 
-    // Android / Chrome: wait for beforeinstallprompt
-    let deferredPromptLocal = null;
-    let installTimer = null;
-
-    window.addEventListener('beforeinstallprompt', function (e) {
-      e.preventDefault();
-      deferredPrompt = e;
-      window.deferredPrompt = e;
-      if (installTimer) clearTimeout(installTimer);
-      installTimer = setTimeout(showBanner, 2000);
+    function hideBanner() {
+      if (pwaModal) pwaModal.classList.add('hidden');
+    }
+    function maybeShowInstallPrompt() {
+      if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) return;
+      if (localStorage.getItem('pwa_install_prompt_shown')) return;
+      const transactionCount = transactionCache.transactions.length + transactionCache.fundraising_transactions.length;
+      if (transactionCount < 3 || (!isIOS && !deferredPrompt)) return;
+      localStorage.setItem('pwa_install_prompt_shown', '1');
+      if (pwaModal) pwaModal.classList.remove('hidden');
+    }
+    window.maybeShowInstallPrompt = maybeShowInstallPrompt;
+    document.addEventListener('transaction:saved', maybeShowInstallPrompt);
+    window.addEventListener('beforeinstallprompt', function (event) {
+      deferredPrompt = event;
+      window.deferredPrompt = event;
+      maybeShowInstallPrompt();
     });
 
     window.addEventListener('appinstalled', () => {
       hideBanner();
-      if (installTimer) clearTimeout(installTimer);
-      installTimer = null;
+      localStorage.setItem('pwa_install_prompt_shown', '1');
       deferredPrompt = null;
     });
 
@@ -3027,16 +3263,14 @@ function renderArchivedPeriods() {
         if (deferredPrompt) {
           deferredPrompt.prompt();
           deferredPrompt.userChoice.then(() => { deferredPrompt = null; hideBanner(); }).catch(() => { hideBanner(); });
-        } else { hideBanner(); }
+        } else { alert(t('installPwaFallback')); hideBanner(); }
       });
     }
 
     if (pwaDismissBtn) {
       pwaDismissBtn.addEventListener('click', function () {
-        localStorage.setItem('pwa_install_dismissed', Date.now().toString());
+        localStorage.setItem('pwa_install_prompt_shown', '1');
         hideBanner();
-        if (installTimer) clearTimeout(installTimer);
-        installTimer = null;
       });
     }
   })();
@@ -3084,6 +3318,10 @@ function renderArchivedPeriods() {
       updateDashboard();
       applyModeLabels();
       checkPinLock();
+      if (!localStorage.getItem('app_pin_code')) {
+        initFirstRunOnboarding();
+        if (window.maybeShowInstallPrompt) window.maybeShowInstallPrompt();
+      }
       initAddTransactionSheet();
     } catch (err) {
       console.error('App init failed:', err);
@@ -3974,12 +4212,15 @@ function renderArchivedPeriods() {
   function initDebtTracker() {
     const debts = JSON.parse(localStorage.getItem('debts') || '[]');
     const container = document.getElementById('debts-list');
+    const emptyState = document.getElementById('debts-empty-state');
     if (!container) return;
 
     if (debts.length === 0) {
-      container.innerHTML = '<p style="text-align:center; color:#94a3b8; padding:1rem;">Hali qarzlar yo\'q</p>';
+      container.replaceChildren();
+      if (emptyState) emptyState.classList.remove('hidden');
       return;
     }
+    if (emptyState) emptyState.classList.add('hidden');
 
     const given = debts.filter(d => d.type === 'given' && !d.paid);
     const received = debts.filter(d => d.type === 'received' && !d.paid);
@@ -3999,7 +4240,7 @@ function renderArchivedPeriods() {
         ${debts.map(debt => `
           <div style="display:flex; align-items:center; justify-content:space-between; background:#1e293b; border:1px solid #334155; border-radius:0.75rem; padding:0.75rem; ${debt.paid ? 'opacity:0.5;' : ''}">
             <div>
-              <p style="font-weight:600; color:#f1f5f9; margin:0;">${debt.name}</p>
+              <p style="font-weight:600; color:#f1f5f9; margin:0;">${escapeHtml(debt.name)}</p>
               <p style="font-size:0.85rem; color:${debt.type === 'given' ? '#34d399' : '#fb7185'}; margin:0.25rem 0;">
                 ${debt.type === 'given' ? 'Berildi' : 'Olindi'}: ${formatCurrency(debt.amount)}
               </p>
@@ -4007,7 +4248,7 @@ function renderArchivedPeriods() {
             </div>
             <div style="display:flex; gap:0.5rem;">
               ${!debt.paid ? `<button onclick="toggleDebt(${debt.id})" style="background:#059669; color:white; border:none; border-radius:0.5rem; padding:0.25rem 0.75rem; font-size:0.8rem; cursor:pointer;">✓</button>` : '<span style="font-size:0.75rem; color:#64748b; padding:0 0.5rem;">To\'landi</span>'}
-              <button onclick="deleteDebt(${debt.id})" style="background:rgba(239,68,68,0.2); color:#fb7185; border:none; border-radius:0.5rem; padding:0.25rem 0.75rem; font-size:0.8rem; cursor:pointer;"></button>
+              <button type="button" aria-label="Qarzni o'chirish" onclick="deleteDebt(${debt.id})" style="background:rgba(239,68,68,0.2); color:#fb7185; border:none; border-radius:0.5rem; padding:0.25rem 0.75rem; font-size:0.8rem; cursor:pointer;">×</button>
             </div>
           </div>
         `).join('')}
@@ -4016,12 +4257,16 @@ function renderArchivedPeriods() {
   }
 
   window.addDebt = function(name, amount, type) {
-    if (!name || !amount) return showToast('Ism va summani kiriting', 'error');
+    const cleanName = String(name || '').trim();
+    const numericAmount = Number(amount);
+    if (!cleanName || !Number.isFinite(numericAmount) || numericAmount <= 0 || numericAmount > Number.MAX_SAFE_INTEGER || !['given', 'received'].includes(type)) {
+      return showToast('Ism, qarz turi va to\'g\'ri summani kiriting.', 'error');
+    }
     const debts = JSON.parse(localStorage.getItem('debts') || '[]');
     debts.push({
       id: Date.now(),
-      name,
-      amount: parseFloat(amount),
+      name: cleanName,
+      amount: numericAmount,
       type,
       date: new Date().toISOString(),
       paid: false
@@ -4049,6 +4294,13 @@ function renderArchivedPeriods() {
   };
 
   document.addEventListener('DOMContentLoaded', () => {
+    const debtForm = document.getElementById('debt-form');
+    if (debtForm) debtForm.addEventListener('submit', event => {
+      event.preventDefault();
+      if (!debtForm.reportValidity()) return;
+      addDebt(debtForm.elements.debtName.value, debtForm.elements.debtAmount.value, debtForm.elements.debtType.value);
+      debtForm.reset();
+    });
     setTimeout(initDebtTracker, 1000);
   });
 

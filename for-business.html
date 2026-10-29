@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0b3b32" />
+  <title>Aqlli Hamyoncha for Business</title>
+  <style>
+    :root { color-scheme: light; --ink: #122a28; --muted: #526764; --line: #d7e3df; --green: #087c62; --mint: #e7f5ef; --blue: #dcecf2; }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--ink); background: #f5f8f6; font: 16px/1.55 ui-sans-serif, system-ui, sans-serif; }
+    a { color: inherit; }
+    .shell { max-width: 1080px; margin: auto; padding: 1.25rem 1rem 4rem; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .5rem 0 2.5rem; }
+    .brand { display: flex; align-items: center; gap: .7rem; font-weight: 750; text-decoration: none; }
+    .brand img { width: 2.5rem; height: 2.5rem; border-radius: .75rem; object-fit: cover; }
+    .back-link { color: var(--green); font-size: .9rem; font-weight: 700; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+    .intro { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(230px, .8fr); gap: 2rem; align-items: end; padding: 2rem 0 2.5rem; border-bottom: 1px solid var(--line); }
+    .eyebrow { margin: 0 0 .8rem; color: var(--green); font-size: .72rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    h1 { max-width: 720px; margin: 0; font-size: 3.5rem; line-height: 1.04; letter-spacing: 0; }
+    .intro-copy { max-width: 34rem; margin: 0; color: var(--muted); }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); margin: 1.5rem 0 3rem; border-bottom: 1px solid var(--line); }
+    .stat { padding: 1.1rem 1rem 1.25rem 0; }
+    .stat + .stat { border-left: 1px solid var(--line); padding-left: 1.2rem; }
+    .stat strong { display: block; font-size: 1.35rem; }
+    .stat span { color: var(--muted); font-size: .8rem; }
+    .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+    h2 { margin: 0; font-size: 1.35rem; line-height: 1.2; letter-spacing: 0; }
+    .demo-tag { display: inline-flex; align-items: center; gap: .4rem; padding: .3rem .6rem; color: #075c4b; background: var(--mint); border: 1px solid #b5dfcd; border-radius: 999px; font-size: .72rem; font-weight: 800; }
+    .demo-tag::before { content: ''; width: .45rem; height: .45rem; border-radius: 50%; background: #0c9b73; }
+    .demo { padding: 1.2rem; background: white; border: 1px solid var(--line); border-radius: .75rem; box-shadow: 0 14px 36px rgba(13, 61, 48, .07); }
+    .presets { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1rem 0; }
+    .presets button { min-height: 44px; padding: .55rem .8rem; color: #25413d; background: #f3f8f6; border: 1px solid var(--line); border-radius: .55rem; font: inherit; font-size: .85rem; font-weight: 700; cursor: pointer; }
+    .presets button[aria-pressed="true"] { color: #075c4b; background: var(--mint); border-color: #6bb99d; }
+    .demo-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+    .demo-panel { min-width: 0; padding: 1rem; background: #f7faf8; border: 1px solid var(--line); border-radius: .55rem; }
+    .panel-label { display: block; margin-bottom: .45rem; color: var(--muted); font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    #sms-copy, #merchant-name { overflow-wrap: anywhere; }
+    #merchant-name { margin: 0; font-size: 1.1rem; }
+    #result-amount { display: inline-block; margin-top: .5rem; padding: .25rem .5rem; background: var(--blue); border-radius: .3rem; font-size: .9rem; font-weight: 800; }
+    .result-meta { margin: .45rem 0 0; color: var(--muted); font-size: .8rem; }
+    .benefits { display: grid; grid-template-columns: repeat(3, 1fr); gap: .75rem; margin: 2.5rem 0 3rem; }
+    .benefit { padding: 1rem; border-top: 3px solid var(--green); background: white; }
+    .benefit strong { display: block; margin-bottom: .3rem; }
+    .benefit p { margin: 0; color: var(--muted); font-size: .84rem; }
+    .integration { display: grid; grid-template-columns: .8fr 1.2fr; gap: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
+    .integration p { margin: .65rem 0 0; color: var(--muted); }
+    pre { overflow-x: auto; margin: 0; padding: 1rem; color: #e4f2ec; background: #122a28; border-radius: .6rem; font-size: .85rem; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .78rem; }
+    @media (max-width: 680px) {
+      .intro, .integration { grid-template-columns: 1fr; gap: 1rem; }
+      h1 { font-size: 2.25rem; }
+      .intro { align-items: start; }
+      .stats { grid-template-columns: 1fr; }
+      .stat, .stat + .stat { padding: .8rem 0; border-left: 0; border-top: 1px solid var(--line); }
+      .demo-grid, .benefits { grid-template-columns: 1fr; }
+      .section-heading { align-items: start; flex-direction: column; }
+      .shell { padding-inline: .85rem; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <nav class="topbar" aria-label="Sahifa navigatsiyasi">
+      <a class="brand" href="/">
+        <img src="/assets/walletprf.jpg" alt="" />
+        <span>Aqlli Hamyoncha</span>
+      </a>
+      <a class="back-link" href="/">Hamyonchaga qaytish</a>
+    </nav>
+
+    <header class="intro">
+      <div>
+        <p class="eyebrow">Aqlli Hamyoncha SDK</p>
+        <h1>Bank xabarlaridan aniq tranzaksiya natijasigacha.</h1>
+      </div>
+      <p class="intro-copy">Payme, Click va mahalliy bank bildirishnomalari uchun mijoz qurilmasida ishlaydigan SMS tahlil integratsiyasi.</p>
+    </header>
+
+    <section class="stats" aria-label="SDK ko'rsatkichlari">
+      <div class="stat"><strong>0%</strong><span>Server overhead</span></div>
+      <div class="stat"><strong>&lt; 2 ms</strong><span>Mahalliy parser javobi</span></div>
+      <div class="stat"><strong>100%</strong><span>Client-side processing</span></div>
+    </section>
+
+    <section aria-labelledby="demo-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">SMS parser</p>
+          <h2 id="demo-title">Integratsiya simulyatori</h2>
+        </div>
+        <span class="demo-tag">Demo</span>
+      </div>
+      <div class="demo">
+        <div class="presets" role="group" aria-label="SMS namunasini tanlang">
+          <button type="button" data-preset="payme" aria-pressed="true">Payme SMS</button>
+          <button type="button" data-preset="click" aria-pressed="false">Click SMS</button>
+          <button type="button" data-preset="uzcard" aria-pressed="false">Uzcard SMS</button>
+        </div>
+        <div class="demo-grid" aria-live="polite">
+          <article class="demo-panel">
+            <span class="panel-label">Kiruvchi SMS</span>
+            <p id="sms-copy">Payme Xarid: 120,000 UZS KORZINKA SUPERMARKET. Karta *1234.</p>
+          </article>
+          <article class="demo-panel">
+            <span class="panel-label">Natija</span>
+            <p id="merchant-name">KORZINKA SUPERMARKET</p>
+            <span id="result-amount">−120 000 UZS</span>
+            <p id="result-meta" class="result-meta">Chiqim · Oziq-ovqat · 1 ms local parser</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="benefits-title">
+      <p class="eyebrow" id="benefits-title">Banklar uchun foydasi</p>
+      <div class="benefits">
+      <article class="benefit"><strong>Server xarajati yo'q</strong><p>Parser va tranzaksiya tahlili foydalanuvchi qurilmasida bajariladi.</p></article>
+      <article class="benefit"><strong>Maxfiylik birinchi o'rinda</strong><p>SMS matni demo parserdan tashqariga yuborilmaydi.</p></article>
+      <article class="benefit"><strong>Oddiy ulanish</strong><p>Parser natijasini ilovangizdagi mavjud tranzaksiya oqimiga ulang.</p></article>
+      </div>
+    </section>
+
+    <section class="integration" aria-labelledby="integration-title">
+      <div>
+        <p class="eyebrow">SDK shartnomasi</p>
+        <h2 id="integration-title">Parser natijasi</h2>
+        <p>SMS matnini parserga uzating, so'ngra summani va tranzaksiya turini saqlashdan oldin tekshiring.</p>
+      </div>
+      <pre><code>const result = WalletSDK.parseSMS(text);
+
+{
+  "amount": 120000,
+  "currency": "UZS",
+  "type": "expense",
+  "merchant": "KORZINKA SUPERMARKET",
+  "category": "Oziq-ovqat"
+}</code></pre>
+    </section>
+
+    <footer>SDK simulyatori namuna SMSlardan foydalanadi. U telefon xabarlariga ulanmaydi.</footer>
+  </main>
+  <script>
+    const demoPresets = {
+      payme: { sms: 'Payme Xarid: 120,000 UZS KORZINKA SUPERMARKET. Karta *1234.', merchant: 'KORZINKA SUPERMARKET', amount: '−120 000 UZS', meta: 'Chiqim · Oziq-ovqat · local parser' },
+      click: { sms: 'Click: Hisobingizdan 50,000 UZS yechildi. MAKRO SUPERMARKET. Karta *1234.', merchant: 'MAKRO SUPERMARKET', amount: '−50 000 UZS', meta: 'Chiqim · Oziq-ovqat · local parser' },
+      uzcard: { sms: 'Karta *1234. Xarid: 45,000 UZS. Oqtepa Lavash.', merchant: 'OQTEPA LAVASH', amount: '−45 000 UZS', meta: 'Chiqim · Restoranlar · local parser' }
+    };
+    document.querySelectorAll('[data-preset]').forEach(button => {
+      button.addEventListener('click', () => {
+        const preset = demoPresets[button.dataset.preset];
+        document.getElementById('sms-copy').textContent = preset.sms;
+        document.getElementById('merchant-name').textContent = preset.merchant;
+        document.getElementById('result-amount').textContent = preset.amount;
+        document.getElementById('result-meta').textContent = preset.meta;
+        document.querySelectorAll('[data-preset]').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+      });
+    });
+  </script>
+</body>
+</html>

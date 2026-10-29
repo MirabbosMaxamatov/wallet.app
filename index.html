@@ -16,6 +16,55 @@
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" defer></script>
   <style>
+    .app-section:not(.active-view) { display: none !important; }
+    .app-bottom-nav {
+      position: fixed; z-index: 40; inset: auto 0 0; display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.25rem;
+      padding: 0.4rem 0.5rem calc(0.4rem + env(safe-area-inset-bottom));
+      background: rgba(15, 23, 42, 0.96); border-top: 1px solid #334155;
+      backdrop-filter: blur(14px);
+    }
+    .app-bottom-nav button {
+      min-width: 0; min-height: 3.25rem; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 0.15rem;
+      padding: 0.3rem 0.1rem; border: 0; border-radius: 0.65rem;
+      color: #94a3b8; background: transparent; font-size: 0.65rem;
+      font-weight: 650; cursor: pointer;
+    }
+    .app-bottom-nav button[aria-current="page"] { color: #6ee7b7; background: rgba(16, 185, 129, 0.12); }
+    .app-bottom-nav .nav-icon { font-size: 1.15rem; line-height: 1; }
+    body { padding-bottom: calc(4.5rem + env(safe-area-inset-bottom)); }
+    .recent-transaction-list { display: grid; gap: 0.6rem; }
+    .home-add-button { min-height: 3.5rem; font-size: 1rem; }
+    .onboarding-step[hidden] { display: none !important; }
+    .analytics-view { display: grid; gap: 1rem; margin-bottom: 1rem; }
+    .analytics-panel { min-width: 0; padding: 1rem; background: #17283a; border: 1px solid #334155; border-radius: .75rem; }
+    .analytics-panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem; margin-bottom: .85rem; }
+    .analytics-panel-heading h3 { margin: 0; font-size: 1rem; }
+    .analytics-muted { color: #94a3b8; font-size: .75rem; }
+    .analytics-filter { display: grid; grid-template-columns: minmax(0, 1fr) repeat(2, minmax(0, 1fr)); gap: .6rem; align-items: end; }
+    .analytics-filter .input-base { min-height: 44px; }
+    .analytics-filter .custom-date-field[hidden] { display: none; }
+    .analytics-grid { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 1rem; }
+    .analytics-donut-wrap { display: grid; grid-template-columns: minmax(130px, .8fr) minmax(0, 1fr); gap: .75rem; align-items: center; }
+    .analytics-donut { display: block; width: min(100%, 190px); margin: auto; overflow: visible; }
+    .analytics-legend { display: grid; gap: .5rem; min-width: 0; }
+    .analytics-legend-row { display: grid; grid-template-columns: .65rem minmax(0, 1fr) auto; gap: .45rem; align-items: center; font-size: .75rem; }
+    .analytics-swatch { width: .65rem; height: .65rem; border-radius: 2px; }
+    .analytics-legend-label { min-width: 0; overflow-wrap: anywhere; }
+    .analytics-chart-scroll { width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
+    .analytics-bars { display: block; width: auto; min-width: 420px; height: 230px; }
+    .analytics-top-list { display: grid; gap: .65rem; }
+    .analytics-top-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .75rem; align-items: center; }
+    .analytics-top-label { min-width: 0; overflow-wrap: anywhere; font-size: .82rem; }
+    .analytics-top-value { font-size: .82rem; font-weight: 700; white-space: nowrap; }
+    .analytics-top-track { grid-column: 1 / -1; height: .3rem; overflow: hidden; background: rgba(148,163,184,.16); border-radius: 999px; }
+    .analytics-top-fill { height: 100%; border-radius: inherit; }
+    body.light-theme .app-bottom-nav { background: rgba(255,255,255,0.96); border-color: #cbd5e1; }
+    body.light-theme .app-bottom-nav button { color: #475569; }
+    body.light-theme .app-bottom-nav button[aria-current="page"] { color: #047857; background: #d1fae5; }
+    body.light-theme .analytics-panel { color: #0f172a; background: #ffffff; border-color: #cbd5e1; }
+    body.light-theme .analytics-muted { color: #64748b; }
     /* ========== RESET & BASE ========== */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html { font-size: 16px; }
@@ -606,7 +655,7 @@
 
     /* PWA banner */
     #pwa-install-banner {
-      position: fixed; bottom: 1rem; left: 1rem; right: 1rem;
+      position: fixed; bottom: calc(5rem + env(safe-area-inset-bottom)); left: 1rem; right: 1rem;
       background: #0f172a; border: 1px solid rgba(16,185,129,0.4);
       border-radius: 1rem; padding: 1rem; z-index: 50;
       box-shadow: 0 25px 50px rgba(0,0,0,0.5);
@@ -881,6 +930,11 @@
       min-height: fit-content;
     }
     @media (max-width: 480px) {
+      .analytics-filter { grid-template-columns: 1fr 1fr; }
+      .analytics-filter > :first-child { grid-column: 1 / -1; }
+      .analytics-grid { grid-template-columns: minmax(0, 1fr); }
+      .analytics-donut-wrap { grid-template-columns: minmax(110px, .75fr) minmax(0, 1fr); }
+      .analytics-panel { padding: .85rem; }
       .card, .container {
         width: 100% !important;
         max-width: 100% !important;
@@ -967,7 +1021,51 @@
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen">
 
-  <!-- Onboarding Modal -->
+  <!-- First-run onboarding -->
+  <div id="first-run-onboarding" class="modal-overlay hidden" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="onboarding-title">
+    <div class="modal-card">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <p id="onboarding-step-count" class="text-xs font-semibold text-emerald-400">1 / 3</p>
+          <h2 id="onboarding-title" class="text-xl font-bold text-slate-100">Boshlangʻich balans</h2>
+        </div>
+        <button type="button" class="modal-close-btn" data-onboarding-finish aria-label="Skip onboarding">×</button>
+      </div>
+      <section class="onboarding-step" data-onboarding-step="1">
+        <p class="text-sm text-slate-400 mb-4">Hozirgi pulingizni kiriting. Bu bosqichni o'tkazib yuborishingiz mumkin.</p>
+        <label class="form-label" for="first-run-balance">Boshlang'ich balans</label>
+        <div class="flex items-center gap-2">
+          <input type="number" id="first-run-balance" min="0" step="any" inputmode="decimal" class="input-base flex-1" placeholder="0" />
+          <span class="currency-input-toggle" data-currency-symbol>so'm</span>
+        </div>
+        <div class="flex gap-2 mt-4">
+          <button type="button" class="btn-ghost" data-onboarding-skip>O'tkazib yuborish</button>
+          <button type="button" class="btn-primary" data-onboarding-next>Davom etish</button>
+        </div>
+      </section>
+      <section class="onboarding-step" data-onboarding-step="2" hidden>
+        <p class="text-sm text-slate-400 mb-4">Maqsad va summani belgilang. Bu bosqich ixtiyoriy.</p>
+        <label class="form-label" for="first-run-goal-title">Maqsad nomi</label>
+        <input type="text" id="first-run-goal-title" class="input-base mb-3" placeholder="Masalan: Sayohat" />
+        <label class="form-label" for="first-run-goal-amount">Maqsad summasi</label>
+        <div class="flex items-center gap-2">
+          <input type="number" id="first-run-goal-amount" min="0" step="any" inputmode="decimal" class="input-base flex-1" placeholder="0" />
+          <span class="currency-input-toggle" data-currency-symbol>so'm</span>
+        </div>
+        <div class="flex gap-2 mt-4">
+          <button type="button" class="btn-ghost" data-onboarding-skip>Keyinroq</button>
+          <button type="button" class="btn-primary" data-onboarding-next>Davom etish</button>
+        </div>
+      </section>
+      <section class="onboarding-step" data-onboarding-step="3" hidden>
+        <p class="text-3xl mb-3" aria-hidden="true">✓</p>
+        <p class="text-sm text-slate-300 mb-4">Hamyonchangiz tayyor.</p>
+        <button type="button" class="btn-primary" data-onboarding-finish>Boshlash</button>
+      </section>
+    </div>
+  </div>
+
+  <!-- Starting balance editor -->
   <div id="onboarding-modal" class="modal-overlay hidden" aria-hidden="true">
     <div class="modal-card">
       <div class="modal-heading-row">
@@ -977,7 +1075,7 @@
       <p class="text-slate-400 mb-6" id="onboarding-modal-subtitle">Boshlang'ich pul miqdorini kiriting:</p>
       <div id="starting-balance-form">
         <div class="mb-6">
-          <label class="block text-sm font-medium text-slate-300 mb-2">Boshlang'ich pul ($)</label>
+          <label class="block text-sm font-medium text-slate-300 mb-2"><span data-i18n="startingBalance">Boshlang'ich pul</span> (<span data-currency-symbol>so'm</span>)</label>
           <div class="flex items-center gap-2">
             <input type="number" id="onboarding-input" step="any" required placeholder="0.00" class="input-base flex-1" />
             <button type="button" onclick="toggleInputCurrency()" class="currency-input-toggle bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 rounded px-3 py-2 text-xs font-semibold transition-colors whitespace-nowrap" title="Switch currency">UZS</button>
@@ -1005,45 +1103,6 @@
     </div>
   </div>
 
-  <!-- Fundraising Onboarding Modal -->
-  <div id="fundraising-onboarding-modal" class="modal-overlay hidden" aria-hidden="true">
-    <div class="modal-card">
-      <div class="modal-heading-row">
-        <h2 class="text-2xl font-bold mb-2 text-emerald-400" id="fundraising-onboarding-title">🎯 Pul Yig'ish maqsadini kiriting</h2>
-        <button type="button" class="modal-close-btn" data-close-modal aria-label="Close target setup">×</button>
-      </div>
-      <p class="text-slate-400 mb-6" id="fundraising-onboarding-subtitle">Yig'ish uchun maqsad va kerakli summani belgilang.</p>
-      <div id="fundraising-onboarding-form">
-        <div class="mb-4">
-          <label class="block text-sm font-medium text-slate-300 mb-2">Maqsad (masalan: Ehson tadbiri)</label>
-          <input type="text" id="fundraising-title-input" required placeholder="Ehson tadbiri" class="input-base" />
-        </div>
-        <div class="mb-4">
-          <label class="block text-sm font-medium text-slate-300 mb-2" data-i18n="targetGroupType">Yig'ish turi</label>
-          <select id="fundraising-group-type-input" class="input-base">
-            <option value="personal" data-i18n="personal">Shaxsiy</option>
-            <option value="oila" data-i18n="family">Oila</option>
-            <option value="guruh" selected data-i18n="group">Guruh</option>
-          </select>
-        </div>
-        <div class="mb-6">
-          <label class="block text-sm font-medium text-slate-300 mb-2">Yig'ilishi kerak bo'lgan summa ($)</label>
-          <div class="flex items-center gap-2">
-            <input type="number" id="fundraising-target-input" step="any" required placeholder="0.00" class="input-base flex-1" />
-            <button type="button" onclick="toggleInputCurrency()" class="currency-input-toggle bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 rounded px-3 py-2 text-xs font-semibold transition-colors whitespace-nowrap" title="Switch currency">UZS</button>
-          </div>
-          <div id="fundraising-target-preview" class="text-xs font-medium text-emerald-400 mt-1.5 min-h-[18px]"></div>
-          <div class="flex items-center gap-2 pt-1.5">
-            <button type="button" onclick="appendZeros('fundraising-target-input', '000')" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 rounded px-2 py-1 text-xs font-semibold transition-colors">+000 (Ming)</button>
-            <button type="button" onclick="appendZeros('fundraising-target-input', '000000')" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 rounded px-2 py-1 text-xs font-semibold transition-colors">+000 000 (Mln)</button>
-            <button type="button" onclick="clearAmountInput('fundraising-target-input')" class="bg-rose-900/40 hover:bg-rose-800/60 text-rose-300 border border-rose-700/50 rounded px-2 py-1 text-xs font-medium transition-colors">C</button>
-          </div>
-        </div>
-        <button type="button" id="fundraising-onboarding-start-btn" class="btn-primary w-full" onclick="saveFundraisingSetup(event)">Boshlash</button>
-      </div>
-    </div>
-  </div>
-
   <!-- Archive Modal -->
   <div id="archive-modal" class="modal-overlay hidden" aria-hidden="true">
     <div class="modal-card">
@@ -1058,7 +1117,7 @@
           <input type="text" id="archive-name" required placeholder="Sentyabr 2026" class="input-base" />
         </div>
         <div class="mb-6">
-          <label class="block text-sm font-medium text-slate-300 mb-2">Yangi boshlang'ich pul ($)</label>
+          <label class="block text-sm font-medium text-slate-300 mb-2"><span data-i18n="newStartingBalance">Yangi boshlang'ich pul</span> (<span data-currency-symbol>so'm</span>)</label>
           <input type="number" id="archive-starting-balance" step="any" required placeholder="0.00" class="input-base" />
         </div>
         <button type="button" id="archive-submit-btn" class="btn-primary">Arxivlash</button>
@@ -1075,7 +1134,7 @@
       <form id="edit-form" onsubmit="event.preventDefault(); return false;">
         <input type="hidden" id="edit-id" />
         <div class="mb-4">
-          <label class="block text-sm font-medium text-slate-300 mb-1">Summa ($)</label>
+          <label class="block text-sm font-medium text-slate-300 mb-1"><span data-i18n="amount">Summa</span> (<span data-currency-symbol>so'm</span>)</label>
           <div class="flex items-center gap-2">
             <input type="number" id="edit-amount" step="any" required placeholder="0.00" class="input-base flex-1" />
             <button type="button" onclick="toggleInputCurrency()" class="currency-input-toggle bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 rounded px-3 py-2 text-xs font-semibold transition-colors whitespace-nowrap" title="Switch currency">UZS</button>
@@ -1166,7 +1225,7 @@
           </select>
         </div>
         <div class="mb-6">
-          <label class="block text-sm font-medium text-slate-300 mb-2">Boshlang'ich pul ($)</label>
+          <label id="edit-balance-amount-label" class="block text-sm font-medium text-slate-300 mb-2"><span data-i18n="startingBalance">Boshlang'ich pul</span> (<span data-currency-symbol>so'm</span>)</label>
           <div class="flex items-center gap-2">
             <input type="number" id="edit-balance-input" step="any" required placeholder="0.00" class="input-base flex-1" />
             <button type="button" onclick="toggleInputCurrency()" class="currency-input-toggle bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/80 rounded px-3 py-2 text-xs font-semibold transition-colors whitespace-nowrap" title="Switch currency">UZS</button>
@@ -1191,56 +1250,12 @@
     </div>
   </div>
 
-  <!-- PWA Install Modal -->
-  <div id="pwa-install-modal" class="modal-overlay hidden backdrop-blur-sm">
-    <div class="modal-card text-center">
-      <div class="text-5xl mb-4">&#128241;</div>
-      <h2 class="text-2xl font-bold mb-3 text-slate-100">Bosh ekranga qo'shing</h2>
-      <p class="text-slate-400 mb-6 text-sm leading-relaxed">
-        Ilovamizdan foydalanayotganingizdan mamnunmiz! Uni yo'qotib qo'ymaslik va tezkor kirish uchun bosh ekraningizga (Home Screen) qo'shishni taklif qilamiz.
-      </p>
-      <button type="button" id="pwa-install-btn" class="btn-primary">Add to Home Screen &#128241;</button>
-      <button type="button" id="pwa-install-dismiss" class="btn-ghost">Keyinroq</button>
-    </div>
-  </div>
-
-  <!-- iOS Install Bottom-Sheet Modal -->
-  <div id="ios-install-modal" class="modal-overlay hidden backdrop-blur-sm">
-    <div class="modal-card text-center">
-      <div class="text-5xl mb-4">&#128241;</div>
-      <h2 class="text-2xl font-bold mb-3 text-slate-100">Bosh ekranga qo'shing</h2>
-      <p class="text-slate-400 mb-6 text-sm leading-relaxed">
-        iOS Safari'da o'rnatish uchun quyidagi qadamlarni bosing:
-      </p>
-
-      <!-- Step 1 -->
-      <div class="flex items-center gap-3 text-left bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 mb-3">
-        <div class="flex items-center justify-center w-9 h-9 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-sm shrink-0">1</div>
-        <div>
-          <p class="text-slate-200 font-semibold text-sm">Safari pastki paneldagi</p>
-          <p class="text-slate-400 text-xs">&#128232; <b>Ulashish</b> (Share) tugmasini bosing</p>
-        </div>
-      </div>
-
-      <!-- Step 2 -->
-      <div class="flex items-center gap-3 text-left bg-slate-800/50 border border-slate-700/50 rounded-xl p-3 mb-6">
-        <div class="flex items-center justify-center w-9 h-9 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-sm shrink-0">2</div>
-        <div>
-          <p class="text-slate-200 font-semibold text-sm">Pastga tushib</p>
-          <p class="text-slate-400 text-xs"><b>➕ Bosh ekranga qo'shish</b> (Add to Home Screen) tanlovini bosing</p>
-        </div>
-      </div>
-
-      <button type="button" id="ios-install-dismiss" class="btn-primary w-full">Tushundim</button>
-    </div>
-  </div>
-
   <!-- Main App Container -->
   <div class="container">
     <div id="storage-status" class="storage-notice hidden" role="status" aria-live="polite"></div>
 
     <!-- Starting Balance Banner -->
-    <div id="starting-balance-banner" class="initial-balance-widget">
+    <div id="starting-balance-banner" class="initial-balance-widget app-section" data-app-view="settings">
       <div id="starting-balance-details" class="initial-balance-details">
         <span id="starting-balance-label" data-i18n="startingBalance">Boshlang'ich Pul</span>
         <span id="starting-balance-label-mobile" data-i18n="startingBalance">B.Pul</span>
@@ -1257,7 +1272,7 @@
       </button>
     </div>
 
-    <header class="mb-6 sm:mb-8">
+    <header class="mb-6 sm:mb-8 app-section" data-app-view="home">
       <div class="flex items-center justify-between gap-3">
         <div class="min-w-0">
           <h1 class="text-2xl sm:text-3xl font-bold text-slate-100 truncate" data-i18n="appTitle">Aqlli Hamyoncha</h1>
@@ -1274,9 +1289,9 @@
     </header>
 
     <!-- Hero Balance -->
-    <div class="fintech-balance-card">
+    <div class="fintech-balance-card app-section" data-app-view="home">
       <div class="balance-card-top">
-        <p class="balance-card-label">TOTAL BALANCE</p>
+        <p class="balance-card-label" data-i18n="totalBalance">UMUMIY BALANS</p>
         <span class="balance-currency" id="balance-currency">UZS</span>
       </div>
       <div class="balance-amount-row">
@@ -1291,15 +1306,95 @@
       </div>
     </div>
 
-    <nav class="quick-action-grid" aria-label="Quick actions">
-      <button type="button" id="open-add-transaction-btn" class="quick-action primary">＋ Add Transaction</button>
-      <button type="button" id="quick-scan-receipt" class="quick-action"><span aria-hidden="true">▦</span> Scan Receipt</button>
-      <button type="button" id="quick-analytics" class="quick-action"><span aria-hidden="true">▥</span> Analytics</button>
-      <button type="button" id="quick-backup" class="quick-action"><span aria-hidden="true">⇧</span> Backup</button>
+    <nav class="quick-action-grid app-section" data-app-view="home" aria-label="Quick actions">
+      <button type="button" id="open-add-transaction-btn" class="quick-action primary home-add-button"><span data-i18n="addTransaction">Tranzaksiya qoʻshish</span></button>
     </nav>
 
+    <section class="history-section app-section" data-app-view="home" aria-labelledby="recent-title">
+      <div class="flex items-center justify-between gap-3 mb-4">
+        <h3 id="recent-title" class="text-base font-semibold text-slate-100" data-i18n="recentTransactions">Soʻnggi tranzaksiyalar</h3>
+        <button type="button" class="text-sm font-semibold text-emerald-400" data-go-view="history" data-i18n="viewAll">Barchasi</button>
+      </div>
+      <ul id="recent-transaction-list" class="recent-transaction-list"></ul>
+      <p id="recent-empty-state" class="text-slate-500 text-center py-6" data-i18n="emptyRecent">Hozircha tranzaksiyalar yoʻq. Birinchisini qoʻshing.</p>
+    </section>
+
+    <section class="analytics-view app-section" data-app-view="analytics" aria-labelledby="analytics-title">
+      <header class="analytics-panel">
+        <div class="analytics-panel-heading">
+          <div>
+            <p class="eyebrow" data-i18n="analyticsEyebrow">PUL OQIMI</p>
+            <h2 id="analytics-title" data-i18n="analyticsTitle">Xarajatlar tahlili</h2>
+          </div>
+          <span id="analytics-period-label" class="analytics-muted"></span>
+        </div>
+        <div class="analytics-filter">
+          <div>
+            <label class="form-label" for="analytics-period" data-i18n="periodFilter">Davr</label>
+            <select id="analytics-period" class="input-base">
+              <option value="week" data-i18n="periodWeek">7 kun</option>
+              <option value="month" selected data-i18n="periodMonth">Bu oy</option>
+              <option value="custom" data-i18n="periodCustom">Maxsus</option>
+            </select>
+          </div>
+          <div class="custom-date-field" id="analytics-start-wrap" hidden>
+            <label class="form-label" for="analytics-start-date" data-i18n="fromDate">Boshlanish</label>
+            <input id="analytics-start-date" type="date" class="input-base" />
+          </div>
+          <div class="custom-date-field" id="analytics-end-wrap" hidden>
+            <label class="form-label" for="analytics-end-date" data-i18n="toDate">Tugash</label>
+            <input id="analytics-end-date" type="date" class="input-base" />
+          </div>
+        </div>
+      </header>
+
+      <div class="analytics-grid">
+        <article class="analytics-panel" aria-labelledby="category-chart-title">
+          <div class="analytics-panel-heading">
+            <div>
+              <h3 id="category-chart-title" data-i18n="expenseCategories">Xarajat toifalari</h3>
+              <p id="category-chart-total" class="analytics-muted"></p>
+            </div>
+          </div>
+          <div class="analytics-donut-wrap">
+            <svg id="category-donut-chart" class="analytics-donut" viewBox="0 0 180 180" role="img" aria-label="Xarajatlar toifalar bo'yicha"></svg>
+            <div id="category-chart-legend" class="analytics-legend"></div>
+          </div>
+          <p id="category-chart-empty" class="analytics-muted text-center py-4 hidden" data-i18n="analyticsEmptyCategories">Tanlangan davrda xarajat yoʻq.</p>
+        </article>
+
+        <article class="analytics-panel" aria-labelledby="income-expense-title">
+          <div class="analytics-panel-heading">
+            <div>
+              <h3 id="income-expense-title" data-i18n="incomeExpenseTrend">Kirim va chiqim</h3>
+              <p class="analytics-muted" data-i18n="incomeExpenseHint">Tanlangan davr bo'yicha</p>
+            </div>
+          </div>
+          <div class="analytics-chart-scroll">
+            <svg id="income-expense-chart" class="analytics-bars" role="img" aria-label="Kirim va chiqim ustunli diagrammasi"></svg>
+          </div>
+          <div class="flex items-center justify-center gap-4 mt-2 analytics-muted">
+            <span><i class="analytics-swatch" style="display:inline-block;background:#34d399;vertical-align:middle"></i> <span data-i18n="income">Kirim</span></span>
+            <span><i class="analytics-swatch" style="display:inline-block;background:#fb7185;vertical-align:middle"></i> <span data-i18n="expense">Chiqim</span></span>
+          </div>
+          <p id="income-expense-empty" class="analytics-muted text-center py-4 hidden" data-i18n="analyticsEmptyPeriod">Tanlangan davrda tranzaksiya yoʻq.</p>
+        </article>
+      </div>
+
+      <article class="analytics-panel" aria-labelledby="top-categories-title">
+        <div class="analytics-panel-heading">
+          <div>
+            <h3 id="top-categories-title" data-i18n="topCategories">Eng katta xarajat toifalari</h3>
+            <p class="analytics-muted" data-i18n="topCategoriesHint">Xarajatlar summasi bo'yicha</p>
+          </div>
+        </div>
+        <div id="top-categories-list" class="analytics-top-list"></div>
+        <p id="top-categories-empty" class="analytics-muted text-center py-4 hidden" data-i18n="analyticsEmptyCategories">Tanlangan davrda xarajat yoʻq.</p>
+      </article>
+    </section>
+
     <!-- Fundraising Progress Indicator -->
-    <div id="fundraising-progress-card" class="hidden bg-gradient-to-r from-emerald-900/40 to-slate-800/60 border border-emerald-500/30 rounded-2xl p-4 mb-6">
+    <div id="fundraising-progress-card" class="hidden bg-gradient-to-r from-emerald-900/40 to-slate-800/60 border border-emerald-500/30 rounded-2xl p-4 mb-6 app-section" data-app-view="analytics">
       <div class="flex items-center justify-between mb-2">
         <span class="text-sm font-semibold text-emerald-400" data-i18n="fundraisingProgress">Yig'ish foizasi</span>
         <span id="fundraising-progress-percent" class="text-lg font-bold text-emerald-400">0%</span>
@@ -1312,7 +1407,7 @@
     </div>
 
     <!-- Fundraising Target Card -->
-    <div id="fundraising-target-card" class="hidden bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4 mb-6">
+    <div id="fundraising-target-card" class="hidden bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4 mb-6 app-section" data-app-view="analytics">
       <div class="flex items-center gap-2 mb-2">
         <span class="text-emerald-400 text-lg">🎯</span>
         <span class="text-xs text-slate-400 uppercase tracking-wider" data-i18n="fundraisingTargetCard">Maqsad:</span>
@@ -1331,7 +1426,7 @@
     </div>
 
     <!-- Split Calculator (Fundraising only) -->
-    <div id="split-calculator-card" class="hidden bg-gradient-to-r from-amber-900/30 to-slate-800/60 border border-amber-500/30 rounded-2xl p-4 mb-6">
+    <div id="split-calculator-card" class="hidden bg-gradient-to-r from-amber-900/30 to-slate-800/60 border border-amber-500/30 rounded-2xl p-4 mb-6 app-section" data-app-view="analytics">
       <div class="flex items-center gap-2 mb-3">
         <span class="text-amber-400 text-lg">🧮</span>
         <span class="text-xs text-slate-400 uppercase tracking-wider">Teng Bo'lish Kalkulyatori</span>
@@ -1348,7 +1443,7 @@
     </div>
 
     <!-- Dashboard Cards -->
-    <div id="dashboard-cards" class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8">
+    <div id="dashboard-cards" class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6 sm:mb-8 app-section" data-app-view="analytics">
       <div class="card-income">
         <p class="text-emerald-400 text-xs sm:text-sm font-medium uppercase tracking-wider mb-1" data-i18n="income">Jami Kirim</p>
         <p id="income-display" class="text-2xl sm:text-3xl font-bold text-emerald-400">0 so'm</p>
@@ -1360,12 +1455,12 @@
     </div>
 
     <!-- Reset Archive button (kept accessible outside modal) -->
-    <div style="margin-bottom:1rem;">
+    <div class="app-section" data-app-view="settings" style="margin-bottom:1rem;">
       <button type="button" id="reset-archive-btn" class="btn-reset">Yangi oy / Davrni boshlash (Reset &amp; Archive) &#128260;</button>
   </div>
 
     <!-- Bottom Sheet Modal: Add Transaction -->
-    <div id="add-transaction-sheet" role="dialog" aria-modal="true" aria-label="Add Transaction" aria-hidden="true">
+    <div id="add-transaction-sheet" role="dialog" aria-modal="true" aria-label="Add Transaction" data-i18n-aria-label="addTransaction" aria-hidden="true">
       <!-- Backdrop -->
       <div id="sheet-backdrop" style="position:absolute;inset:0;"></div>
       <div class="sheet-panel">
@@ -1405,7 +1500,7 @@
                   <button type="button" onclick="quickAmount('amount',500000)" class="quick-btn green">+500k</button>
                   <button type="button" onclick="clearAmountInput('amount')" class="quick-btn red">C</button>
                   <button type="button" id="attoQuickBtn" class="px-3 py-1 bg-blue-600/20 text-blue-400 border border-blue-500/30 rounded-lg text-xs flex items-center gap-1">🚌 ATTO (2,500 so'm)</button>
-                  <button onclick="document.getElementById('debt-modal').style.display='flex'" class="quick-btn" style="background: rgba(99, 102, 241, 0.15); color: #818cf8; border-color: rgba(99, 102, 241, 0.4); margin-top: 0.5rem;">
+                  <button type="button" data-go-view="debts" class="quick-btn" style="background: rgba(99, 102, 241, 0.15); color: #818cf8; border-color: rgba(99, 102, 241, 0.4); margin-top: 0.5rem;">
   📒 Qarz Daftari
                   </button>
                 </div>
@@ -1512,29 +1607,23 @@
     </div><!-- /#add-transaction-sheet -->
 
     <!-- History -->
-    <div class="history-section">
+    <div class="history-section app-section" data-app-view="history">
       <h3 class="text-base sm:text-lg font-semibold text-slate-100 mb-4">Tranzaksiya tarixi</h3>
       <ul id="transaction-list" class="space-y-3"></ul>
       <p id="empty-state" class="text-slate-500 text-center py-8 hidden">Hali tranzaksiya yo'q. Yuqoridan qo'shing.</p>
     </div>
 
     <!-- Archived -->
-    <div id="archived-section" class="archive-section">
+    <div id="archived-section" class="archive-section app-section" data-app-view="settings">
       <h3 class="text-base sm:text-lg font-semibold text-slate-100 mb-4">Arxivlangan Davrlar</h3>
       <div id="archived-list" class="space-y-3"></div>
       <p id="archived-empty-state" class="text-slate-500 text-center py-8 hidden">Hozircha arxivlangan davrlar yo'q.</p>
     </div>
 
     <!-- YANA / PROFIL SECTION -->
-    <div id="more-section" class="mt-4">
-      <button type="button" id="more-toggle-btn" class="w-full flex items-center justify-between bg-slate-800/80 border border-slate-700/60 rounded-xl px-4 py-3 text-left shadow-sm hover:bg-slate-700/40 transition-colors">
-        <span class="text-base font-semibold text-slate-100 flex items-center gap-2">
-          <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 010 4m-6 8h12a2 2 0 002-2V8a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-          Settings &amp; Profile
-        </span>
-        <svg id="more-chevron" class="w-4 h-4 text-slate-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-      </button>
-      <div id="more-body" class="hidden space-y-4 mt-4">
+    <div id="more-section" class="mt-4 app-section" data-app-view="settings">
+      <h2 class="text-lg font-semibold text-slate-100 mb-4" data-i18n="settingsProfile">Sozlamalar va profil</h2>
+      <div id="more-body" class="space-y-4 mt-4">
 
         <!-- Profil Rasmi (Profile Picture) -->
         <div class="profile-header bg-slate-800/80 border border-slate-700/60 rounded-xl p-4 shadow-sm">
@@ -1545,73 +1634,7 @@
           </div>
         </div>
 
-        <section class="b2b-engine-card" aria-labelledby="b2b-engine-title">
-          <div class="b2b-engine-heading">
-            <div>
-              <p class="text-xs font-semibold uppercase tracking-wider text-emerald-400">Aqlli Hamyoncha SDK</p>
-              <h2 id="b2b-engine-title" class="text-xl font-bold text-slate-100 mt-1">Aqlli Hamyoncha</h2>
-              <p class="text-sm text-slate-400 mt-1">Aqlli Hamyoncha — PFM &amp; SDK Demo</p>
-            </div>
-            <span class="b2b-engine-version">Aqlli Hamyoncha SDK v1.5.0</span>
-          </div>
-          <div class="b2b-spec-grid" aria-label="System specifications">
-            <div class="b2b-spec">
-              <span class="b2b-spec-label">Server Overhead</span>
-              <strong class="b2b-spec-value">0% ($0/mo)</strong>
-            </div>
-            <div class="b2b-spec">
-              <span class="b2b-spec-label">Processing Speed</span>
-              <strong class="b2b-spec-value">&lt; 2 ms</strong>
-            </div>
-            <div class="b2b-spec">
-              <span class="b2b-spec-label">Privacy Architecture</span>
-              <strong class="b2b-spec-value">100% Client-Side / Local Storage</strong>
-            </div>
-          </div>
-        </section>
-
-        <section class="bank-sdk-card" aria-labelledby="bank-sdk-title">
-          <div class="b2b-engine-heading">
-            <div>
-              <h2 id="bank-sdk-title" class="text-base sm:text-lg font-semibold text-slate-100">📱 Payme / Click Live Integration Simulator</h2>
-              <p class="text-xs text-slate-400 mt-1">Choose a message to preview the client-side transaction result</p>
-            </div>
-            <span class="b2b-engine-version">Interactive demo</span>
-          </div>
-          <div class="simulator-presets" role="group" aria-label="Choose an SMS preset">
-            <button type="button" class="simulator-preset" data-simulator-preset="payme" aria-pressed="false">💳 Payme SMS</button>
-            <button type="button" class="simulator-preset" data-simulator-preset="click" aria-pressed="false">🔹 Click SMS</button>
-            <button type="button" class="simulator-preset" data-simulator-preset="uzcard" aria-pressed="false">🏦 Uzcard SMS</button>
-          </div>
-          <div class="simulator-grid">
-            <article class="simulator-card" aria-labelledby="incoming-sms-title">
-              <h3 id="incoming-sms-title" class="simulator-card-heading"><span class="simulator-step">01</span> Incoming Raw SMS</h3>
-              <div class="sms-notification" role="status" aria-live="polite">
-                <div class="sms-sender-row"><span id="simulatorSender">PAYME</span><time class="sms-time">now</time></div>
-                <p id="simulatorSmsText">Payme Xarid: 120,000 UZS KORZINKA SUPERMARKET. Karta *1234.</p>
-              </div>
-            </article>
-            <article class="simulator-card" aria-labelledby="integration-result-title" aria-live="polite">
-              <h3 id="integration-result-title" class="simulator-card-heading"><span class="simulator-step">02</span> Instant App Integration Result</h3>
-              <div class="integration-transaction">
-                <span id="simulatorMerchantIcon" class="integration-merchant-icon" aria-hidden="true">K</span>
-                <div class="integration-transaction-main">
-                  <span class="integration-merchant-label">Merchant Name</span>
-                  <p id="simulatorMerchant">KORZINKA SUPERMARKET</p>
-                  <div class="integration-meta">
-                    <span id="simulatorCategory">Oziq-ovqat</span>
-                    <strong id="simulatorAmount">-120 000 UZS</strong>
-                  </div>
-                </div>
-              </div>
-              <span class="simulator-execution">⚡ <span id="simulatorExecution">1ms Local Regex Engine</span></span>
-            </article>
-          </div>
-          <aside class="simulator-value-banner">
-            <span aria-hidden="true">💡</span>
-            <p><strong>Banklar uchun foydasi:</strong> Ushbu SDK ulanishi bilan ilovangiz mijoz xarajatlarini avtomatik analiz qiladi va serveringizga 0% yuklama beradi.</p>
-          </aside>
-        </section>
+        <a class="backup-secondary block text-center" href="/for-business">Aqlli Hamyoncha for Business / SDK</a>
 
         <!-- Hisobotlar & Eksport -->
         <div class="bg-slate-800/80 border border-slate-700/60 rounded-xl p-4 shadow-sm">
@@ -1675,55 +1698,37 @@
           <button type="button" onclick="resetAllData()" class="w-full mt-3 bg-rose-600/90 hover:bg-rose-500 text-white text-xs font-medium px-3 py-2 rounded-lg transition-colors">🗑️ Ma'lumotlarni tozalash (Reset)</button>
         </div>
 
-        <section aria-labelledby="guide-docs-title">
-          <button type="button" id="guide-docs-toggle" class="guide-docs-toggle" aria-expanded="false" aria-controls="guide-docs-panel">
-            <span class="guide-docs-toggle-label"><span class="guide-docs-toggle-icon" aria-hidden="true">📖</span><span id="guide-docs-title">Qo'llanma va B2B Integratsiya Hujjatlari</span></span>
-            <span class="guide-docs-toggle-chevron" aria-hidden="true">⌄</span>
-          </button>
-          <div id="guide-docs-panel" hidden>
-            <div class="guide-docs-clip">
-              <div class="guide-docs-content">
-                <section aria-labelledby="guide-about-title">
-                  <h3 id="guide-about-title">1. Ilova haqida</h3>
-                  <p>Aqlli Hamyoncha SDK — Payme, Click va mahalliy banklar uchun 100% offlayn ishlashga mo'ljallangan PFM va Smart SMS Parser moduli. Tranzaksiyalarni tahlil qilish va saqlash qurilmada bajariladi; server xarajati $0.</p>
-                </section>
-                <section aria-labelledby="guide-user-title">
-                  <h3 id="guide-user-title">2. Foydalanuvchilar uchun</h3>
-                  <ol>
-                    <li>Bankdan kelgan SMS matnini nusxalang. SMS parser funksiyasi mavjud bo'lgan ilova maydoniga matnni joylashtiring; jo'natishdan oldin summa va tranzaksiya turini tekshiring.</li>
-                    <li>Valyuta tugmasi orqali UZS, USD yoki RUB ni tanlang. Ilova joriy konvertatsiya sozlamasidan foydalanadi; yakuniy summani tasdiqlashdan oldin tekshiring.</li>
-                  </ol>
-                  <p class="guide-sdk-note">Joriy demo simulator faqat namunaviy SMSlarni ko'rsatadi; u SMS qutisiga ulanmaydi va bank xabarlarini o'zi o'qimaydi.</p>
-                </section>
-                <section aria-labelledby="guide-sdk-title">
-                  <h3 id="guide-sdk-title">3. Banklar va Hamkorlar uchun (SDK Docs)</h3>
-                  <p>Integratsiya qatlamida SMS matnini parserga uzating:</p>
-                  <pre class="guide-sdk-sample"><code>const result = WalletSDK.parseSMS(text);</code></pre>
-                  <p>JSON javob namunasi:</p>
-                  <pre class="guide-sdk-sample"><code>{
-  "amount": 120000,
-  "currency": "UZS",
-  "type": "expense",
-  "merchant": "KORZINKA SUPERMARKET",
-  "category": "Oziq-ovqat"
-}</code></pre>
-                  <p class="guide-sdk-note">SDK kontraktining namoyish namunasi. Ushbu PWA ichidagi simulator hozirda o'zining lokal parseridan foydalanadi.</p>
-                </section>
-                <section aria-labelledby="guide-security-title">
-                  <h3 id="guide-security-title">4. Xavfsizlik</h3>
-                  <p>Aqlli Hamyoncha SDK tranzaksiya ma'lumotlarini foydalanuvchi qurilmasining <code>localStorage</code> qismida saqlaydi. Demo parser SMS matnini tashqi serverga yubormaydi. Qurilmadagi ma'lumotlarni himoya qilish va zaxira nusxasini saqlash foydalanuvchi zimmasida.</p>
-                </section>
-                <button type="button" id="guide-docs-close" class="guide-docs-close">Yopish</button>
-              </div>
-            </div>
-          </div>
-        </section>
-
       </div>
     </div>
 
+    <section class="history-section app-section" data-app-view="debts" aria-labelledby="debts-title">
+      <h2 id="debts-title" class="text-lg font-semibold text-slate-100 mb-4">Qarz daftari</h2>
+      <form id="debt-form" class="flex flex-col gap-3 mb-5">
+        <label class="form-label" for="debt-name">Ism yoki tavsif</label>
+        <input id="debt-name" name="debtName" type="text" placeholder="Masalan: Ali" class="input-base" required maxlength="80" />
+        <label class="form-label" for="debt-amount">Summa</label>
+        <input id="debt-amount" name="debtAmount" type="number" min="0.01" step="any" inputmode="decimal" placeholder="0" class="input-base" required />
+        <label class="form-label" for="debt-type">Qarz turi</label>
+        <select id="debt-type" name="debtType" class="input-base">
+          <option value="given">Men berdim</option>
+          <option value="received">Men oldim</option>
+        </select>
+        <button type="submit" class="btn-primary">Qarzni qo'shish</button>
+      </form>
+      <div id="debts-list" class="space-y-3" aria-live="polite"></div>
+      <p id="debts-empty-state" class="text-slate-500 text-center py-8">Hozircha qarzlar yo'q.</p>
+    </section>
+
     <footer class="text-center text-slate-600 text-xs mt-8 mb-4">Aqlli Hamyoncha &copy; 2026</footer>
   </div>
+
+  <nav class="app-bottom-nav" aria-label="Asosiy navigatsiya">
+    <button type="button" data-nav-view="home" aria-current="page"><span class="nav-icon" aria-hidden="true">⌂</span><span data-i18n="navHome">Bosh sahifa</span></button>
+    <button type="button" data-nav-view="history"><span class="nav-icon" aria-hidden="true">↻</span><span data-i18n="navHistory">Tarix</span></button>
+    <button type="button" data-nav-view="analytics"><span class="nav-icon" aria-hidden="true">▥</span><span data-i18n="navAnalytics">Tahlil</span></button>
+    <button type="button" data-nav-view="debts"><span class="nav-icon" aria-hidden="true">⇄</span><span data-i18n="navDebts">Qarzlar</span></button>
+    <button type="button" data-nav-view="settings"><span class="nav-icon" aria-hidden="true">⚙</span><span data-i18n="navSettings">Sozlamalar</span></button>
+  </nav>
 
   <!-- Simple backup and restore -->
   <div id="backup-modal" class="modal-overlay hidden" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="backup-modal-title">
@@ -1810,30 +1815,6 @@
       </div>
     </div>
   </div>
-
-  <!-- Qarz Daftari Modal Oynasi -->
-<div id="debt-modal" class="modal-overlay" onclick="if(event.target===this)this.style.display='none'" style="display: none;">
-  <div class="modal-card">
-    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem;">
-      <h2 style="font-size:1.25rem; font-weight:bold; color:#f1f5f9; margin:0;">📒 Qarz Daftari</h2>
-      <button onclick="document.getElementById('debt-modal').style.display='none'" style="background:none; border:none; color:#94a3b8; font-size:1.5rem; cursor:pointer;">&times;</button>
-    </div>
-
-    <form onsubmit="event.preventDefault(); addDebt(this.debtName.value, this.debtAmount.value, this.debtType.value); this.reset();" style="display:flex; flex-direction:column; gap:0.75rem; margin-bottom:1.5rem;">
-      <input name="debtName" type="text" placeholder="Ism yoki tavsif (masalan: Ali)" class="input-base" required>
-      <input name="debtAmount" type="number" placeholder="Summa (so'm)" class="input-base" required>
-      <select name="debtType" class="input-base">
-        <option value="given">Men berdim (Mening qarzimga)</option>
-        <option value="received">Men oldim (Menga qarz)</option>
-      </select>
-      <button type="submit" class="btn-primary">Qarzni qo'shish</button>
-    </form>
-
-    <div id="debts-list" style="max-height:16rem; overflow-y:auto;">
-      <p style="text-align:center; color:#94a3b8; padding:1rem;">Yuklanmoqda...</p>
-    </div>
-  </div>
-</div>
 
   <script src="app.js?v=10.0.0" defer></script>
 </body>
