@@ -88,6 +88,54 @@
     topCategoriesHint: 'Ranked by expense total', categoryChartAria: 'Expenses by category',
     incomeExpenseChartAria: 'Income and expense bar chart', analyticsInvalidRange: 'Check the selected date range.'
   });
+  Object.assign(translations.uz, { generalCategory: 'Umumiy', restaurants: 'Restoranlar', noDescription: 'Izohsiz', duplicateTransaction: 'Bu tranzaksiya yaqinda qoʻshilgan.' });
+  Object.assign(translations.ru, { generalCategory: 'Общее', restaurants: 'Рестораны', noDescription: 'Без описания', duplicateTransaction: 'Такая операция уже добавлена недавно.' });
+  Object.assign(translations.en, { generalCategory: 'General', restaurants: 'Restaurants', noDescription: 'No description', duplicateTransaction: 'This transaction was added recently.' });
+  Object.assign(translations.uz, {
+    catFoodGroceries: 'Oziq-ovqat', catRestaurantsCafes: 'Restoran va kafelar', catTransport: 'Transport',
+    catHousingUtilities: 'Uy-joy va kommunal xizmatlar', catPhoneInternet: 'Telefon va internet', catHealth: 'Sogʻliq',
+    catEducation: 'Taʼlim', catClothing: 'Kiyim-kechak', catEntertainment: 'Koʻngilochar',
+    catSubscriptionsServices: 'Obunalar va xizmatlar', catGifts: 'Sovgʻalar', catFamilyKids: 'Oila va bolalar',
+    catDebtPayment: 'Qarz toʻlovi', catSavings: 'Jamgʻarma', catSalary: 'Maosh', catBusiness: 'Biznes',
+    catFreelance: 'Frilans', catInvestment: 'Investitsiya', catIncomeGift: 'Sovgʻa',
+    manageCategories: 'Toifalarni boshqarish', customCategories: 'Maxsus toifalar', addCategory: 'Toifa qoʻshish',
+    editCategory: 'Toifani tahrirlash', categoryName: 'Toifa nomi', categoryEmoji: 'Emoji', categoryColor: 'Rang',
+    categoryType: 'Tranzaksiya turi', monthlyLimit: 'Oylik limit', saveCategory: 'Saqlash', cancelEdit: 'Bekor qilish',
+    deleteCategory: 'Oʻchirish', useSuggestion: 'Tanlash', categorySuggestion: 'Tavsiya etilgan toifa',
+    budgetLimits: 'Oylik toifa limitlari', budgetSpent: 'Sarflandi', budgetAtLimit: 'Limitdan oshdi',
+    budgetWarning: 'Limitning 80% ishlatildi', budgetNoLimits: 'Hali oylik limitlar belgilanmagan.',
+    categoryRequired: 'Toifa nomini kiriting.', categoryDeleteConfirm: 'Ushbu toifani tanlovdan olib tashlaysizmi?'
+  });
+  Object.assign(translations.ru, {
+    catFoodGroceries: 'Продукты', catRestaurantsCafes: 'Рестораны и кафе', catTransport: 'Транспорт',
+    catHousingUtilities: 'Жильё и коммунальные услуги', catPhoneInternet: 'Телефон и интернет', catHealth: 'Здоровье',
+    catEducation: 'Образование', catClothing: 'Одежда', catEntertainment: 'Развлечения',
+    catSubscriptionsServices: 'Подписки и услуги', catGifts: 'Подарки', catFamilyKids: 'Семья и дети',
+    catDebtPayment: 'Погашение долга', catSavings: 'Накопления', catSalary: 'Зарплата', catBusiness: 'Бизнес',
+    catFreelance: 'Фриланс', catInvestment: 'Инвестиции', catIncomeGift: 'Подарок',
+    manageCategories: 'Управление категориями', customCategories: 'Свои категории', addCategory: 'Добавить категорию',
+    editCategory: 'Изменить категорию', categoryName: 'Название категории', categoryEmoji: 'Эмодзи', categoryColor: 'Цвет',
+    categoryType: 'Тип операции', monthlyLimit: 'Месячный лимит', saveCategory: 'Сохранить', cancelEdit: 'Отмена',
+    deleteCategory: 'Удалить', useSuggestion: 'Выбрать', categorySuggestion: 'Предложенная категория',
+    budgetLimits: 'Месячные лимиты категорий', budgetSpent: 'Потрачено', budgetAtLimit: 'Лимит превышен',
+    budgetWarning: 'Использовано 80% лимита', budgetNoLimits: 'Месячные лимиты пока не заданы.',
+    categoryRequired: 'Введите название категории.', categoryDeleteConfirm: 'Убрать категорию из списка?'
+  });
+  Object.assign(translations.en, {
+    catFoodGroceries: 'Food & Groceries', catRestaurantsCafes: 'Restaurants/Cafes', catTransport: 'Transport',
+    catHousingUtilities: 'Housing/Utilities', catPhoneInternet: 'Phone/Internet', catHealth: 'Health',
+    catEducation: 'Education', catClothing: 'Clothing', catEntertainment: 'Entertainment',
+    catSubscriptionsServices: 'Subscriptions/Services', catGifts: 'Gifts', catFamilyKids: 'Family/Kids',
+    catDebtPayment: 'Debt Payment', catSavings: 'Savings', catSalary: 'Salary', catBusiness: 'Business',
+    catFreelance: 'Freelance', catInvestment: 'Investment', catIncomeGift: 'Gift',
+    manageCategories: 'Manage categories', customCategories: 'Custom categories', addCategory: 'Add category',
+    editCategory: 'Edit category', categoryName: 'Category name', categoryEmoji: 'Emoji', categoryColor: 'Color',
+    categoryType: 'Transaction type', monthlyLimit: 'Monthly limit', saveCategory: 'Save', cancelEdit: 'Cancel',
+    deleteCategory: 'Delete', useSuggestion: 'Use', categorySuggestion: 'Suggested category',
+    budgetLimits: 'Monthly category limits', budgetSpent: 'Spent', budgetAtLimit: 'Over limit',
+    budgetWarning: '80% of limit used', budgetNoLimits: 'No monthly limits set yet.',
+    categoryRequired: 'Enter a category name.', categoryDeleteConfirm: 'Remove this category from the list?'
+  });
   let currentLang = localStorage.getItem(STORAGE_KEY) || DEFAULT_LANG;
   function t(key) { return (translations[currentLang] && translations[currentLang][key]) || (translations[DEFAULT_LANG] && translations[DEFAULT_LANG][key]) || key; }
   function applyTranslations() { document.querySelectorAll('[data-i18n]').forEach(function(el) { var key = el.getAttribute('data-i18n'); if (key) el.textContent = t(key); }); document.querySelectorAll('[data-i18n-placeholder]').forEach(function(el) { var key = el.getAttribute('data-i18n-placeholder'); if (key) el.placeholder = t(key); }); document.querySelectorAll('[data-i18n-aria-label]').forEach(function(el) { var key = el.getAttribute('data-i18n-aria-label'); if (key) el.setAttribute('aria-label', t(key)); }); }

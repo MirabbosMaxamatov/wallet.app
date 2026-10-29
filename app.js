@@ -537,9 +537,84 @@
     const sign = value >= 0 ? '+' : '-';
     return sign + formatCurrency(value);
   }
+  const CUSTOM_CATEGORIES_KEY = 'app_custom_categories';
+  const CATEGORY_BUDGETS_KEY = 'app_category_budgets';
+  const BUILTIN_CATEGORIES = [
+    { id: 'food_groceries', type: 'expense', labelKey: 'catFoodGroceries', emoji: '🥬', color: '#34d399', keywords: ['non', 'oziq', 'ovqat', 'grocery', 'market', 'korzinka', 'makro'] },
+    { id: 'restaurants_cafes', type: 'expense', labelKey: 'catRestaurantsCafes', emoji: '🍽️', color: '#fb923c', keywords: ['restoran', 'restaurant', 'kafe', 'cafe', 'lavash'] },
+    { id: 'transport', type: 'expense', labelKey: 'catTransport', emoji: '🚌', color: '#38bdf8', keywords: ['taksi', 'taxi', 'metro', 'avtobus', 'bus', 'atto', 'transport'] },
+    { id: 'housing_utilities', type: 'expense', labelKey: 'catHousingUtilities', emoji: '🏠', color: '#a78bfa', keywords: ['ijara', 'rent', 'kommunal', 'elektr', 'gaz', 'suv', 'housing'] },
+    { id: 'phone_internet', type: 'expense', labelKey: 'catPhoneInternet', emoji: '📱', color: '#22d3ee', keywords: ['internet', 'telefon', 'mobile', 'wifi', 'beeline', 'ucell'] },
+    { id: 'health', type: 'expense', labelKey: 'catHealth', emoji: '🩺', color: '#fb7185', keywords: ['dorixona', 'dori', 'apteka', 'pharmacy', 'doctor', 'shifoxona'] },
+    { id: 'education', type: 'expense', labelKey: 'catEducation', emoji: '📚', color: '#818cf8', keywords: ['maktab', 'school', 'kurs', 'course', 'universitet', 'kitob'] },
+    { id: 'clothing', type: 'expense', labelKey: 'catClothing', emoji: '👕', color: '#f472b6', keywords: ['kiyim', 'clothing', 'poyabzal', 'shoes'] },
+    { id: 'entertainment', type: 'expense', labelKey: 'catEntertainment', emoji: '🎬', color: '#c084fc', keywords: ['kino', 'cinema', 'o‘yin', 'game', 'ko‘ngilochar'] },
+    { id: 'subscriptions_services', type: 'expense', labelKey: 'catSubscriptionsServices', emoji: '🔁', color: '#2dd4bf', keywords: ['obuna', 'subscription', 'netflix', 'service'] },
+    { id: 'gifts', type: 'expense', labelKey: 'catGifts', emoji: '🎁', color: '#facc15', keywords: ['sovg‘a', 'sovga', 'gift'] },
+    { id: 'family_kids', type: 'expense', labelKey: 'catFamilyKids', emoji: '👨‍👩‍👧', color: '#a3e635', keywords: ['bola', 'kids', 'family', 'oila'] },
+    { id: 'debt_payment', type: 'expense', labelKey: 'catDebtPayment', emoji: '↩️', color: '#f87171', keywords: ['qarz', 'debt', 'kredit'] },
+    { id: 'savings', type: 'expense', labelKey: 'catSavings', emoji: '🐖', color: '#4ade80', keywords: ['jamg‘arma', 'jamgarma', 'savings'] },
+    { id: 'salary', type: 'income', labelKey: 'catSalary', emoji: '💼', color: '#34d399', keywords: ['maosh', 'salary', 'oylik'] },
+    { id: 'business_income', type: 'income', labelKey: 'catBusiness', emoji: '🏪', color: '#60a5fa', keywords: ['biznes', 'business', 'savdo'] },
+    { id: 'freelance_income', type: 'income', labelKey: 'catFreelance', emoji: '💻', color: '#a78bfa', keywords: ['frilans', 'freelance'] },
+    { id: 'investment_income', type: 'income', labelKey: 'catInvestment', emoji: '📈', color: '#2dd4bf', keywords: ['investitsiya', 'investment', 'dividend'] },
+    { id: 'gift_income', type: 'income', labelKey: 'catIncomeGift', emoji: '🎁', color: '#facc15', keywords: ['sovg‘a', 'sovga', 'gift'] },
+    { id: 'other_expense', type: 'expense', labelKey: 'other', emoji: '✳️', color: '#94a3b8', keywords: [] },
+    { id: 'other_income', type: 'income', labelKey: 'other', emoji: '✳️', color: '#94a3b8', keywords: [] }
+  ];
+  function getCustomCategories() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(CUSTOM_CATEGORIES_KEY) || '[]');
+      return Array.isArray(parsed) ? parsed.filter(item => item && typeof item.id === 'string') : [];
+    } catch { return []; }
+  }
+  function saveCustomCategories(categories) {
+    try {
+      localStorage.setItem(CUSTOM_CATEGORIES_KEY, JSON.stringify(categories));
+      return true;
+    } catch {
+      showToast(t('categorySaveFailed'), 'error');
+      return false;
+    }
+  }
+  function getCategoryDefinitions(type, includeDeleted = false) {
+    return [...BUILTIN_CATEGORIES, ...getCustomCategories()]
+      .filter(category => (!type || category.type === type) && (includeDeleted || !category.deleted));
+  }
+  function getCategoryDefinition(id, includeDeleted = true) {
+    return getCategoryDefinitions(null, includeDeleted).find(category => category.id === id) || null;
+  }
+  function getCategoryColor(id) {
+    return (getCategoryDefinition(id) || {}).color || '#94a3b8';
+  }
+  function getCategoryEmoji(id) {
+    return (getCategoryDefinition(id) || {}).emoji || '✳️';
+  }
+  function getCategoryAlias(rawValue, type) {
+    const normalized = String(rawValue || '').trim().toLocaleLowerCase();
+    const aliases = {
+      food: 'food_groceries', 'oziq-ovqat': 'food_groceries', 'food & groceries': 'food_groceries',
+      restaurants: 'restaurants_cafes', restaurant: 'restaurants_cafes', restaurants_cafes: 'restaurants_cafes', restoranlar: 'restaurants_cafes',
+      transport: 'transport', salary: 'salary', maosh: 'salary', shopping: 'clothing', xarid: 'clothing',
+      utilities: 'housing_utilities', kommunal: 'housing_utilities', housing: 'housing_utilities',
+      other: type === 'income' ? 'other_income' : 'other_expense', boshqa: type === 'income' ? 'other_income' : 'other_expense',
+      umumiy: type === 'income' ? 'other_income' : 'other_expense', general: type === 'income' ? 'other_income' : 'other_expense',
+      personal: 'personal', shaxsiy: 'personal', family: 'family', oila: 'family', group: 'group', guruh: 'group',
+      ota: 'father', dada: 'father', father: 'father', ona: 'mother', mother: 'mother', aka: 'olderBrother', olderbrother: 'olderBrother',
+      uka: 'youngerBrother', youngerbrother: 'youngerBrother', opa: 'olderSister', oldersister: 'olderSister',
+      singil: 'youngerSister', youngersister: 'youngerSister', erkak: 'male', male: 'male', ayol: 'female', female: 'female',
+      umumiycategory: 'other_expense', entertainment: 'entertainment'
+    };
+    return aliases[normalized] || null;
+  }
   function getCategoryLabel(value) {
-    const labels = { Food: "Oziq-ovqat", Transport: 'Transport', Salary: 'Maosh', Shopping: 'Xarid', Utilities: 'Kommunal', Other: 'Boshqa' };
-    return labels[value] || value;
+    const rawValue = value && typeof value === 'object' ? value.sub || value.main : value;
+    const raw = String(rawValue || 'other_expense');
+    const definition = getCategoryDefinition(raw);
+    if (definition) return definition.custom ? definition.name : t(definition.labelKey);
+    const aliasedId = getCategoryAlias(raw);
+    const aliased = aliasedId && getCategoryDefinition(aliasedId);
+    return aliased ? (aliased.custom ? aliased.name : t(aliased.labelKey)) : raw;
   }
   function formatDate(dateStr) {
     const d = new Date(dateStr + 'T00:00:00');
@@ -801,7 +876,7 @@
     categories.forEach(cat => {
       const option = document.createElement('option');
       option.value = cat.value;
-      option.textContent = cat.label;
+      option.textContent = getCategoryLabel(cat.value);
       selectElement.appendChild(option);
     });
     // Restore value if it exists in new options, otherwise reset
@@ -822,7 +897,7 @@
     categories.forEach(cat => {
       const option = document.createElement('option');
       option.value = cat.value;
-      option.textContent = cat.label;
+      option.textContent = getCategoryLabel(cat.value);
       selectElement.appendChild(option);
     });
     if (categories.some(c => c.value === currentValue)) {
@@ -1565,7 +1640,119 @@
     }
   }
 
+  function getTransactionCategoryIcon(category) {
+    const rawValue = category && typeof category === 'object' ? category.sub || category.main : category;
+    const key = String(rawValue || '').trim().toLocaleLowerCase();
+    const paths = {
+      food: '<path d="M4 3v7m4-7v7M6 3v18m12-18v18m0-18c-2 2-3 5-3 8h3"/>',
+      'oziq-ovqat': '<path d="M4 3v7m4-7v7M6 3v18m12-18v18m0-18c-2 2-3 5-3 8h3"/>',
+      transport: '<path d="M5 17h14l-1-8H6l-1 8Zm2 0v3m10-3v3M7 13h.01M17 13h.01M7 9l1-4h8l1 4"/>',
+      salary: '<path d="M3 7h18v13H3zM3 10h18M7 15h4"/><path d="M7 4h10"/>',
+      shopping: '<path d="M4 5h2l2 11h10l2-8H7m2 8-1 3h11M10 19h.01M18 19h.01"/>',
+      utilities: '<path d="m13 2-9 12h7l-1 8 10-13h-7l1-7Z"/>',
+      restaurants: '<path d="M4 3v7m4-7v7M6 3v18m12-18v18m0-18c-2 2-3 5-3 8h3"/>',
+      restoranlar: '<path d="M4 3v7m4-7v7M6 3v18m12-18v18m0-18c-2 2-3 5-3 8h3"/>',
+      other: '<path d="M12 3 21 8v8l-9 5-9-5V8l9-5Z"/><path d="M12 8v4m0 4h.01"/>'
+    };
+    const path = paths[key] || paths.other;
+    return `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="${path}"/></svg>`;
+  }
+
+  function bindTransactionActions(list) {
+    if (!list || list.dataset.actionsBound) return;
+    list.dataset.actionsBound = 'true';
+    list.addEventListener('click', event => {
+      const button = event.target.closest('[data-transaction-action]');
+      if (!button || !list.contains(button)) return;
+      const id = Number(button.closest('[data-transaction-id]')?.dataset.transactionId);
+      if (!Number.isFinite(id)) return;
+      if (button.dataset.transactionAction === 'edit') openEditModal(id);
+      if (button.dataset.transactionAction === 'delete') deleteTransaction(id);
+    });
+  }
+
   function renderTransactions() {
+    const container = document.getElementById('transaction-list');
+    if (!container) return;
+    bindTransactionActions(container);
+    const transactions = getTransactions().slice().sort((a, b) => {
+      const dateOrder = String(b.date || '').localeCompare(String(a.date || ''));
+      return dateOrder || Number(b.id || 0) - Number(a.id || 0);
+    });
+
+    container.replaceChildren();
+    if (transactions.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'text-center text-slate-400 py-6 text-sm';
+      empty.dataset.i18n = 'noTransactions';
+      empty.textContent = t('noTransactions');
+      container.appendChild(empty);
+      renderRecentTransactions();
+      return;
+    }
+
+    transactions.forEach(transaction => {
+      const row = document.createElement('li');
+      row.className = 'transaction-row';
+      row.dataset.transactionId = String(transaction.id);
+
+      const main = document.createElement('div');
+      main.className = 'transaction-primary';
+      const icon = document.createElement('span');
+      icon.className = 'transaction-category-icon';
+      icon.innerHTML = getTransactionCategoryIcon(transaction.category);
+
+      const copy = document.createElement('div');
+      copy.className = 'transaction-copy';
+      const category = document.createElement('span');
+      category.className = 'transaction-category-tag';
+      category.textContent = getCategoryLabel(transaction.category);
+      const description = document.createElement('span');
+      description.className = 'transaction-description';
+      description.textContent = String(transaction.description || '').trim() || t('noDescription');
+      copy.append(category, description);
+      main.append(icon, copy);
+
+      const right = document.createElement('div');
+      right.className = 'transaction-right';
+      const details = document.createElement('div');
+      details.className = 'transaction-details';
+      const amount = document.createElement('span');
+      const isIncome = transaction.type === 'income';
+      amount.className = `transaction-amount ${isIncome ? 'is-income' : 'is-expense'}`;
+      amount.textContent = `${isIncome ? '+' : '-'}${formatCurrency(Number(transaction.amount) || 0)}`;
+      const date = document.createElement('time');
+      date.className = 'transaction-date';
+      date.dateTime = String(transaction.date || '');
+      date.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M8 3v4m8-4v4M4 10h16"/></svg>';
+      const dateLabel = document.createElement('span');
+      dateLabel.textContent = formatDateToUZ(transaction.date) || String(transaction.date || '');
+      date.appendChild(dateLabel);
+      details.append(amount, date);
+
+      const actions = document.createElement('div');
+      actions.className = 'transaction-actions';
+      [
+        { action: 'edit', label: t('edit'), icon: '<path d="m15 5 4 4M4 20l4-.8L19 8a2.1 2.1 0 0 0-3-3L5 16l-1 4Z"/>' },
+        { action: 'delete', label: t('delete'), icon: '<path d="M4 7h16M10 11v6m4-6v6M6 7l1 14h10l1-14M9 7V4h6v3"/>' }
+      ].forEach(item => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `transaction-action transaction-action-${item.action}`;
+        button.dataset.transactionAction = item.action;
+        button.setAttribute('aria-label', item.label);
+        button.title = item.label;
+        button.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">${item.icon}</svg>`;
+        actions.appendChild(button);
+      });
+      right.append(details, actions);
+      row.append(main, right);
+      container.appendChild(row);
+    });
+    renderRecentTransactions();
+  }
+
+  function renderTransactionsLegacy() {
     const container = document.getElementById('transaction-list');
     if (!container) return;
 
@@ -1960,6 +2147,7 @@
     const emptyState = document.getElementById('recent-empty-state');
     const transactionItems = document.querySelectorAll('#transaction-list li');
     if (!recentList || !emptyState) return;
+    bindTransactionActions(recentList);
     recentList.replaceChildren(...Array.from(transactionItems).slice(0, 3).map(item => item.cloneNode(true)));
     emptyState.classList.toggle('hidden', transactionItems.length > 0);
   }
@@ -2010,7 +2198,7 @@ function renderArchivedPeriods() {
             '</div>' +
             '<div class="flex items-center justify-between text-[11px]">' +
             '<span class="bg-slate-700 text-slate-300 px-1.5 py-0.5 rounded font-medium">' + catLabel + '</span>' +
-            '<span class="text-slate-400">📅 ' + tDate + '</span>' +
+            '<span class="text-slate-400 flex items-center gap-1"><svg class="transaction-calendar-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M8 3v4m8-4v4M4 10h16"/></svg>' + tDate + '</span>' +
             '</div>' +
             '<div class="text-[11px] text-slate-400 truncate">' + desc + '</div>' +
             '</div>';
@@ -2022,7 +2210,7 @@ function renderArchivedPeriods() {
           '<span class="text-base sm:text-lg font-bold ' + balanceColor + '">' + (finalBalance < 0 ? '' : '+') + (Math.abs(finalBalance)).toLocaleString('uz-UZ') + " so'm</span>" +
           '<div class="flex items-center gap-2 text-xs flex-wrap">' +
           '<span class="bg-slate-800 text-slate-200 px-2 py-0.5 rounded-md font-semibold text-xs border border-slate-700/60">Arxiv</span>' +
-          '<span class="text-slate-400">📅 ' + dateStr + '</span>' +
+          '<span class="text-slate-400 flex items-center gap-1"><svg class="transaction-calendar-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M8 3v4m8-4v4M4 10h16"/></svg>' + dateStr + '</span>' +
           '</div></div>' +
           '<div class="archive-actions shrink-0">' +
           '<button type="button" class="archive-chevron-btn text-slate-400 hover:text-emerald-400 text-sm p-1 transition-colors" title="Yopish/Ko\'rish">▸</button>' +
@@ -2117,8 +2305,22 @@ function renderArchivedPeriods() {
       }
     }
     
-    const newTx = { id: Date.now(), amount, type, category, date, description };
     const transactions = getTransactions().slice();
+    const now = Date.now();
+    const normalizedDescription = description.trim().toLocaleLowerCase();
+    const duplicate = transactions.some(transaction => {
+      const createdAt = Number(transaction.id);
+      return Number(transaction.amount) === amount
+        && String(transaction.description || '').trim().toLocaleLowerCase() === normalizedDescription
+        && transaction.date === date
+        && Number.isFinite(createdAt)
+        && Math.abs(now - createdAt) <= 60000;
+    });
+    if (duplicate) {
+      showToast(t('duplicateTransaction'), 'warning');
+      return false;
+    }
+    const newTx = { id: now, amount, type, category, date, description };
     transactions.push(newTx);
     if (!await setTransactions(transactions)) return false;
     transactionForm.reset();

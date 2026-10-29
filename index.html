@@ -13,6 +13,10 @@
   <link rel="apple-touch-icon" href="assets/walletprf.jpg?v=10.0.0">
   <link rel="apple-touch-icon" sizes="180x180" href="assets/walletprf.jpg?v=10.0.0">
   <link rel="manifest" href="manifest.json" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" defer></script>
   <style>
@@ -817,6 +821,51 @@
     #transaction-list li > div:last-child > div:last-child > span:last-child {
       flex: 1; min-width: 0; overflow-wrap: anywhere; text-align: right; line-height: 1.5;
     }
+    .transaction-row {
+      display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center;
+      gap: .6rem; min-width: 0; padding: .55rem .65rem;
+      background: #111f32; border: 1px solid #334155; border-radius: .75rem;
+    }
+    .transaction-primary { display: flex; align-items: center; gap: .55rem; min-width: 0; }
+    .transaction-category-icon { display: grid; place-items: center; flex: 0 0 2.25rem; width: 2.25rem; height: 2.25rem; color: #6ee7b7; background: rgba(16,185,129,.12); border-radius: .65rem; }
+    .transaction-category-icon svg { width: 1.15rem; height: 1.15rem; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+    .transaction-copy { display: flex; align-items: center; gap: .3rem; min-width: 0; }
+    .transaction-category-tag { flex: 0 1 40%; width: fit-content; max-width: 40%; padding: .05rem .35rem; overflow: hidden; color: #a7f3d0; background: rgba(16,185,129,.1); border: 1px solid rgba(52,211,153,.22); border-radius: .35rem; font-size: .64rem; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+    .transaction-description { display: -webkit-box; flex: 1 1 auto; min-width: 0; overflow: hidden; color: #e2e8f0; font-size: .76rem; line-height: 1.25; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+    .transaction-right { display: flex; align-items: center; gap: .45rem; min-width: 0; }
+    .transaction-details { display: grid; justify-items: end; gap: .18rem; min-width: 0; }
+    .transaction-amount { max-width: 100%; overflow: hidden; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .74rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+    .transaction-amount.is-income { color: #34d399; }
+    .transaction-amount.is-expense { color: #fb7185; }
+    .transaction-date { display: flex; align-items: center; gap: .2rem; color: #94a3b8; font-size: .64rem; white-space: nowrap; }
+    .transaction-date svg { width: .8rem; height: .8rem; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+    .transaction-calendar-icon { flex: 0 0 .8rem; width: .8rem; height: .8rem; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+    .transaction-actions { display: flex; align-items: center; gap: .2rem; }
+    .transaction-action { display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; padding: 0; color: #cbd5e1; background: transparent; border: 1px solid transparent; border-radius: .65rem; cursor: pointer; }
+    .transaction-action:hover, .transaction-action:focus-visible { background: #26384b; border-color: #475569; }
+    .transaction-action-delete { color: #fda4af; }
+    .transaction-action svg { width: 1.15rem; height: 1.15rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    #transaction-list li.transaction-row { display: grid; flex-direction: initial; gap: .6rem; padding: .55rem .65rem; }
+    #transaction-list li.transaction-row > .transaction-primary { display: flex; justify-content: flex-start; gap: .55rem; padding: 0; border: 0; }
+    #transaction-list li.transaction-row > .transaction-right { display: flex; flex-direction: row; align-items: center; gap: .45rem; }
+    #transaction-list li.transaction-row .transaction-details { display: grid; justify-content: initial; justify-items: end; align-items: initial; gap: .18rem; }
+    .home-view-all { min-height: 44px; padding: .35rem .65rem; color: #6ee7b7; background: transparent; border: 0; border-radius: .5rem; font: inherit; font-size: .82rem; font-weight: 700; cursor: pointer; }
+    .home-view-all:hover, .home-view-all:focus-visible { background: rgba(16,185,129,.12); outline: none; }
+    body.light-theme .transaction-row { background: #fff; border-color: #d7e1e8; }
+    body.light-theme .transaction-description { color: #1e293b; }
+    body.light-theme .transaction-category-tag { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+    body.light-theme .transaction-action { color: #334155; }
+    body.light-theme .transaction-action:hover, body.light-theme .transaction-action:focus-visible { background: #f1f5f9; border-color: #cbd5e1; }
+    body.light-theme .home-view-all { color: #047857; }
+    @media (max-width: 380px) {
+      .transaction-row { gap: .3rem; padding-inline: .45rem; }
+      .transaction-category-icon { flex-basis: 2rem; width: 2rem; height: 2rem; }
+      .transaction-right { gap: .15rem; }
+      .transaction-amount { font-size: .68rem; }
+      .transaction-actions { gap: 0; }
+      .transaction-action { flex-basis: 44px; width: 44px; height: 44px; }
+      #transaction-list li.transaction-row { gap: .3rem; padding-inline: .45rem; }
+    }
     input[type="number"] { appearance: textfield; -moz-appearance: textfield; }
     input[type="number"]::-webkit-inner-spin-button,
     input[type="number"]::-webkit-outer-spin-button {
@@ -1166,12 +1215,12 @@
         <div class="mb-4">
           <label class="block text-sm font-medium text-slate-300 mb-1">Kategoriya</label>
           <select id="edit-category" class="input-base">
-            <option value="Food">Oziq-ovqat</option>
-            <option value="Transport">Transport</option>
-            <option value="Salary">Maosh</option>
-            <option value="Shopping">Xarid</option>
-            <option value="Utilities">Kommunal</option>
-            <option value="Other">Boshqa</option>
+            <option value="Food" data-i18n="food">Oziq-ovqat</option>
+            <option value="Transport" data-i18n="transport">Transport</option>
+            <option value="Salary" data-i18n="salary">Maosh</option>
+            <option value="Shopping" data-i18n="shopping">Xarid</option>
+            <option value="Utilities" data-i18n="utilities">Kommunal</option>
+            <option value="Other" data-i18n="other">Boshqa</option>
           </select>
         </div>
         <div id="edit-category-cascade-wrapper" style="display: none;">
@@ -1313,7 +1362,7 @@
     <section class="history-section app-section" data-app-view="home" aria-labelledby="recent-title">
       <div class="flex items-center justify-between gap-3 mb-4">
         <h3 id="recent-title" class="text-base font-semibold text-slate-100" data-i18n="recentTransactions">Soʻnggi tranzaksiyalar</h3>
-        <button type="button" class="text-sm font-semibold text-emerald-400" data-go-view="history" data-i18n="viewAll">Barchasi</button>
+        <button type="button" class="home-view-all" data-go-view="history" data-i18n="viewAll">Barchasi</button>
       </div>
       <ul id="recent-transaction-list" class="recent-transaction-list"></ul>
       <p id="recent-empty-state" class="text-slate-500 text-center py-6" data-i18n="emptyRecent">Hozircha tranzaksiyalar yoʻq. Birinchisini qoʻshing.</p>
@@ -1357,7 +1406,7 @@
             </div>
           </div>
           <div class="analytics-donut-wrap">
-            <svg id="category-donut-chart" class="analytics-donut" viewBox="0 0 180 180" role="img" aria-label="Xarajatlar toifalar bo'yicha"></svg>
+            <div class="analytics-donut-container"><canvas id="category-donut-chart" role="img" aria-label="Xarajatlar toifalar bo'yicha"></canvas></div>
             <div id="category-chart-legend" class="analytics-legend"></div>
           </div>
           <p id="category-chart-empty" class="analytics-muted text-center py-4 hidden" data-i18n="analyticsEmptyCategories">Tanlangan davrda xarajat yoʻq.</p>
@@ -1371,7 +1420,7 @@
             </div>
           </div>
           <div class="analytics-chart-scroll">
-            <svg id="income-expense-chart" class="analytics-bars" role="img" aria-label="Kirim va chiqim ustunli diagrammasi"></svg>
+            <div class="analytics-bar-container"><canvas id="income-expense-chart" role="img" aria-label="Kirim va chiqim ustunli diagrammasi"></canvas></div>
           </div>
           <div class="flex items-center justify-center gap-4 mt-2 analytics-muted">
             <span><i class="analytics-swatch" style="display:inline-block;background:#34d399;vertical-align:middle"></i> <span data-i18n="income">Kirim</span></span>
@@ -1518,14 +1567,30 @@
               <!-- Category (single wrapper) -->
               <div class="form-row" id="category-single-wrapper">
                 <label class="form-label">Kategoriya</label>
-                <select id="category" class="input-base">
-                  <option value="Food">Oziq-ovqat</option>
-                  <option value="Transport">Transport</option>
-                  <option value="Salary">Maosh</option>
-                  <option value="Shopping">Xarid</option>
-                  <option value="Utilities">Kommunal</option>
-                  <option value="Other">Boshqa</option>
+                <select id="category" class="input-base category-legacy-select" hidden>
+                  <option value="Food" data-i18n="food">Oziq-ovqat</option>
+                  <option value="Transport" data-i18n="transport">Transport</option>
+                  <option value="Salary" data-i18n="salary">Maosh</option>
+                  <option value="Shopping" data-i18n="shopping">Xarid</option>
+                  <option value="Utilities" data-i18n="utilities">Kommunal</option>
+                  <option value="Other" data-i18n="other">Boshqa</option>
                 </select>
+                <div id="category-grid" class="category-grid" role="group" aria-label="Transaction category"></div>
+                <button type="button" id="category-suggestion" class="category-suggestion hidden"></button>
+                <details id="category-manager" class="category-manager">
+                  <summary data-i18n="manageCategories">Toifalarni boshqarish</summary>
+                  <form id="custom-category-form" class="category-editor-form">
+                    <input type="hidden" id="custom-category-id" />
+                    <label class="form-label" for="custom-category-name" data-i18n="categoryName">Toifa nomi</label>
+                    <input id="custom-category-name" class="input-base" maxlength="36" required />
+                    <div class="category-editor-fields">
+                      <div><label class="form-label" for="custom-category-emoji" data-i18n="categoryEmoji">Emoji</label><input id="custom-category-emoji" class="input-base" value="✨" maxlength="8" required /></div>
+                      <div><label class="form-label" for="custom-category-color" data-i18n="categoryColor">Rang</label><input id="custom-category-color" type="color" class="category-color-input" value="#34d399" required /></div>
+                    </div>
+                    <div class="flex gap-2"><button id="custom-category-save" type="submit" class="btn-primary" data-i18n="saveCategory">Saqlash</button><button id="custom-category-cancel" type="button" class="btn-secondary" data-i18n="cancelEdit">Bekor qilish</button></div>
+                  </form>
+                  <div id="custom-category-list" class="custom-category-list"></div>
+                </details>
               </div>
 
               <!-- Category cascade (fundraising hammasi scope) -->
