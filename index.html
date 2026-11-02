@@ -1180,24 +1180,24 @@
       <!-- Sandbox Grid -->
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <!-- Left: Incoming SMS -->
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-3">
-          <span class="text-xs font-bold tracking-wider text-slate-400 uppercase">Incoming Raw SMS</span>
+        <div style="background-color: #0f172a; padding: 16px; border-radius: 16px; border: 1px solid #1e293b;">
+          <label style="display: block; font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 8px;">Incoming Raw SMS</label>
 
           <textarea
             id="smsInput"
             rows="3"
             placeholder="Paste bank SMS here..."
-            class="w-full bg-slate-950 text-slate-100 placeholder-slate-500 border border-slate-700/80 rounded-xl p-3 text-sm focus:outline-none focus:border-emerald-500 transition resize-none"
+            style="width: 100%; background-color: #020617 !important; color: #f8fafc !important; border: 1px solid #334155; border-radius: 12px; padding: 12px; font-size: 13px; font-family: inherit; resize: none; box-sizing: border-box;"
           ></textarea>
 
-          <div class="flex flex-wrap gap-2">
-            <button onclick="loadDemoSMS('click')" type="button" class="px-3 py-1.5 text-xs font-semibold bg-slate-800 text-emerald-400 border border-slate-700 rounded-lg hover:bg-slate-700 transition">Click</button>
-            <button onclick="loadDemoSMS('payme')" type="button" class="px-3 py-1.5 text-xs font-semibold bg-slate-800 text-emerald-400 border border-slate-700 rounded-lg hover:bg-slate-700 transition">Payme</button>
-            <button onclick="loadDemoSMS('uzcard')" type="button" class="px-3 py-1.5 text-xs font-semibold bg-slate-800 text-emerald-400 border border-slate-700 rounded-lg hover:bg-slate-700 transition">Uzcard</button>
-            <button onclick="loadDemoSMS('humo')" type="button" class="px-3 py-1.5 text-xs font-semibold bg-slate-800 text-emerald-400 border border-slate-700 rounded-lg hover:bg-slate-700 transition">Humo</button>
+          <div style="display: flex; gap: 8px; margin-top: 10px; margin-bottom: 12px; flex-wrap: wrap;">
+            <button onclick="loadDemoSMS('click')" type="button" style="background-color: #1e293b; color: #34d399; border: 1px solid #334155; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;">Click</button>
+            <button onclick="loadDemoSMS('payme')" type="button" style="background-color: #1e293b; color: #34d399; border: 1px solid #334155; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;">Payme</button>
+            <button onclick="loadDemoSMS('uzcard')" type="button" style="background-color: #1e293b; color: #34d399; border: 1px solid #334155; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;">Uzcard</button>
+            <button onclick="loadDemoSMS('humo')" type="button" style="background-color: #1e293b; color: #34d399; border: 1px solid #334155; padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;">Humo</button>
           </div>
 
-          <button id="parseSmsBtn" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm rounded-xl transition shadow-lg shadow-emerald-900/20 mt-1">
+          <button id="parseSmsBtn" style="width: 100%; background-color: #059669; color: #ffffff; border: none; padding: 10px; border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer;">
             Parse SMS →
           </button>
         </div>
