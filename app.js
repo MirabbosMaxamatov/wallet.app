@@ -586,15 +586,15 @@
   function matchTransactionCategory(text) {
     const value = String(text || '');
     if (/\b(?:tos|yandex|taxi|transport|metro|atto)\b/i.test(value)) {
-      return { category: 'Transport', label: 'Transport' };
+      return { category: 'Transport', label: 'transport' };
     }
     if (/\b(?:korzinka|makro|supermarket|grocery|groceries)\b/i.test(value)) {
-      return { category: 'Food', label: 'Supermarket' };
+      return { category: 'Food', label: 'supermarket' };
     }
     if (/\b(?:uztelecom|payme|utility|utilities|electricity|gas|internet|beeline|ucell)\b/i.test(value)) {
-      return { category: 'Utilities', label: 'Utility' };
+      return { category: 'Utilities', label: 'utility' };
     }
-    return { category: 'Other', label: 'Other' };
+    return { category: 'Other', label: 'other' };
   }
 
   function getLocalDateTime() {
@@ -647,7 +647,11 @@
   }
   window.parseSandboxSMS = parseSandboxSMS;
 
+  let lastSandboxResult = null;
+  let hasRenderedSandboxResult = false;
   function renderSandboxResult(result) {
+    lastSandboxResult = result;
+    hasRenderedSandboxResult = true;
     const output = document.getElementById('parsedResult') || document.getElementById('sandbox-output');
     if (!output) return;
     output.replaceChildren();
@@ -655,7 +659,7 @@
     if (!result) {
       const message = document.createElement('p');
       message.className = 'text-sm text-rose-400';
-      message.textContent = 'SMSdan summa aniqlanmadi. Matnni tekshirib qayta urinib ko‘ring.';
+      message.textContent = t('parseError');
       output.appendChild(message);
       return;
     }
@@ -672,7 +676,7 @@
     status.className = result.status === 'Rad etildi'
       ? 'rounded-full bg-rose-500/10 px-2.5 py-1 text-[11px] font-semibold text-rose-400'
       : 'rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-400';
-    status.textContent = result.status;
+    status.textContent = t(result.status === 'Rad etildi' ? 'declinedStatus' : 'successStatus');
     header.append(bank, status);
     card.appendChild(header);
 
@@ -684,19 +688,19 @@
     const details = document.createElement('div');
     details.className = 'space-y-2 border-t border-slate-800 pt-3';
     [
-      ['Manba', result.source],
-      ['Yo‘nalish', result.direction],
-      ['Kategoriya', result.categoryLabel],
-      ['Hisob', result.account],
-      ['Vaqt', `${result.date} ${result.time}`],
-      ...(Number.isFinite(result.accountBalance) ? [['Balans', `${result.accountBalance.toLocaleString('uz-UZ')} so'm`]] : []),
-      ...(result.card ? [['Karta', result.card]] : [])
+      [t('merchant'), result.source],
+      [t('direction'), t(result.type === 'income' ? 'incomeDirection' : 'expenseDirection')],
+      [t('category'), t(result.categoryLabel)],
+      [t('account'), result.account === 'Cash' ? t('cash') : result.account],
+      [t('time'), `${result.date} ${result.time}`],
+      ...(Number.isFinite(result.accountBalance) ? [[t('balance'), `${result.accountBalance.toLocaleString('uz-UZ')} so'm`]] : []),
+      ...(result.card ? [[t('card'), result.card]] : [])
     ].forEach(([label, value]) => {
       const row = document.createElement('div');
       row.className = 'flex items-center justify-between gap-3 text-xs';
       const key = document.createElement('span');
       key.className = 'text-slate-500';
-      key.textContent = label;
+      key.textContent = t(label);
       const detail = document.createElement('span');
       detail.className = 'text-right font-medium text-slate-200';
       detail.textContent = value;
@@ -753,10 +757,10 @@
       const saved = await parseAndSaveSandboxSMS(text);
       if (status) {
         status.textContent = !result
-          ? 'Enter a valid SMS with an amount to parse.'
+          ? t('enterValidSMS')
           : (result.status === 'Rad etildi'
-            ? 'Declined payments are shown but not added to your totals.'
-            : (saved ? 'Transaction saved to your private history.' : 'Could not save this transaction. Check the storage notice above.'));
+            ? t('declinedNotSaved')
+            : (saved ? t('transactionSaved') : t('transactionSaveFailed')));
       }
     });
   }
@@ -766,7 +770,7 @@
     clipboardParseBtn.addEventListener('click', async function () {
       const status = document.getElementById('clipboard-status');
       if (!navigator.clipboard || typeof navigator.clipboard.readText !== 'function') {
-        if (status) status.textContent = 'Clipboard access is unavailable. Use HTTPS or paste the SMS into the inbox below.';
+        if (status) status.textContent = t('clipboardUnavailable');
         return;
       }
       try {
@@ -774,22 +778,22 @@
         const input = document.getElementById('smsInput');
         if (input) input.value = text;
         if (!text.trim()) {
-          if (status) status.textContent = 'Clipboard is empty. Copy a bank SMS and try again.';
+          if (status) status.textContent = t('clipboardEmpty');
           return;
         }
         const result = parseSandboxSMS(text);
         const saved = await parseAndSaveSandboxSMS(text);
         if (status) {
           status.textContent = !result
-            ? 'Could not parse this SMS. Check that it includes an amount and currency.'
+            ? t('clipboardParseFailed')
             : (result.status === 'Rad etildi'
-              ? 'Declined payments are shown but not added to your totals.'
-              : (saved ? 'Clipboard SMS parsed and saved to your private history.' : 'Could not save this transaction. Check the storage notice above.'));
+              ? t('declinedNotSaved')
+              : (saved ? t('transactionSaved') : t('transactionSaveFailed')));
         }
         document.getElementById('b2b-sandbox-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       } catch (error) {
         console.error('[SMS sandbox] Clipboard read failed:', error);
-        if (status) status.textContent = 'Clipboard access was denied. Paste the SMS into the inbox below instead.';
+        if (status) status.textContent = t('clipboardDenied');
       }
     });
   }
@@ -798,8 +802,8 @@
     return sign + formatCurrency(value);
   }
   function getCategoryLabel(value) {
-    const labels = { Food: "Oziq-ovqat", Transport: 'Transport', Salary: 'Maosh', Shopping: 'Xarid', Utilities: 'Kommunal', Other: 'Boshqa' };
-    return labels[value] || value;
+    const labels = { Food: 'food', Transport: 'transport', Salary: 'salary', Shopping: 'shopping', Utilities: 'utilities', Other: 'other' };
+    return labels[value] ? t(labels[value]) : value;
   }
   function formatDate(dateStr) {
     const d = new Date(dateStr + 'T00:00:00');
@@ -1467,7 +1471,8 @@
       const monthEl = document.getElementById('pfm-overview-month');
       if (expenseEl) expenseEl.textContent = `− ${formatUzs(monthlyExpense)}`;
       if (incomeEl) incomeEl.textContent = `+ ${formatUzs(monthlyIncome)}`;
-      if (monthEl) monthEl.textContent = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      const locale = { uz: 'uz-UZ', en: 'en-US', ru: 'ru-RU' }[window.getCurrentLang ? window.getCurrentLang() : 'uz'] || 'uz-UZ';
+      if (monthEl) monthEl.textContent = now.toLocaleDateString(locale, { month: 'long', year: 'numeric' });
 
       const accountBalances = { Humo: 0, Uzcard: 0, Cash: Number(startingBalance) || 0 };
       const byCreationTime = transactionCache.transactions.slice().sort((a, b) => {
@@ -1530,6 +1535,10 @@
       renderArchivedPeriods();
     } catch (e) { console.error('[dashboard] updateDashboard:', e); }
   }
+  document.addEventListener('app:language-changed', function () {
+    updateDashboard();
+    if (hasRenderedSandboxResult) renderSandboxResult(lastSandboxResult);
+  });
 
   function updateStartingBalanceBanner() {
     const labelEl = document.getElementById('starting-balance-label');
@@ -1641,6 +1650,8 @@
     const transactions = getTransactions();
     if (!transactions || transactions.length === 0) {
       container.innerHTML = `<p class="text-center text-slate-400 py-6 text-sm" data-i18n="noTransactions">Hozircha tranzaksiyalar yo'q</p>`;
+      const emptyMessage = container.querySelector('[data-i18n="noTransactions"]');
+      if (emptyMessage) emptyMessage.textContent = t('noTransactions');
       return;
     }
 
@@ -1984,7 +1995,8 @@
           const merchantName = escapeHtml(tx.merchant || tx.description || 'Transaction');
           const merchantInitial = escapeHtml((tx.merchant || tx.description || 'T').trim().slice(0, 1).toUpperCase());
           const categoryValue = typeof tx.category === 'string' ? tx.category : (tx.category?.sub || 'Other');
-          const categoryTag = escapeHtml(tx.categoryLabel || getCategoryLabel(categoryValue));
+          const categoryLabelKey = { Supermarket: 'supermarket', Utility: 'utility', Transport: 'transport', Other: 'other' }[tx.categoryLabel] || tx.categoryLabel;
+          const categoryTag = escapeHtml(tx.categoryLabel ? t(categoryLabelKey) : getCategoryLabel(categoryValue));
           const categoryClass = categoryValue === 'Transport'
             ? 'bg-sky-500/10 text-sky-300 border-sky-500/20'
             : categoryValue === 'Food'
@@ -1992,7 +2004,7 @@
               : categoryValue === 'Utilities'
                 ? 'bg-violet-500/10 text-violet-300 border-violet-500/20'
                 : 'bg-slate-800 text-slate-300 border-slate-700';
-          const accountLabel = escapeHtml(tx.account || 'Cash');
+          const accountLabel = escapeHtml(tx.account === 'Cash' || !tx.account ? t('cash') : tx.account);
           
           html += `
             <li class="bg-slate-900/70 border border-slate-700/60 rounded-2xl p-3 sm:p-4 shadow-md">
@@ -2016,6 +2028,7 @@
                 <div class="flex flex-wrap items-center gap-1.5">
                   <span class="rounded-full border px-2.5 py-1 text-[10px] font-semibold ${categoryClass}">${categoryTag}</span>
                   <span class="rounded-full border border-slate-700 bg-slate-800/80 px-2.5 py-1 text-[10px] font-medium text-slate-300">${accountLabel}</span>
+                  ${tx.source === 'sms' ? `<span class="rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-1 text-[10px] font-semibold text-amber-300">🧪 ${escapeHtml(t('testDemo'))}</span>` : ''}
                 </div>
                 <p class="max-w-full truncate text-[11px] text-slate-400">${descriptionText}</p>
               </div>
@@ -2215,7 +2228,7 @@ function renderArchivedPeriods() {
       const status = document.getElementById('quick-cash-status');
       const amount = Number(amountInput ? amountInput.value : 0);
       if (!Number.isFinite(amount) || amount <= 0) {
-        if (status) status.textContent = 'Enter an amount greater than zero.';
+        if (status) status.textContent = t('enterPositiveAmount');
         if (amountInput) amountInput.focus();
         return;
       }
@@ -2240,7 +2253,7 @@ function renderArchivedPeriods() {
         source: 'cash'
       };
       if (!await setPersonalTransactions(transactionCache.transactions.concat(transaction))) {
-        if (status) status.textContent = 'Could not save this entry. Check the storage notice above.';
+        if (status) status.textContent = t('cashSaveFailed');
         return;
       }
       quickCashForm.reset();
@@ -2745,7 +2758,7 @@ function renderArchivedPeriods() {
     printWindow.document.write(`
       <html>
         <head>
-          <title>Smart Byudjet Tracker - Hisobot</title>
+          <title>Aqlli Hamyoncha - Hisobot</title>
           <style>
             body { font-family: sans-serif; padding: 20px; color: #0f172a; }
             h2 { color: #0f172a; text-align: center; margin-bottom: 4px; }
@@ -2756,7 +2769,7 @@ function renderArchivedPeriods() {
           </style>
         </head>
         <body>
-          <h2>Smart Byudjet Tracker — Moliyaviy Hisobot</h2>
+          <h2>Aqlli Hamyoncha — Moliyaviy Hisobot</h2>
           <div class="summary">
             Jami Kirim: ${(totalIncome || 0).toLocaleString('uz-UZ')} so'm &nbsp;|&nbsp;
             Jami Chiqim: ${(totalExpenses || 0).toLocaleString('uz-UZ')} so'm &nbsp;|&nbsp;
