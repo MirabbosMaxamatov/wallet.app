@@ -735,6 +735,7 @@
       account: result.account,
       accountBalance: result.accountBalance,
       card: result.card,
+      bank: result.bank,
       source: 'sms',
       status: result.status
     };
@@ -1643,6 +1644,58 @@
     }
   }
 
+  function renderCompactTransactionRow(tx) {
+    const isIncome = tx.type === 'income';
+    const amountSign = isIncome ? '+' : '-';
+    const amountColor = isIncome ? 'text-emerald-400' : 'text-rose-400';
+    const amountFormatted = (Number(tx.amount) || 0).toLocaleString('uz-UZ');
+    const merchant = tx.merchant || tx.description || 'Transaction';
+    const merchantName = escapeHtml(merchant);
+    const merchantInitial = escapeHtml(String(merchant).trim().slice(0, 1).toUpperCase() || 'T');
+    const dateFormatted = formatDateToUZ(tx.date) || formatDateToUZ(new Date().toISOString().split('T')[0]);
+    const timeFormatted = tx.time || (tx.createdAt
+      ? new Date(tx.createdAt).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })
+      : '');
+    const categoryValue = typeof tx.category === 'string' ? tx.category : (tx.category?.sub || 'Other');
+    const categoryLabelKey = { Supermarket: 'supermarket', Utility: 'utility', Transport: 'transport', Other: 'other' }[tx.categoryLabel] || tx.categoryLabel;
+    const categoryTag = escapeHtml(tx.categoryLabel ? t(categoryLabelKey) : getCategoryLabel(categoryValue));
+    const categoryClass = categoryValue === 'Transport' ? 'transport'
+      : categoryValue === 'Food' ? 'food'
+        : categoryValue === 'Utilities' ? 'utilities' : '';
+    const accountLabel = tx.account
+      ? escapeHtml(tx.account === 'Cash' ? t('cash') : tx.account)
+      : '';
+    const sourceLabel = tx.source === 'sms' ? 'SMS' : (tx.source === 'cash' ? t('cash') : '');
+    const tags = [
+      `<span class="transaction-row-tag ${categoryClass}">${categoryTag}</span>`,
+      ...(accountLabel ? [`<span class="transaction-row-tag">${accountLabel}</span>`] : []),
+      ...(sourceLabel ? [`<span class="transaction-row-tag">${escapeHtml(sourceLabel)}</span>`] : []),
+      ...(tx.bank ? [`<span class="transaction-row-tag">${escapeHtml(tx.bank)}</span>`] : []),
+      ...(tx.source === 'sms' ? [`<span class="transaction-row-tag demo">🧪 ${escapeHtml(t('testDemo'))}</span>`] : [])
+    ].join('');
+
+    return `
+      <li class="transaction-row">
+        <div class="transaction-row-main">
+          <span class="transaction-row-icon" aria-hidden="true">${merchantInitial}</span>
+          <div class="transaction-row-copy">
+            <p class="transaction-row-merchant">${merchantName}</p>
+            <div class="transaction-row-subtitle">
+              <span class="transaction-row-date">${escapeHtml(dateFormatted)}${timeFormatted ? ` · ${escapeHtml(timeFormatted)}` : ''}</span>
+              <span class="transaction-row-tags">${tags}</span>
+            </div>
+          </div>
+        </div>
+        <div class="transaction-row-end">
+          <p class="transaction-row-amount ${amountColor}">${amountSign}${amountFormatted} so'm</p>
+          <div class="transaction-row-actions">
+            <button type="button" onclick="editTransaction(${Number(tx.id)})" class="transaction-row-action" title="Tahrirlash" aria-label="Tahrirlash">✏️</button>
+            <button type="button" onclick="deleteTransaction(${Number(tx.id)})" class="transaction-row-action delete" title="O'chirish" aria-label="O'chirish">🗑️</button>
+          </div>
+        </div>
+      </li>`;
+  }
+
   function renderTransactions() {
     const container = document.getElementById('transaction-list');
     if (!container) return;
@@ -1737,42 +1790,10 @@
                   <span class="text-sm font-semibold text-slate-200">📅 ${dateStr}</span>
                   <span class="text-xs font-medium ${netColor}">Kunlik: ${netSign}${Math.abs(dayNet).toLocaleString('uz-UZ')} so'm</span>
                 </div>
-                <ul class="space-y-2 ml-2">`;
+                <ul class="transaction-row-list ml-2">`;
               
               for (const tx of txs) {
-                const isIncome = tx.type === 'income';
-                const amountSign = isIncome ? '+' : '-';
-                const amountColor = isIncome ? 'text-emerald-400' : 'text-rose-400';
-                const amountFormatted = parseFloat(tx.amount || 0).toLocaleString('uz-UZ');
-                const descriptionText = (tx.description && tx.description.trim() !== '') ? tx.description : 'Izoh kiritilmagan';
-                const dateFormatted = formatDateToUZ(tx.date) || formatDateToUZ(new Date().toISOString().split('T')[0]);
-                
-                html += `
-                  <li class="bg-slate-900/50 border border-slate-700/50 rounded-xl p-3 sm:p-4 flex flex-col gap-3 shadow-md">
-                    <div class="flex items-center justify-between border-b border-slate-700/50 pb-2.5">
-                      <span class="text-base sm:text-lg font-bold ${amountColor}">
-                        ${amountSign}${amountFormatted} so'm
-                      </span>
-                      <div class="flex items-center gap-1.5">
-                        <button onclick="editTransaction(${tx.id})" class="text-slate-400 hover:text-emerald-400 text-sm p-1 transition-colors" title="Tahrirlash">✏️</button>
-                        <button onclick="deleteTransaction(${tx.id})" class="text-slate-400 hover:text-rose-400 text-sm p-1 transition-colors" title="O'chirish">🗑️</button>
-                      </div>
-                    </div>
-                    <div class="flex flex-col gap-2 text-xs sm:text-sm">
-                      <div class="flex items-center justify-between">
-                        <span class="text-slate-400 font-medium">Turi:</span>
-                        <span class="bg-slate-800 text-slate-200 px-2 py-0.5 rounded-md font-semibold text-xs border border-slate-700/60">
-                          ${tx.type === 'income' ? 'Kirim' : 'Chiqim'}
-                        </span>
-                      </div>
-                      <div class="flex items-start justify-between gap-2">
-                        <span class="text-slate-400 font-medium shrink-0">Tavsif:</span>
-                        <span class="text-slate-200 text-right font-normal break-words">
-                          ${descriptionText}
-                        </span>
-                      </div>
-                    </div>
-                  </li>`;
+                html += renderCompactTransactionRow(tx);
               }
               
               html += `</ul></div>`;
@@ -1811,48 +1832,10 @@
               <span class="text-sm font-semibold text-slate-200">📅 ${dateStr}</span>
               <span class="text-xs font-medium ${netColor}">Kunlik: ${netSign}${Math.abs(dayNet).toLocaleString('uz-UZ')} so'm</span>
             </div>
-            <ul class="space-y-2">`;
+            <ul class="transaction-row-list">`;
           
           for (const tx of txs) {
-            const isIncome = tx.type === 'income';
-            const amountSign = isIncome ? '+' : '-';
-            const amountColor = isIncome ? 'text-emerald-400' : 'text-rose-400';
-            const amountFormatted = parseFloat(tx.amount || 0).toLocaleString('uz-UZ');
-            const descriptionText = (tx.description && tx.description.trim() !== '') ? tx.description : 'Izoh kiritilmagan';
-            const dateFormatted = formatDateToUZ(tx.date) || formatDateToUZ(new Date().toISOString().split('T')[0]);
-            
-            html += `
-              <li class="bg-slate-900/50 border border-slate-700/50 rounded-xl p-3 sm:p-4 flex flex-col gap-3 shadow-md">
-                <div class="flex items-center justify-between border-b border-slate-700/50 pb-2.5">
-                  <span class="text-base sm:text-lg font-bold ${amountColor}">
-                    ${amountSign}${amountFormatted} so'm
-                  </span>
-                  <div class="flex items-center gap-1.5">
-                    <button onclick="editTransaction(${tx.id})" class="text-slate-400 hover:text-emerald-400 text-sm p-1 transition-colors" title="Tahrirlash">✏️</button>
-                    <button onclick="deleteTransaction(${tx.id})" class="text-slate-400 hover:text-rose-400 text-sm p-1 transition-colors" title="O'chirish">🗑️</button>
-                  </div>
-                </div>
-                <div class="flex flex-col gap-2 text-xs sm:text-sm">
-                  <div class="flex items-center justify-between">
-                    <span class="text-slate-400 font-medium">Turi:</span>
-                    <span class="bg-slate-800 text-slate-200 px-2 py-0.5 rounded-md font-semibold text-xs border border-slate-700/60">
-                      ${tx.type === 'income' ? 'Kirim' : 'Chiqim'}
-                    </span>
-                  </div>
-                  <div class="flex items-start justify-between gap-2">
-                    <span class="text-slate-400 font-medium shrink-0">Tavsif:</span>
-                    <span class="text-slate-200 text-right font-normal break-words">
-                      ${descriptionText}
-                    </span>
-                  </div>
-                  <div class="flex items-center justify-between pt-0.5">
-                    <span class="text-slate-400 font-medium">Sana:</span>
-                    <span class="text-slate-300 font-mono text-xs">
-                      📅 ${dateFormatted}
-                    </span>
-                  </div>
-                </div>
-              </li>`;
+            html += renderCompactTransactionRow(tx);
           }
           
           html += `</ul></div>`;
@@ -1909,42 +1892,10 @@
                 <span class="text-sm font-semibold text-slate-200">📅 ${dateStr}</span>
                 <span class="text-xs font-medium ${netColor}">Kunlik: ${netSign}${Math.abs(dayNet).toLocaleString('uz-UZ')} so'm</span>
               </div>
-              <ul class="space-y-2 ml-2">`;
+              <ul class="transaction-row-list ml-2">`;
             
             for (const tx of txs) {
-              const isIncome = tx.type === 'income';
-              const amountSign = isIncome ? '+' : '-';
-              const amountColor = isIncome ? 'text-emerald-400' : 'text-rose-400';
-              const amountFormatted = parseFloat(tx.amount || 0).toLocaleString('uz-UZ');
-              const descriptionText = (tx.description && tx.description.trim() !== '') ? tx.description : 'Izoh kiritilmagan';
-              const dateFormatted = formatDateToUZ(tx.date) || formatDateToUZ(new Date().toISOString().split('T')[0]);
-              
-              html += `
-                <li class="bg-slate-900/50 border border-slate-700/50 rounded-xl p-3 sm:p-4 flex flex-col gap-3 shadow-md">
-                  <div class="flex items-center justify-between border-b border-slate-700/50 pb-2.5">
-                    <span class="text-base sm:text-lg font-bold ${amountColor}">
-                      ${amountSign}${amountFormatted} so'm
-                    </span>
-                    <div class="flex items-center gap-1.5">
-                      <button onclick="editTransaction(${tx.id})" class="text-slate-400 hover:text-emerald-400 text-sm p-1 transition-colors" title="Tahrirlash">✏️</button>
-                      <button onclick="deleteTransaction(${tx.id})" class="text-slate-400 hover:text-rose-400 text-sm p-1 transition-colors" title="O'chirish">🗑️</button>
-                    </div>
-                  </div>
-                  <div class="flex flex-col gap-2 text-xs sm:text-sm">
-                    <div class="flex items-center justify-between">
-                      <span class="text-slate-400 font-medium">Turi:</span>
-                      <span class="bg-slate-800 text-slate-200 px-2 py-0.5 rounded-md font-semibold text-xs border border-slate-700/60">
-                        ${tx.type === 'income' ? 'Kirim' : 'Chiqim'}
-                      </span>
-                    </div>
-                    <div class="flex items-start justify-between gap-2">
-                      <span class="text-slate-400 font-medium shrink-0">Tavsif:</span>
-                      <span class="text-slate-200 text-right font-normal break-words">
-                        ${descriptionText}
-                      </span>
-                    </div>
-                  </div>
-                </li>`;
+              html += renderCompactTransactionRow(tx);
             }
             
             html += `</ul></div>`;
@@ -1982,57 +1933,10 @@
             <span class="text-sm font-semibold text-slate-200">📅 ${dateStr}</span>
             <span class="text-xs font-medium ${netColor}">${netLabel}: ${netSign}${Math.abs(dayNet).toLocaleString('uz-UZ')} so'm</span>
           </div>
-          <ul class="space-y-2">`;
+          <ul class="transaction-row-list">`;
         
         for (const tx of txs) {
-          const isIncome = tx.type === 'income';
-          const amountSign = isIncome ? '+' : '-';
-          const amountColor = isIncome ? 'text-emerald-400' : 'text-rose-400';
-          const amountFormatted = parseFloat(tx.amount || 0).toLocaleString('uz-UZ');
-          const descriptionText = escapeHtml((tx.description && tx.description.trim() !== '') ? tx.description : 'Izoh kiritilmagan');
-          const dateFormatted = formatDateToUZ(tx.date) || formatDateToUZ(new Date().toISOString().split('T')[0]);
-          const timeFormatted = escapeHtml(tx.time || (tx.createdAt ? new Date(tx.createdAt).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' }) : ''));
-          const merchantName = escapeHtml(tx.merchant || tx.description || 'Transaction');
-          const merchantInitial = escapeHtml((tx.merchant || tx.description || 'T').trim().slice(0, 1).toUpperCase());
-          const categoryValue = typeof tx.category === 'string' ? tx.category : (tx.category?.sub || 'Other');
-          const categoryLabelKey = { Supermarket: 'supermarket', Utility: 'utility', Transport: 'transport', Other: 'other' }[tx.categoryLabel] || tx.categoryLabel;
-          const categoryTag = escapeHtml(tx.categoryLabel ? t(categoryLabelKey) : getCategoryLabel(categoryValue));
-          const categoryClass = categoryValue === 'Transport'
-            ? 'bg-sky-500/10 text-sky-300 border-sky-500/20'
-            : categoryValue === 'Food'
-              ? 'bg-amber-500/10 text-amber-300 border-amber-500/20'
-              : categoryValue === 'Utilities'
-                ? 'bg-violet-500/10 text-violet-300 border-violet-500/20'
-                : 'bg-slate-800 text-slate-300 border-slate-700';
-          const accountLabel = escapeHtml(tx.account === 'Cash' || !tx.account ? t('cash') : tx.account);
-          
-          html += `
-            <li class="bg-slate-900/70 border border-slate-700/60 rounded-2xl p-3 sm:p-4 shadow-md">
-              <div class="flex items-center justify-between gap-3">
-                <div class="flex min-w-0 items-center gap-3">
-                  <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-emerald-500/20 bg-emerald-500/10 text-sm font-bold text-emerald-300">${merchantInitial}</span>
-                  <div class="min-w-0">
-                    <p class="truncate text-sm font-semibold text-slate-100">${merchantName}</p>
-                    <p class="mt-1 text-[11px] text-slate-500">${escapeHtml(dateFormatted)}${timeFormatted ? ` · ${timeFormatted}` : ''}</p>
-                  </div>
-                </div>
-                <div class="shrink-0 text-right">
-                  <p class="text-sm font-bold ${amountColor}">${amountSign}${amountFormatted}</p>
-                  <div class="mt-1 flex justify-end gap-1">
-                    <button onclick="editTransaction(${tx.id})" class="text-slate-500 hover:text-emerald-400 text-xs p-1" title="Tahrirlash" aria-label="Tahrirlash">✏️</button>
-                    <button onclick="deleteTransaction(${tx.id})" class="text-slate-500 hover:text-rose-400 text-xs p-1" title="O'chirish" aria-label="O'chirish">🗑️</button>
-                  </div>
-                </div>
-              </div>
-              <div class="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-800 pt-3">
-                <div class="flex flex-wrap items-center gap-1.5">
-                  <span class="rounded-full border px-2.5 py-1 text-[10px] font-semibold ${categoryClass}">${categoryTag}</span>
-                  <span class="rounded-full border border-slate-700 bg-slate-800/80 px-2.5 py-1 text-[10px] font-medium text-slate-300">${accountLabel}</span>
-                  ${tx.source === 'sms' ? `<span class="rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-1 text-[10px] font-semibold text-amber-300">🧪 ${escapeHtml(t('testDemo'))}</span>` : ''}
-                </div>
-                <p class="max-w-full truncate text-[11px] text-slate-400">${descriptionText}</p>
-              </div>
-            </li>`;
+          html += renderCompactTransactionRow(tx);
         }
         
         html += `</ul></div>`;

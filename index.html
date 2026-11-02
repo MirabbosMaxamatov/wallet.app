@@ -134,8 +134,47 @@
     .pfm-account-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; margin-top: 0.75rem; }
     .pfm-account { min-width: 0; padding: 0.65rem; border-radius: 0.75rem; background: rgba(2,6,23,0.4); }
     .pfm-status { min-height: 1.25rem; color: #94a3b8; font-size: 0.72rem; }
+    .transaction-row-list { list-style: none; }
+    .transaction-row {
+      display: flex; align-items: center; gap: 0.75rem; min-width: 0;
+      padding: 0.8rem 0.25rem; border-bottom: 1px solid rgba(51,65,85,0.72);
+    }
+    .transaction-row-main { display: flex; align-items: center; gap: 0.7rem; flex: 1 1 auto; min-width: 0; }
+    .transaction-row-icon {
+      display: grid; place-items: center; width: 2.5rem; height: 2.5rem; flex: 0 0 2.5rem;
+      border: 1px solid rgba(52,211,153,0.2); border-radius: 0.85rem;
+      background: rgba(16,185,129,0.1); color: #6ee7b7; font-size: 0.9rem; font-weight: 700;
+    }
+    .transaction-row-copy { flex: 1 1 auto; min-width: 0; }
+    .transaction-row-merchant { overflow: hidden; color: #f1f5f9; font-size: 0.85rem; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+    .transaction-row-subtitle { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.45rem; margin-top: 0.3rem; min-width: 0; }
+    .transaction-row-date { color: #94a3b8; font-size: 0.68rem; white-space: nowrap; }
+    .transaction-row-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; min-width: 0; }
+    .transaction-row-tag {
+      display: inline-flex; align-items: center; max-width: 100%; padding: 0.15rem 0.45rem;
+      border: 1px solid #334155; border-radius: 9999px; background: rgba(30,41,59,0.72);
+      color: #cbd5e1; font-size: 0.63rem; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere;
+    }
+    .transaction-row-tag.transport { border-color: rgba(14,165,233,0.22); background: rgba(14,165,233,0.08); color: #7dd3fc; }
+    .transaction-row-tag.food { border-color: rgba(245,158,11,0.22); background: rgba(245,158,11,0.08); color: #fcd34d; }
+    .transaction-row-tag.utilities { border-color: rgba(139,92,246,0.22); background: rgba(139,92,246,0.08); color: #c4b5fd; }
+    .transaction-row-tag.demo { border-color: rgba(245,158,11,0.25); background: rgba(245,158,11,0.08); color: #fcd34d; }
+    .transaction-row-end { display: flex; flex: 0 0 auto; flex-direction: column; align-items: flex-end; gap: 0.2rem; }
+    .transaction-row-amount { white-space: nowrap; font-size: 0.84rem; font-weight: 700; }
+    .transaction-row-actions { display: flex; align-items: center; gap: 0.15rem; }
+    .transaction-row-action {
+      display: grid; place-items: center; width: 1.65rem; height: 1.65rem; padding: 0;
+      border: 0; border-radius: 0.5rem; background: transparent; color: #64748b;
+      font-size: 0.75rem; cursor: pointer; transition: background 0.15s, color 0.15s;
+    }
+    .transaction-row-action:hover { background: rgba(51,65,85,0.65); color: #a7f3d0; }
+    .transaction-row-action.delete:hover { color: #fda4af; }
     @media (max-width: 360px) {
       .pfm-account-grid { grid-template-columns: 1fr; }
+      .transaction-row { gap: 0.5rem; }
+      .transaction-row-main { gap: 0.5rem; }
+      .transaction-row-icon { width: 2.15rem; height: 2.15rem; flex-basis: 2.15rem; }
+      .transaction-row-amount { font-size: 0.76rem; }
     }
     #open-add-transaction-btn.quick-action {
       display: flex; width: 100%; height: auto; min-height: 3.4rem; padding: 0.7rem;
