@@ -533,6 +533,114 @@
     };
   }
   window.parseAttoSms = parseAttoSms;
+  const demoSmsMessages = {
+    click: "Click: O'tkazma: +250,000 so'm. Karta: *5678. Yuboruvchi: Alisher M.",
+    payme: "Payme: To'lov muvaffaqiyatli! 45,000 so'm yechildi. Tashkilot: UZTELECOM.",
+    uzcard: "Uzcard: Karta *1234. Xarid: 65,000 so'm. Joy: KORZINKA SUPERMARKET. Balans: 1,230,000 so'm.",
+    humo: "Humo: Xarid: 120,000 so'm. Joy: MAKRO. Balans: 850,000 so'm."
+  };
+  window.loadDemoSMS = function (type) {
+    const input = document.getElementById('smsInput');
+    const message = demoSmsMessages[String(type || '').toLowerCase()];
+    if (!input || !message) {
+      if (!message) console.warn('[SMS sandbox] Unknown demo bank:', type);
+      return;
+    }
+    input.value = message;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  };
+
+  function parseSandboxSMS(rawText) {
+    const text = String(rawText || '').trim();
+    if (!text) return null;
+
+    const amountMatch = text.match(/([+-]?\s*[\d][\d\s.,'’]*)\s*(?:so['’]?m|UZS)/i);
+    if (!amountMatch) return null;
+    const amount = Number(amountMatch[1].replace(/\D/g, ''));
+    if (!Number.isFinite(amount) || amount <= 0) return null;
+
+    const bankMatch = text.match(/^\s*(Click|Payme|Uzcard|Humo)\s*:/i);
+    const sourceMatch = text.match(/(?:Yuboruvchi|Tashkilot|Joy)\s*:\s*(.+?)(?=\.?\s+Balans\s*:|$)/i);
+    let source = sourceMatch ? sourceMatch[1].trim() : (bankMatch ? bankMatch[1] : 'Noma’lum manba');
+    if (!/\b[A-Z]\.$/i.test(source)) source = source.replace(/\.$/, '');
+
+    const cardMatch = text.match(/(?:Karta\s*:\s*)?\*+(\d{4})/i);
+    const failed = /rad etildi|muvaffaqiyatsiz|failed|declined|bekor qilindi/i.test(text);
+    const incoming = amountMatch[1].trim().startsWith('+');
+    return {
+      amount,
+      source,
+      card: cardMatch ? `•••• ${cardMatch[1]}` : '',
+      status: failed ? 'Rad etildi' : 'Muvaffaqiyatli',
+      direction: incoming ? 'Kirim' : 'Chiqim',
+      bank: bankMatch ? bankMatch[1] : 'Bank SMS'
+    };
+  }
+  window.parseSandboxSMS = parseSandboxSMS;
+
+  function renderSandboxResult(result) {
+    const output = document.getElementById('parsedResult') || document.getElementById('sandbox-output');
+    if (!output) return;
+    output.replaceChildren();
+
+    if (!result) {
+      const message = document.createElement('p');
+      message.className = 'text-sm text-rose-400';
+      message.textContent = 'SMSdan summa aniqlanmadi. Matnni tekshirib qayta urinib ko‘ring.';
+      output.appendChild(message);
+      return;
+    }
+
+    const card = document.createElement('div');
+    card.className = 'w-full rounded-xl border border-slate-700 bg-slate-900 p-4 text-left shadow-lg';
+
+    const header = document.createElement('div');
+    header.className = 'mb-3 flex items-center justify-between gap-2';
+    const bank = document.createElement('span');
+    bank.className = 'text-xs font-bold uppercase tracking-wider text-slate-300';
+    bank.textContent = result.bank;
+    const status = document.createElement('span');
+    status.className = result.status === 'Rad etildi'
+      ? 'rounded-full bg-rose-500/10 px-2.5 py-1 text-[11px] font-semibold text-rose-400'
+      : 'rounded-full bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-400';
+    status.textContent = result.status;
+    header.append(bank, status);
+    card.appendChild(header);
+
+    const amount = document.createElement('p');
+    amount.className = 'mb-4 text-2xl font-bold text-slate-100';
+    amount.textContent = `${result.direction === 'Kirim' ? '+' : '−'}${new Intl.NumberFormat('uz-UZ').format(result.amount)} so'm`;
+    card.appendChild(amount);
+
+    const details = document.createElement('div');
+    details.className = 'space-y-2 border-t border-slate-800 pt-3';
+    [
+      ['Manba', result.source],
+      ['Yo‘nalish', result.direction],
+      ...(result.card ? [['Karta', result.card]] : [])
+    ].forEach(([label, value]) => {
+      const row = document.createElement('div');
+      row.className = 'flex items-center justify-between gap-3 text-xs';
+      const key = document.createElement('span');
+      key.className = 'text-slate-500';
+      key.textContent = label;
+      const detail = document.createElement('span');
+      detail.className = 'text-right font-medium text-slate-200';
+      detail.textContent = value;
+      row.append(key, detail);
+      details.appendChild(row);
+    });
+    card.appendChild(details);
+    output.appendChild(card);
+  }
+
+  const parseSmsBtn = document.getElementById('parseSmsBtn');
+  if (parseSmsBtn) {
+    parseSmsBtn.addEventListener('click', function () {
+      const input = document.getElementById('smsInput');
+      renderSandboxResult(parseSandboxSMS(input ? input.value : ''));
+    });
+  }
   function formatSignedAmount(value) {
     const sign = value >= 0 ? '+' : '-';
     return sign + formatCurrency(value);
