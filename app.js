@@ -1,10 +1,14 @@
 (() => {
   'use strict';
 
-  // Financial records live in IndexedDB; localStorage remains for small UI preferences.
+  // IndexedDB is the primary store; localStorage mirrors transaction collections for offline portability.
   const FINANCIAL_DB_NAME = 'aqlli-hamyoncha-financial-data';
   const FINANCIAL_DB_VERSION = 1;
   const FINANCIAL_COLLECTIONS = ['transactions', 'fundraising_transactions'];
+  const TRANSACTION_MIRROR_KEYS = {
+    transactions: 'pfm_transactions',
+    fundraising_transactions: 'pfm_fundraising_transactions'
+  };
   let financialDatabase = null;
   let financialStorageReady = false;
   let financialWriteQueue = Promise.resolve();
@@ -80,7 +84,8 @@
       if (!data) {
         try {
           const legacyValue = localStorage.getItem(key);
-          const legacyData = legacyValue ? JSON.parse(legacyValue) : null;
+          const mirrorValue = localStorage.getItem(TRANSACTION_MIRROR_KEYS[key]);
+          const legacyData = legacyValue ? JSON.parse(legacyValue) : (mirrorValue ? JSON.parse(mirrorValue) : null);
           if (Array.isArray(legacyData)) {
             data = legacyData;
             await writeFinancialCollection(key, data);
@@ -93,9 +98,16 @@
       transactionCache[key] = data || [];
       if (localStorage.getItem(key) !== null) localStorage.removeItem(key);
     }
-
-    financialStorageReady = true;
     setStorageNotice('', false);
+    for (const key of FINANCIAL_COLLECTIONS) {
+      try {
+        localStorage.setItem(TRANSACTION_MIRROR_KEYS[key], JSON.stringify(transactionCache[key]));
+      } catch (error) {
+        console.error('[storage] Could not update local transaction mirror:', key, error);
+        setStorageNotice('Transactions are saved in browser storage, but the localStorage mirror could not be updated.', true);
+      }
+    }
+    financialStorageReady = true;
   }
 
   async function getBarcodeDictionaryItem(code) {
@@ -317,11 +329,20 @@
     const previous = transactionCache[FUNDRAISING_KEYS.transactions].slice();
     transactionCache[FUNDRAISING_KEYS.transactions] = txns;
     return persistFinancialCollection(FUNDRAISING_KEYS.transactions, txns).then((saved) => {
-      if (!saved && transactionCache[FUNDRAISING_KEYS.transactions] === txns) {
-        transactionCache[FUNDRAISING_KEYS.transactions] = previous;
-        updateDashboard();
+      if (!saved) {
+        if (transactionCache[FUNDRAISING_KEYS.transactions] === txns) {
+          transactionCache[FUNDRAISING_KEYS.transactions] = previous;
+          updateDashboard();
+        }
+        return false;
       }
-      return saved;
+      try {
+        localStorage.setItem(TRANSACTION_MIRROR_KEYS[FUNDRAISING_KEYS.transactions], JSON.stringify(txns));
+      } catch (error) {
+        console.error('[storage] Could not update local transaction mirror:', error);
+        setStorageNotice('Transactions are saved in browser storage, but the localStorage mirror could not be updated.', true);
+      }
+      return true;
     });
   }
   function getFundraisingTitle() {
@@ -385,18 +406,30 @@
     if (isFundraising) return getFundraisingTransactions();
     return transactionCache.transactions;
   }
-  function setTransactions(txns) {
-    const isFundraising = currentMode === 'fundraising';
-    if (isFundraising) return setFundraisingTransactions(txns);
+  function setPersonalTransactions(txns) {
     const previous = transactionCache.transactions.slice();
     transactionCache.transactions = txns;
     return persistFinancialCollection('transactions', txns).then((saved) => {
-      if (!saved && transactionCache.transactions === txns) {
-        transactionCache.transactions = previous;
-        updateDashboard();
+      if (!saved) {
+        if (transactionCache.transactions === txns) {
+          transactionCache.transactions = previous;
+          updateDashboard();
+        }
+        return false;
       }
-      return saved;
+      try {
+        localStorage.setItem(TRANSACTION_MIRROR_KEYS.transactions, JSON.stringify(txns));
+      } catch (error) {
+        console.error('[storage] Could not update local transaction mirror:', error);
+        setStorageNotice('Transactions are saved in browser storage, but the localStorage mirror could not be updated.', true);
+      }
+      return true;
     });
+  }
+  function setTransactions(txns) {
+    const isFundraising = currentMode === 'fundraising';
+    if (isFundraising) return setFundraisingTransactions(txns);
+    return setPersonalTransactions(txns);
   }
   function getArchivedPeriods() {
     const key = getStorageKey('archivedPeriods');
@@ -550,6 +583,29 @@
     input.dispatchEvent(new Event('input', { bubbles: true }));
   };
 
+  function matchTransactionCategory(text) {
+    const value = String(text || '');
+    if (/\b(?:tos|yandex|taxi|transport|metro|atto)\b/i.test(value)) {
+      return { category: 'Transport', label: 'Transport' };
+    }
+    if (/\b(?:korzinka|makro|supermarket|grocery|groceries)\b/i.test(value)) {
+      return { category: 'Food', label: 'Supermarket' };
+    }
+    if (/\b(?:uztelecom|payme|utility|utilities|electricity|gas|internet|beeline|ucell)\b/i.test(value)) {
+      return { category: 'Utilities', label: 'Utility' };
+    }
+    return { category: 'Other', label: 'Other' };
+  }
+
+  function getLocalDateTime() {
+    const now = new Date();
+    return {
+      date: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`,
+      time: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
+      createdAt: now.toISOString()
+    };
+  }
+
   function parseSandboxSMS(rawText) {
     const text = String(rawText || '').trim();
     if (!text) return null;
@@ -565,15 +621,28 @@
     if (!/\b[A-Z]\.$/i.test(source)) source = source.replace(/\.$/, '');
 
     const cardMatch = text.match(/(?:Karta\s*:\s*)?\*+(\d{4})/i);
+    const balanceMatch = text.match(/Balans\s*:\s*([\d\s.,'’]+)\s*(?:so['’]?m|UZS)/i);
     const failed = /rad etildi|muvaffaqiyatsiz|failed|declined|bekor qilindi/i.test(text);
     const incoming = amountMatch[1].trim().startsWith('+');
+    const categoryInfo = matchTransactionCategory(`${source} ${text}`);
+    const dateTime = getLocalDateTime();
+    const bank = bankMatch ? bankMatch[1] : 'Bank SMS';
+    const account = /^humo$/i.test(bank) ? 'Humo' : (/^uzcard$/i.test(bank) ? 'Uzcard' : 'Cash');
     return {
       amount,
       source,
       card: cardMatch ? `•••• ${cardMatch[1]}` : '',
       status: failed ? 'Rad etildi' : 'Muvaffaqiyatli',
       direction: incoming ? 'Kirim' : 'Chiqim',
-      bank: bankMatch ? bankMatch[1] : 'Bank SMS'
+      type: incoming ? 'income' : 'expense',
+      bank,
+      account,
+      accountBalance: balanceMatch ? Number(balanceMatch[1].replace(/\D/g, '')) : null,
+      category: categoryInfo.category,
+      categoryLabel: categoryInfo.label,
+      date: dateTime.date,
+      time: dateTime.time,
+      createdAt: dateTime.createdAt
     };
   }
   window.parseSandboxSMS = parseSandboxSMS;
@@ -617,6 +686,10 @@
     [
       ['Manba', result.source],
       ['Yo‘nalish', result.direction],
+      ['Kategoriya', result.categoryLabel],
+      ['Hisob', result.account],
+      ['Vaqt', `${result.date} ${result.time}`],
+      ...(Number.isFinite(result.accountBalance) ? [['Balans', `${result.accountBalance.toLocaleString('uz-UZ')} so'm`]] : []),
       ...(result.card ? [['Karta', result.card]] : [])
     ].forEach(([label, value]) => {
       const row = document.createElement('div');
@@ -634,11 +707,90 @@
     output.appendChild(card);
   }
 
+  async function parseAndSaveSandboxSMS(rawText) {
+    const result = parseSandboxSMS(rawText);
+    renderSandboxResult(result);
+    if (!result) return false;
+    if (result.status === 'Rad etildi') {
+      const status = document.getElementById('clipboard-status');
+      if (status) status.textContent = 'Declined payments are shown but not added to your totals.';
+      return false;
+    }
+
+    const transaction = {
+      id: Date.now(),
+      amount: result.amount,
+      type: result.type,
+      category: result.category,
+      categoryLabel: result.categoryLabel,
+      date: result.date,
+      time: result.time,
+      createdAt: result.createdAt,
+      description: result.source,
+      merchant: result.source,
+      account: result.account,
+      accountBalance: result.accountBalance,
+      card: result.card,
+      source: 'sms',
+      status: result.status
+    };
+    const saved = await setPersonalTransactions(transactionCache.transactions.concat(transaction));
+    if (saved) {
+      renderSandboxResult(result);
+      updateDashboard();
+    }
+    return saved;
+  }
+
   const parseSmsBtn = document.getElementById('parseSmsBtn');
   if (parseSmsBtn) {
-    parseSmsBtn.addEventListener('click', function () {
+    parseSmsBtn.addEventListener('click', async function () {
       const input = document.getElementById('smsInput');
-      renderSandboxResult(parseSandboxSMS(input ? input.value : ''));
+      const status = document.getElementById('clipboard-status');
+      if (status) status.textContent = '';
+      const text = input ? input.value : '';
+      const result = parseSandboxSMS(text);
+      const saved = await parseAndSaveSandboxSMS(text);
+      if (status) {
+        status.textContent = !result
+          ? 'Enter a valid SMS with an amount to parse.'
+          : (result.status === 'Rad etildi'
+            ? 'Declined payments are shown but not added to your totals.'
+            : (saved ? 'Transaction saved to your private history.' : 'Could not save this transaction. Check the storage notice above.'));
+      }
+    });
+  }
+
+  const clipboardParseBtn = document.getElementById('quick-clipboard-parse');
+  if (clipboardParseBtn) {
+    clipboardParseBtn.addEventListener('click', async function () {
+      const status = document.getElementById('clipboard-status');
+      if (!navigator.clipboard || typeof navigator.clipboard.readText !== 'function') {
+        if (status) status.textContent = 'Clipboard access is unavailable. Use HTTPS or paste the SMS into the inbox below.';
+        return;
+      }
+      try {
+        const text = await navigator.clipboard.readText();
+        const input = document.getElementById('smsInput');
+        if (input) input.value = text;
+        if (!text.trim()) {
+          if (status) status.textContent = 'Clipboard is empty. Copy a bank SMS and try again.';
+          return;
+        }
+        const result = parseSandboxSMS(text);
+        const saved = await parseAndSaveSandboxSMS(text);
+        if (status) {
+          status.textContent = !result
+            ? 'Could not parse this SMS. Check that it includes an amount and currency.'
+            : (result.status === 'Rad etildi'
+              ? 'Declined payments are shown but not added to your totals.'
+              : (saved ? 'Clipboard SMS parsed and saved to your private history.' : 'Could not save this transaction. Check the storage notice above.'));
+        }
+        document.getElementById('b2b-sandbox-section')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } catch (error) {
+        console.error('[SMS sandbox] Clipboard read failed:', error);
+        if (status) status.textContent = 'Clipboard access was denied. Paste the SMS into the inbox below instead.';
+      }
     });
   }
   function formatSignedAmount(value) {
@@ -1003,6 +1155,7 @@
   // ==================== DOM REFERENCES ====================
   const $ = (id) => document.getElementById(id);
   const onboardingModal = $('onboarding-modal');
+  const quickCashModal = $('quick-cash-modal');
   const onboardingInput = $('onboarding-input');
   const onboardingStartBtn = $('onboarding-start-btn');
   const archiveModal = $('archive-modal');
@@ -1069,17 +1222,17 @@
     modal.style.display = 'none';
   }
 
-  [onboardingModal, $('fundraising-onboarding-modal'), archiveModal, editBalanceModal, backupModal].forEach(function (modal) {
+  [onboardingModal, $('fundraising-onboarding-modal'), archiveModal, editBalanceModal, backupModal, quickCashModal].forEach(function (modal) {
     if (!modal) return;
     modal.addEventListener('click', function (event) {
-      if (event.target === modal || event.target.closest('[data-close-modal]')) {
+      if (event.target === modal || event.target.closest('[data-close-modal], [data-close-quick-cash]')) {
         closeOverlayModal(modal);
       }
     });
   });
   document.addEventListener('keydown', function (event) {
     if (event.key !== 'Escape') return;
-    [onboardingModal, $('fundraising-onboarding-modal'), archiveModal, editBalanceModal, backupModal].forEach(function (modal) {
+    [onboardingModal, $('fundraising-onboarding-modal'), archiveModal, editBalanceModal, backupModal, quickCashModal].forEach(function (modal) {
       if (modal && !modal.classList.contains('hidden')) closeOverlayModal(modal);
     });
   });
@@ -1137,6 +1290,10 @@
       if (analytics) analytics.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   }
+  const quickExportCsvBtn = $('quick-export-csv');
+  if (quickExportCsvBtn) quickExportCsvBtn.addEventListener('click', exportToCSV);
+  const quickExportJsonBtn = $('quick-export-json');
+  if (quickExportJsonBtn) quickExportJsonBtn.addEventListener('click', exportBackup);
   const quickBackupBtn = $('quick-backup');
   if (quickBackupBtn) quickBackupBtn.addEventListener('click', function () { openOverlayModal(backupModal); });
   const backupCopyTextBtn = $('backup-copy-text');
@@ -1292,6 +1449,50 @@
     window.saveFundraisingSetup = saveFundraisingSetup;
     window.closeFundraisingOnboarding = closeFundraisingOnboarding;
 
+    function updatePersonalOverview() {
+      const overview = document.getElementById('pfm-overview');
+      if (!overview) return;
+      const isPersonalMode = currentMode !== 'fundraising';
+      overview.classList.toggle('hidden', !isPersonalMode);
+      if (!isPersonalMode) return;
+
+      const now = new Date();
+      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const monthTransactions = transactionCache.transactions.filter((tx) => String(tx.date || '').slice(0, 7) === currentMonth);
+      const monthlyIncome = monthTransactions.reduce((sum, tx) => sum + (tx.type === 'income' ? Number(tx.amount) || 0 : 0), 0);
+      const monthlyExpense = monthTransactions.reduce((sum, tx) => sum + (tx.type === 'expense' ? Number(tx.amount) || 0 : 0), 0);
+      const formatUzs = (amount) => `${Math.round(Math.abs(amount)).toLocaleString('uz-UZ')} UZS`;
+      const expenseEl = document.getElementById('pfm-month-expense');
+      const incomeEl = document.getElementById('pfm-month-income');
+      const monthEl = document.getElementById('pfm-overview-month');
+      if (expenseEl) expenseEl.textContent = `− ${formatUzs(monthlyExpense)}`;
+      if (incomeEl) incomeEl.textContent = `+ ${formatUzs(monthlyIncome)}`;
+      if (monthEl) monthEl.textContent = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+      const accountBalances = { Humo: 0, Uzcard: 0, Cash: Number(startingBalance) || 0 };
+      const byCreationTime = transactionCache.transactions.slice().sort((a, b) => {
+        const timeA = Date.parse(a.createdAt || `${a.date || '1970-01-01'}T${a.time || '00:00'}:00`) || 0;
+        const timeB = Date.parse(b.createdAt || `${b.date || '1970-01-01'}T${b.time || '00:00'}:00`) || 0;
+        return timeA - timeB;
+      });
+      byCreationTime.forEach((tx) => {
+        const account = Object.prototype.hasOwnProperty.call(accountBalances, tx.account) ? tx.account : 'Cash';
+        const amount = Number(tx.amount) || 0;
+        if (Number.isFinite(tx.accountBalance) && tx.accountBalance >= 0) {
+          accountBalances[account] = tx.accountBalance;
+        } else {
+          accountBalances[account] += tx.type === 'income' ? amount : -amount;
+        }
+      });
+      Object.entries(accountBalances).forEach(([account, balance]) => {
+        const balanceEl = document.getElementById(`pfm-account-${account.toLowerCase()}`);
+        if (!balanceEl) return;
+        balanceEl.textContent = `${balance < 0 ? '− ' : ''}${formatUzs(balance)}`;
+        balanceEl.classList.toggle('text-rose-400', balance < 0);
+        balanceEl.classList.toggle('text-slate-100', balance >= 0);
+      });
+    }
+
     // ==================== UPDATE & RENDER ====================
   function updateDashboard() {
     try {
@@ -1299,6 +1500,7 @@
       if (startingBalanceAmount) startingBalanceAmount.textContent = formatCurrency(startingBalance);
       if (incomeDisplay) incomeDisplay.textContent = formatCurrency(totalIncome);
       if (expenseDisplay) expenseDisplay.textContent = formatCurrency(totalExpenses);
+      updatePersonalOverview();
       if (balanceDisplay) {
         balanceDisplay.textContent = formatCurrency(currentBalance);
         if (currentBalance < 0) {
@@ -1776,39 +1978,46 @@
           const amountSign = isIncome ? '+' : '-';
           const amountColor = isIncome ? 'text-emerald-400' : 'text-rose-400';
           const amountFormatted = parseFloat(tx.amount || 0).toLocaleString('uz-UZ');
-          const descriptionText = (tx.description && tx.description.trim() !== '') ? tx.description : 'Izoh kiritilmagan';
+          const descriptionText = escapeHtml((tx.description && tx.description.trim() !== '') ? tx.description : 'Izoh kiritilmagan');
           const dateFormatted = formatDateToUZ(tx.date) || formatDateToUZ(new Date().toISOString().split('T')[0]);
+          const timeFormatted = escapeHtml(tx.time || (tx.createdAt ? new Date(tx.createdAt).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' }) : ''));
+          const merchantName = escapeHtml(tx.merchant || tx.description || 'Transaction');
+          const merchantInitial = escapeHtml((tx.merchant || tx.description || 'T').trim().slice(0, 1).toUpperCase());
+          const categoryValue = typeof tx.category === 'string' ? tx.category : (tx.category?.sub || 'Other');
+          const categoryTag = escapeHtml(tx.categoryLabel || getCategoryLabel(categoryValue));
+          const categoryClass = categoryValue === 'Transport'
+            ? 'bg-sky-500/10 text-sky-300 border-sky-500/20'
+            : categoryValue === 'Food'
+              ? 'bg-amber-500/10 text-amber-300 border-amber-500/20'
+              : categoryValue === 'Utilities'
+                ? 'bg-violet-500/10 text-violet-300 border-violet-500/20'
+                : 'bg-slate-800 text-slate-300 border-slate-700';
+          const accountLabel = escapeHtml(tx.account || 'Cash');
           
           html += `
-            <li class="bg-slate-900/50 border border-slate-700/50 rounded-xl p-3 sm:p-4 flex flex-col gap-3 shadow-md">
-              <div class="flex items-center justify-between border-b border-slate-700/50 pb-2.5">
-                <span class="text-base sm:text-lg font-bold ${amountColor}">
-                  ${amountSign}${amountFormatted} so'm
-                </span>
-                <div class="flex items-center gap-1.5">
-                  <button onclick="editTransaction(${tx.id})" class="text-slate-400 hover:text-emerald-400 text-sm p-1 transition-colors" title="Tahrirlash">✏️</button>
-                  <button onclick="deleteTransaction(${tx.id})" class="text-slate-400 hover:text-rose-400 text-sm p-1 transition-colors" title="O'chirish">🗑️</button>
+            <li class="bg-slate-900/70 border border-slate-700/60 rounded-2xl p-3 sm:p-4 shadow-md">
+              <div class="flex items-center justify-between gap-3">
+                <div class="flex min-w-0 items-center gap-3">
+                  <span class="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-emerald-500/20 bg-emerald-500/10 text-sm font-bold text-emerald-300">${merchantInitial}</span>
+                  <div class="min-w-0">
+                    <p class="truncate text-sm font-semibold text-slate-100">${merchantName}</p>
+                    <p class="mt-1 text-[11px] text-slate-500">${escapeHtml(dateFormatted)}${timeFormatted ? ` · ${timeFormatted}` : ''}</p>
+                  </div>
+                </div>
+                <div class="shrink-0 text-right">
+                  <p class="text-sm font-bold ${amountColor}">${amountSign}${amountFormatted}</p>
+                  <div class="mt-1 flex justify-end gap-1">
+                    <button onclick="editTransaction(${tx.id})" class="text-slate-500 hover:text-emerald-400 text-xs p-1" title="Tahrirlash" aria-label="Tahrirlash">✏️</button>
+                    <button onclick="deleteTransaction(${tx.id})" class="text-slate-500 hover:text-rose-400 text-xs p-1" title="O'chirish" aria-label="O'chirish">🗑️</button>
+                  </div>
                 </div>
               </div>
-              <div class="flex flex-col gap-2 text-xs sm:text-sm">
-                <div class="flex items-center justify-between">
-                  <span class="text-slate-400 font-medium">Kategoriya:</span>
-                  <span class="bg-slate-800 text-slate-200 px-2 py-0.5 rounded-md font-semibold text-xs border border-slate-700/60">
-                    ${tx.category}
-                  </span>
+              <div class="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-800 pt-3">
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <span class="rounded-full border px-2.5 py-1 text-[10px] font-semibold ${categoryClass}">${categoryTag}</span>
+                  <span class="rounded-full border border-slate-700 bg-slate-800/80 px-2.5 py-1 text-[10px] font-medium text-slate-300">${accountLabel}</span>
                 </div>
-                <div class="flex items-start justify-between gap-2">
-                  <span class="text-slate-400 font-medium shrink-0">Tavsif:</span>
-                  <span class="text-slate-200 text-right font-normal break-words">
-                    ${descriptionText}
-                  </span>
-                </div>
-                <div class="flex items-center justify-between pt-0.5">
-                  <span class="text-slate-400 font-medium">Sana:</span>
-                  <span class="text-slate-300 font-mono text-xs">
-                    📅 ${dateFormatted}
-                  </span>
-                </div>
+                <p class="max-w-full truncate text-[11px] text-slate-400">${descriptionText}</p>
               </div>
             </li>`;
         }
@@ -1939,6 +2148,7 @@ function renderArchivedPeriods() {
   async function addTransaction() {
     const amount = parseFloat(document.getElementById('amount').value);
     const type = document.getElementById('type').value;
+    const account = document.getElementById('transaction-account')?.value || 'Cash';
     let category = document.getElementById('category').value;
     const date = document.getElementById('date').value || new Date().toISOString().split('T')[0];
     const description = document.getElementById('note').value.trim();
@@ -1972,7 +2182,8 @@ function renderArchivedPeriods() {
       }
     }
     
-    const newTx = { id: Date.now(), amount, type, category, date, description };
+    const dateTime = getLocalDateTime();
+    const newTx = { id: Date.now(), amount, type, category, date, time: dateTime.time, createdAt: dateTime.createdAt, description, account };
     const transactions = getTransactions().slice();
     transactions.push(newTx);
     if (!await setTransactions(transactions)) return false;
@@ -1985,6 +2196,60 @@ function renderArchivedPeriods() {
   }
   if (transactionForm) transactionForm.addEventListener('submit', function (e) { e.preventDefault(); addTransaction(); });
   if (addTransactionBtn) addTransactionBtn.addEventListener('click', function (e) { e.preventDefault(); addTransaction(); });
+
+  const quickCashEntryBtn = document.getElementById('quick-cash-entry');
+  const quickCashForm = document.getElementById('quick-cash-form');
+  if (quickCashEntryBtn && quickCashModal) {
+    quickCashEntryBtn.addEventListener('click', function () {
+      openOverlayModal(quickCashModal);
+      const amountInput = document.getElementById('quick-cash-amount');
+      if (amountInput) amountInput.focus();
+    });
+  }
+  if (quickCashForm) {
+    quickCashForm.addEventListener('submit', async function (event) {
+      event.preventDefault();
+      const amountInput = document.getElementById('quick-cash-amount');
+      const descriptionInput = document.getElementById('quick-cash-description');
+      const accountInput = document.getElementById('quick-cash-account');
+      const status = document.getElementById('quick-cash-status');
+      const amount = Number(amountInput ? amountInput.value : 0);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        if (status) status.textContent = 'Enter an amount greater than zero.';
+        if (amountInput) amountInput.focus();
+        return;
+      }
+
+      const description = descriptionInput && descriptionInput.value.trim()
+        ? descriptionInput.value.trim()
+        : 'Cash expense';
+      const categoryInfo = matchTransactionCategory(description);
+      const dateTime = getLocalDateTime();
+      const transaction = {
+        id: Date.now(),
+        amount,
+        type: 'expense',
+        category: categoryInfo.category,
+        categoryLabel: categoryInfo.label,
+        date: dateTime.date,
+        time: dateTime.time,
+        createdAt: dateTime.createdAt,
+        description,
+        merchant: description,
+        account: accountInput ? accountInput.value : 'Cash',
+        source: 'cash'
+      };
+      if (!await setPersonalTransactions(transactionCache.transactions.concat(transaction))) {
+        if (status) status.textContent = 'Could not save this entry. Check the storage notice above.';
+        return;
+      }
+      quickCashForm.reset();
+      if (accountInput) accountInput.value = 'Cash';
+      if (status) status.textContent = '';
+      updateDashboard();
+      closeOverlayModal(quickCashModal);
+    });
+  }
 
   // ==================== DELETE TRANSACTION ====================
   // Store last deleted transaction for undo
@@ -2436,12 +2701,14 @@ function renderArchivedPeriods() {
       return;
     }
 
-    let csvContent = "data:text/csv;charset=utf-8,\uFEFFSana,Turi,Kategoriya,Summa,Tavsif\n";
+    let csvContent = "data:text/csv;charset=utf-8,\uFEFFSana,Vaqt,Turi,Kategoriya,Hisob,Summa,Tavsif\n";
     transactions.forEach(t => {
       const row = [
         JSON.stringify(t.date || ''),
+        JSON.stringify(t.time || ''),
         JSON.stringify(t.type === 'income' ? 'Kirim' : 'Chiqim'),
-        JSON.stringify(t.category || ''),
+        JSON.stringify(t.categoryLabel || t.category || ''),
+        JSON.stringify(t.account || 'Cash'),
         JSON.stringify(t.amount || 0),
         JSON.stringify(t.description || '')
       ].join(',');

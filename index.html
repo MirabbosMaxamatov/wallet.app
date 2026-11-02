@@ -124,12 +124,25 @@
     }
     .quick-action:hover { transform: translateY(-1px); border-color: rgba(16,185,129,0.55); background: rgba(51,65,85,0.86); }
     .quick-action.primary { grid-column: 1 / -1; }
-    #open-add-transaction-btn.quick-action {
-      display: block; width: 100%; height: 30px; min-height: 30px; padding: 0 0.75rem;
-      margin: 0; line-height: 30px; color: #052e25; background: #10b981; border: 0;
-      border-radius: 0.65rem; font-size: 0.85rem; font-weight: 750;
+    .pfm-overview {
+      margin: 0 0 1rem; padding: 1rem; border: 1px solid rgba(52,211,153,0.24);
+      border-radius: 1.15rem; background: linear-gradient(145deg, rgba(30,41,59,0.96), rgba(15,23,42,0.98));
+      box-shadow: 0 14px 30px rgba(2,6,23,0.18);
     }
-    #open-add-transaction-btn.quick-action:hover { background: #34d399; }
+    .pfm-overview-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; }
+    .pfm-overview-metric { min-width: 0; padding: 0.8rem; border: 1px solid rgba(148,163,184,0.14); border-radius: 0.85rem; background: rgba(2,6,23,0.3); }
+    .pfm-account-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; margin-top: 0.75rem; }
+    .pfm-account { min-width: 0; padding: 0.65rem; border-radius: 0.75rem; background: rgba(2,6,23,0.4); }
+    .pfm-status { min-height: 1.25rem; color: #94a3b8; font-size: 0.72rem; }
+    @media (max-width: 360px) {
+      .pfm-account-grid { grid-template-columns: 1fr; }
+    }
+    #open-add-transaction-btn.quick-action {
+      display: flex; width: 100%; height: auto; min-height: 3.4rem; padding: 0.7rem;
+      margin: 0; line-height: normal; color: #e2e8f0; background: rgba(30,41,59,0.74);
+      border: 1px solid rgba(148,163,184,0.2); border-radius: 1rem; font-size: 0.8rem; font-weight: 650;
+    }
+    #open-add-transaction-btn.quick-action:hover { background: rgba(51,65,85,0.86); border-color: rgba(16,185,129,0.55); }
     .storage-notice {
       margin: 0 0 0.85rem; padding: 0.7rem 0.85rem; border-radius: 0.75rem;
       color: #a7f3d0; background: rgba(6,78,59,0.65); border: 1px solid rgba(16,185,129,0.35);
@@ -1118,7 +1131,10 @@
           <h1 class="text-2xl sm:text-3xl font-bold text-slate-100 truncate" data-i18n="appTitle">Aqlli Hamyoncha</h1>
           <p class="text-slate-400 text-sm mt-1" data-i18n="transactions">Kirim va chiqimlarni real vaqtda kuzatib boring</p>
         </div>
-        <!-- Dual-Mode Switcher -->
+        <div class="flex items-center gap-2 shrink-0">
+          <span class="sm:hidden inline-flex items-center gap-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] px-2 py-1 rounded-full font-medium">Test</span>
+          <span class="hidden sm:inline-flex items-center gap-1.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs px-2.5 py-1 rounded-full font-medium">Test / Demo</span>
+          <!-- Dual-Mode Switcher -->
         <button id="mode-switch-btn" type="button" onclick="toggleAppMode()"
           class="shrink-0 flex items-center gap-2 bg-slate-800/80 hover:bg-slate-700 border border-slate-700/60 rounded-xl px-3 py-2 text-xs font-semibold text-slate-200 transition-colors"
           title="Rejimni o'zgartirish">
@@ -1146,42 +1162,59 @@
       </div>
     </div>
 
+    <section id="pfm-overview" class="pfm-overview" aria-label="Monthly finance overview">
+      <div class="flex items-center justify-between gap-2 mb-3">
+        <div>
+          <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">This month</p>
+          <h2 class="text-sm font-bold text-slate-100">Money overview</h2>
+        </div>
+        <span id="pfm-overview-month" class="text-[11px] text-slate-500"></span>
+      </div>
+      <div class="pfm-overview-metrics">
+        <div class="pfm-overview-metric">
+          <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Monthly expense</p>
+          <p id="pfm-month-expense" class="mt-1 text-lg font-bold text-rose-400">− 0 UZS</p>
+        </div>
+        <div class="pfm-overview-metric">
+          <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Total income</p>
+          <p id="pfm-month-income" class="mt-1 text-lg font-bold text-emerald-400">+ 0 UZS</p>
+        </div>
+      </div>
+      <div class="mt-3">
+        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Accounts &amp; cards</p>
+        <div class="pfm-account-grid">
+          <div class="pfm-account"><p class="text-[10px] text-slate-500">Humo</p><p id="pfm-account-humo" class="mt-1 text-xs font-bold text-slate-100">0 UZS</p></div>
+          <div class="pfm-account"><p class="text-[10px] text-slate-500">Uzcard</p><p id="pfm-account-uzcard" class="mt-1 text-xs font-bold text-slate-100">0 UZS</p></div>
+          <div class="pfm-account"><p class="text-[10px] text-slate-500">Cash</p><p id="pfm-account-cash" class="mt-1 text-xs font-bold text-slate-100">0 UZS</p></div>
+        </div>
+      </div>
+    </section>
+
     <nav class="quick-action-grid" aria-label="Quick actions">
-      <button type="button" id="open-add-transaction-btn" class="quick-action primary">＋ Add Transaction</button>
+      <button type="button" id="quick-clipboard-parse" class="quick-action primary">▣ Quick Clipboard Parse</button>
+      <button type="button" id="quick-cash-entry" class="quick-action">＋ Quick Cash Entry</button>
+      <button type="button" id="open-add-transaction-btn" class="quick-action">＋ Add Transaction</button>
       <button type="button" id="quick-scan-receipt" class="quick-action"><span aria-hidden="true">▦</span> Scan Receipt</button>
       <button type="button" id="quick-analytics" class="quick-action"><span aria-hidden="true">▥</span> Analytics</button>
-      <button type="button" id="quick-backup" class="quick-action"><span aria-hidden="true">⇧</span> Backup</button>
+      <button type="button" id="quick-export-csv" class="quick-action">⇩ Export CSV</button>
+      <button type="button" id="quick-export-json" class="quick-action">⇩ Export JSON</button>
+      <button type="button" id="quick-backup" class="quick-action">⇧ Backup</button>
     </nav>
 
-    <!-- B2B Multi-Bank SMS Sandbox (Live Simulator) -->
+    <!-- Multi-bank SMS inbox -->
     <section id="b2b-sandbox-section" class="mt-6 mb-6 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-emerald-500/30 rounded-2xl p-4 sm:p-5 shadow-2xl">
       <div class="flex items-center gap-2 mb-1">
-        <span class="text-emerald-400 text-lg">🧪</span>
-        <h3 class="text-base sm:text-lg font-bold text-slate-100 uppercase tracking-wider">B2B Multi-Bank SMS Sandbox</h3>
+        <span class="text-emerald-400 text-lg">✉</span>
+        <h3 class="text-base sm:text-lg font-bold text-slate-100 uppercase tracking-wider">SMS Inbox &amp; Parsing</h3>
       </div>
-      <p class="text-xs text-slate-400 mb-4">Uzbek payment systems (Click, Payme, Uzcard, Humo) SMS test simulator</p>
-
-      <!-- Core Specs -->
-      <div class="grid grid-cols-3 gap-2 mb-4 text-center">
-        <div class="bg-slate-900/60 border border-emerald-500/20 rounded-xl p-2">
-          <p class="text-[10px] text-slate-500 uppercase">Server Cost</p>
-          <p class="text-xs sm:text-sm font-bold text-emerald-400">0% ($0/mo)</p>
-        </div>
-        <div class="bg-slate-900/60 border border-emerald-500/20 rounded-xl p-2">
-          <p class="text-[10px] text-slate-500 uppercase">Architecture</p>
-          <p class="text-xs sm:text-sm font-bold text-emerald-400">100% Client-Side</p>
-        </div>
-        <div class="bg-slate-900/60 border border-emerald-500/20 rounded-xl p-2">
-          <p class="text-[10px] text-slate-500 uppercase">Execution</p>
-          <p class="text-xs sm:text-sm font-bold text-emerald-400">&lt; 2ms</p>
-        </div>
-      </div>
+      <p class="text-xs text-slate-400 mb-4">Parse a payment notification into your private transaction history.</p>
 
       <!-- Sandbox Grid -->
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <!-- Left: Incoming SMS -->
         <div style="background-color: #0f172a; padding: 16px; border-radius: 16px; border: 1px solid #1e293b;">
           <label style="display: block; font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 8px;">Incoming Raw SMS</label>
+          <p id="clipboard-status" class="pfm-status" role="status" aria-live="polite"></p>
 
           <textarea
             id="smsInput"
@@ -1211,6 +1244,36 @@
         </div>
       </div>
     </section>
+
+    <div id="quick-cash-modal" class="modal-overlay hidden" aria-hidden="true">
+      <div class="modal-card">
+        <div class="modal-heading-row">
+          <h2 class="text-xl font-bold text-slate-100">Quick cash entry</h2>
+          <button type="button" class="modal-close-btn" data-close-quick-cash aria-label="Close quick cash entry">×</button>
+        </div>
+        <p class="mb-4 text-sm text-slate-400">Log a cash transaction without opening the full transaction form.</p>
+        <form id="quick-cash-form">
+          <div class="form-row">
+            <label class="form-label" for="quick-cash-amount">Amount (UZS)</label>
+            <input id="quick-cash-amount" type="number" min="1" step="1" required inputmode="numeric" placeholder="45000" class="input-base">
+          </div>
+          <div class="form-row">
+            <label class="form-label" for="quick-cash-description">What was it for?</label>
+            <input id="quick-cash-description" type="text" maxlength="120" placeholder="e.g. Lunch, taxi, groceries" class="input-base">
+          </div>
+          <div class="form-row">
+            <label class="form-label" for="quick-cash-account">Account</label>
+            <select id="quick-cash-account" class="input-base">
+              <option value="Cash">Cash</option>
+              <option value="Humo">Humo</option>
+              <option value="Uzcard">Uzcard</option>
+            </select>
+          </div>
+          <button type="submit" class="btn-primary w-full">Save expense</button>
+          <p id="quick-cash-status" class="pfm-status mt-2" role="status" aria-live="polite"></p>
+        </form>
+      </div>
+    </div>
 
     <!-- Fundraising Progress Indicator -->
     <div id="fundraising-progress-card" class="hidden bg-gradient-to-r from-emerald-900/40 to-slate-800/60 border border-emerald-500/30 rounded-2xl p-4 mb-6">
@@ -1328,6 +1391,15 @@
                 <select id="type" class="input-base">
                   <option value="expense">Chiqim</option>
                   <option value="income">Kirim</option>
+                </select>
+              </div>
+
+              <div class="form-row">
+                <label class="form-label" for="transaction-account">Hisob</label>
+                <select id="transaction-account" class="input-base">
+                  <option value="Cash">Cash</option>
+                  <option value="Humo">Humo</option>
+                  <option value="Uzcard">Uzcard</option>
                 </select>
               </div>
 
