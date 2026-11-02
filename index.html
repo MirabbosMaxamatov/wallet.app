@@ -3,11 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Smart Byudjet Tracker</title>
-  <meta name="theme-color" content="#1e293b" />
+  <title>Aqlli Hamyoncha</title>
+  <meta name="theme-color" content="#0f172a" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Smart Byudjet" />
+  <meta name="apple-mobile-web-app-title" content="Aqlli Hamyoncha" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <meta name="mobile-web-app-capable" content="yes" />
   <link rel="icon" type="image/jpeg" href="assets/walletprf.jpg?v=10.0.0">
   <link rel="apple-touch-icon" href="assets/walletprf.jpg?v=10.0.0">
@@ -20,10 +23,12 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html { font-size: 16px; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
-      background-color: #1e293b;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+      background-color: #0f172a;
       color: #f1f5f9;
       min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
 
     /* ========== LAYOUT ========== */
@@ -1147,6 +1152,58 @@
       <button type="button" id="quick-analytics" class="quick-action"><span aria-hidden="true">▥</span> Analytics</button>
       <button type="button" id="quick-backup" class="quick-action"><span aria-hidden="true">⇧</span> Backup</button>
     </nav>
+
+    <!-- B2B Multi-Bank SMS Sandbox (Live Simulator) -->
+    <section id="b2b-sandbox-section" class="mt-6 mb-6 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-emerald-500/30 rounded-2xl p-4 sm:p-5 shadow-2xl">
+      <div class="flex items-center gap-2 mb-1">
+        <span class="text-emerald-400 text-lg">🧪</span>
+        <h3 class="text-base sm:text-lg font-bold text-slate-100 uppercase tracking-wider">B2B Multi-Bank SMS Sandbox</h3>
+      </div>
+      <p class="text-xs text-slate-400 mb-4">Uzbek payment systems (Click, Payme, Uzcard, Humo) SMS test simulator</p>
+
+      <!-- Core Specs -->
+      <div class="grid grid-cols-3 gap-2 mb-4 text-center">
+        <div class="bg-slate-900/60 border border-emerald-500/20 rounded-xl p-2">
+          <p class="text-[10px] text-slate-500 uppercase">Server Cost</p>
+          <p class="text-xs sm:text-sm font-bold text-emerald-400">0% ($0/mo)</p>
+        </div>
+        <div class="bg-slate-900/60 border border-emerald-500/20 rounded-xl p-2">
+          <p class="text-[10px] text-slate-500 uppercase">Architecture</p>
+          <p class="text-xs sm:text-sm font-bold text-emerald-400">100% Client-Side</p>
+        </div>
+        <div class="bg-slate-900/60 border border-emerald-500/20 rounded-xl p-2">
+          <p class="text-[10px] text-slate-500 uppercase">Execution</p>
+          <p class="text-xs sm:text-sm font-bold text-emerald-400">&lt; 2ms</p>
+        </div>
+      </div>
+
+      <!-- Sandbox Grid -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <!-- Left: Incoming SMS -->
+        <div class="bg-slate-950/60 border border-slate-700/60 rounded-xl p-3">
+          <p class="text-[10px] uppercase tracking-wider text-slate-500 mb-2 font-semibold">Incoming Raw SMS</p>
+          <textarea id="sandbox-sms-input" rows="4" placeholder="Paste bank SMS here..."
+            class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 resize-none focus:outline-none focus:border-emerald-500"></textarea>
+          <div class="flex flex-wrap gap-1.5 mt-2">
+            <button type="button" data-sandbox-sample="click" class="sandbox-sample-btn px-2 py-1 text-[10px] bg-slate-800 hover:bg-emerald-600/30 text-slate-300 border border-slate-700 rounded transition-colors">Click</button>
+            <button type="button" data-sandbox-sample="payme" class="sandbox-sample-btn px-2 py-1 text-[10px] bg-slate-800 hover:bg-emerald-600/30 text-slate-300 border border-slate-700 rounded transition-colors">Payme</button>
+            <button type="button" data-sandbox-sample="uzcard" class="sandbox-sample-btn px-2 py-1 text-[10px] bg-slate-800 hover:bg-emerald-600/30 text-slate-300 border border-slate-700 rounded transition-colors">Uzcard</button>
+            <button type="button" data-sandbox-sample="humo" class="sandbox-sample-btn px-2 py-1 text-[10px] bg-slate-800 hover:bg-emerald-600/30 text-slate-300 border border-slate-700 rounded transition-colors">Humo</button>
+          </div>
+          <button type="button" id="sandbox-parse-btn" class="mt-2 w-full px-3 py-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors">
+            Parse SMS →
+          </button>
+        </div>
+
+        <!-- Right: Transaction Row Output -->
+        <div class="bg-slate-950/60 border border-slate-700/60 rounded-xl p-3">
+          <p class="text-[10px] uppercase tracking-wider text-slate-500 mb-2 font-semibold">Parsed Transaction Row</p>
+          <div id="sandbox-output" class="min-h-[120px] flex items-center justify-center text-center">
+            <p class="text-xs text-slate-500">Awaiting SMS parse…</p>
+          </div>
+        </div>
+      </div>
+    </section>
 
     <!-- Fundraising Progress Indicator -->
     <div id="fundraising-progress-card" class="hidden bg-gradient-to-r from-emerald-900/40 to-slate-800/60 border border-emerald-500/30 rounded-2xl p-4 mb-6">
