@@ -1115,7 +1115,7 @@
     <header class="mb-6 sm:mb-8">
       <div class="flex items-center justify-between gap-3">
         <div class="min-w-0">
-          <h1 class="text-2xl sm:text-3xl font-bold text-slate-100 truncate" data-i18n="appTitle">Smart Byudjet Tracker</h1>
+          <h1 class="text-2xl sm:text-3xl font-bold text-slate-100 truncate" data-i18n="appTitle">Aqlli Hamyoncha</h1>
           <p class="text-slate-400 text-sm mt-1" data-i18n="transactions">Kirim va chiqimlarni real vaqtda kuzatib boring</p>
         </div>
         <!-- Dual-Mode Switcher -->
@@ -1180,17 +1180,24 @@
       <!-- Sandbox Grid -->
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <!-- Left: Incoming SMS -->
-        <div class="bg-slate-950/60 border border-slate-700/60 rounded-xl p-3">
-          <p class="text-[10px] uppercase tracking-wider text-slate-500 mb-2 font-semibold">Incoming Raw SMS</p>
-          <textarea id="sandbox-sms-input" rows="4" placeholder="Paste bank SMS here..."
-            class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 resize-none focus:outline-none focus:border-emerald-500"></textarea>
-          <div class="flex flex-wrap gap-1.5 mt-2">
-            <button type="button" data-sandbox-sample="click" class="sandbox-sample-btn px-2 py-1 text-[10px] bg-slate-800 hover:bg-emerald-600/30 text-slate-300 border border-slate-700 rounded transition-colors">Click</button>
-            <button type="button" data-sandbox-sample="payme" class="sandbox-sample-btn px-2 py-1 text-[10px] bg-slate-800 hover:bg-emerald-600/30 text-slate-300 border border-slate-700 rounded transition-colors">Payme</button>
-            <button type="button" data-sandbox-sample="uzcard" class="sandbox-sample-btn px-2 py-1 text-[10px] bg-slate-800 hover:bg-emerald-600/30 text-slate-300 border border-slate-700 rounded transition-colors">Uzcard</button>
-            <button type="button" data-sandbox-sample="humo" class="sandbox-sample-btn px-2 py-1 text-[10px] bg-slate-800 hover:bg-emerald-600/30 text-slate-300 border border-slate-700 rounded transition-colors">Humo</button>
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-3">
+          <span class="text-xs font-bold tracking-wider text-slate-400 uppercase">Incoming Raw SMS</span>
+
+          <textarea
+            id="smsInput"
+            rows="3"
+            placeholder="Paste bank SMS here..."
+            class="w-full bg-slate-950 text-slate-100 placeholder-slate-500 border border-slate-700/80 rounded-xl p-3 text-sm focus:outline-none focus:border-emerald-500 transition resize-none"
+          ></textarea>
+
+          <div class="flex flex-wrap gap-2">
+            <button onclick="loadDemoSMS('click')" type="button" class="px-3 py-1.5 text-xs font-semibold bg-slate-800 text-emerald-400 border border-slate-700 rounded-lg hover:bg-slate-700 transition">Click</button>
+            <button onclick="loadDemoSMS('payme')" type="button" class="px-3 py-1.5 text-xs font-semibold bg-slate-800 text-emerald-400 border border-slate-700 rounded-lg hover:bg-slate-700 transition">Payme</button>
+            <button onclick="loadDemoSMS('uzcard')" type="button" class="px-3 py-1.5 text-xs font-semibold bg-slate-800 text-emerald-400 border border-slate-700 rounded-lg hover:bg-slate-700 transition">Uzcard</button>
+            <button onclick="loadDemoSMS('humo')" type="button" class="px-3 py-1.5 text-xs font-semibold bg-slate-800 text-emerald-400 border border-slate-700 rounded-lg hover:bg-slate-700 transition">Humo</button>
           </div>
-          <button type="button" id="sandbox-parse-btn" class="mt-2 w-full px-3 py-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors">
+
+          <button id="parseSmsBtn" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm rounded-xl transition shadow-lg shadow-emerald-900/20 mt-1">
             Parse SMS →
           </button>
         </div>
@@ -1445,7 +1452,7 @@
           <img src="assets/walletprf.jpg" alt="Profile" class="w-10 h-10 rounded-full object-cover border-2 border-emerald-500/40" id="profile-avatar">
           <div class="flex flex-col">
             <span class="text-sm font-semibold text-slate-100" data-i18n="profile">Profil</span>
-            <span class="text-xs text-slate-400" data-i18n="appTitle">Smart Byudjet Tracker</span>
+            <span class="text-xs text-slate-400" data-i18n="appTitle">Aqlli Hamyoncha</span>
           </div>
         </div>
 
@@ -1514,7 +1521,75 @@
       </div>
     </div>
 
-    <footer class="text-center text-slate-600 text-xs mt-8 mb-4">Smart Byudjet Tracker &copy; 2026</footer>
+    <!-- Qo'llanma va B2B Hujjatlar (Guide & Docs) -->
+    <div id="guide-docs-section" class="mt-6 mb-4 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-emerald-500/30 rounded-2xl overflow-hidden shadow-2xl">
+      <button type="button" id="guide-docs-toggle"
+        class="w-full flex items-center justify-between px-4 py-4 text-left hover:bg-slate-800/60 transition-colors">
+        <span class="text-base font-bold text-slate-100 flex items-center gap-2">
+          <span class="text-emerald-400 text-lg">📖</span>
+          Qo'llanma va B2B Integratsiya Hujjatlari
+        </span>
+        <svg id="guide-docs-chevron" class="w-5 h-5 text-slate-400 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+      </button>
+      <div id="guide-docs-body" class="hidden px-4 pb-5 space-y-5 text-sm text-slate-300 leading-relaxed">
+
+        <!-- About -->
+        <div class="bg-slate-950/60 border border-slate-700/60 rounded-xl p-4">
+          <h4 class="text-emerald-400 font-bold mb-2 flex items-center gap-2">
+            <span>ℹ️</span> Haqida
+          </h4>
+          <p class="text-xs sm:text-sm">
+            <strong class="text-slate-100">"Aqlli Hamyoncha"</strong> — bu to'liq <strong class="text-emerald-400">server-siz (zero-server)</strong>, offline ishlaydigan PFM (shaxsiy moliya boshqaruvchi) SDK moduli. Barcha ma'lumotlar brauzer ichida, <strong class="text-emerald-400"> IndexedDB / localStorage</strong> orqali saqlanadi. Hech qandash tashqi server, API yoki bulut xizmati talab qilinmaydi. Xalqaro to'lov tizimlari — <strong class="text-emerald-400">Payme, Click, Uzcard, Humo</strong> — bilan integratsiya uchun mo'ljallangan.
+          </p>
+        </div>
+
+        <!-- How it works -->
+        <div class="bg-slate-950/60 border border-slate-700/60 rounded-xl p-4">
+          <h4 class="text-emerald-400 font-bold mb-2 flex items-center gap-2">
+            <span>⚙️</span> Qanday ishlaydi?
+          </h4>
+          <ol class="list-decimal list-inside space-y-1.5 text-xs sm:text-sm">
+            <li>Banklardan keladigan <strong class="text-slate-100">SMS notificationlarni</strong> (masalan: 5555, Click, Payme, Uzcard, Humo) matn sifatida kiriting yoki avtomatik o'qing.</li>
+            <li>Modul ularni <strong class="text-emerald-400">lokal regex</strong> orqali tez parsing qiladi (jami &lt; 2ms).</li>
+            <li>Olingan tranzaksiya ma'lumotlari (summa, kategoriya, tavsif, sana) avtomatik ravishda <strong class="text-emerald-400"> IndexedDB ga</strong> yoziladi.</li>
+            <li>Barcha o'zgarishlar real vaqtda <strong class="text-emerald-400">UI</strong> ga ko'rsatiladi va boshqa qurilmalarga sync qilinishi mumkin (local storage orqali).</li>
+          </ol>
+        </div>
+
+        <!-- Integration guide -->
+        <div class="bg-slate-950/60 border border-slate-700/60 rounded-xl p-4">
+          <h4 class="text-emerald-400 font-bold mb-2 flex items-center gap-2">
+            <span>🔌</span> Bank Dasturchilar uchun Integratsiya Qo'llanmasi
+          </h4>
+          <p class="text-xs sm:text-sm mb-2">
+            Bu client-side modulni o'z loyihangizga qo'shish uchun quyidagi qadamni bajaring:
+          </p>
+          <pre class="bg-slate-900 border border-slate-700 rounded-lg p-3 text-[11px] text-emerald-300 overflow-x-auto"><code>&lt;script src="app.js"&gt;&lt;/script&gt;
+
+// 1. Modulni yuklang
+import { parseBankSms } from './aqllichamoncha-sdk.js';
+
+// 2. SMS matnni o'ring:
+const smsText = "Sizning 1000 so'mlik to'lovingiz amalga oshdi. Karta: *8888. Qoldiq: 5000 so'm. Click";
+
+// 3. Parsing qilish (JSON payload qaytaradi):
+const tx = parseBankSms(smsText);
+console.log(tx);
+// { amount: 1000, category: "Transport", description: "Click to'lov", bank: "Click" }
+
+// 4. Olingan JSON ni IndexedDB ga saqlash:
+await saveTransaction(tx);</code></pre>
+          <p class="text-[11px] text-slate-500 mt-2">
+            Qo'llab-quvvatlanuvchi banklar: <strong class="text-slate-300">Click, Payme, Uzcard, Humo, 5555 (ATTO)</strong>. Barcha parsing qoidalari <strong class="text-emerald-400">client-side regex</strong> asosida ishlaydi, serverga hech qanday so'rov yuborilmaydi.
+          </p>
+        </div>
+
+      </div>
+    </div>
+
+    <footer class="text-center text-slate-600 text-xs mt-8 mb-4">Aqlli Hamyoncha &copy; 2026</footer>
   </div>
 
   <!-- Simple backup and restore -->

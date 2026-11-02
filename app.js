@@ -2,7 +2,7 @@
   'use strict';
 
   // Financial records live in IndexedDB; localStorage remains for small UI preferences.
-  const FINANCIAL_DB_NAME = 'smart-byudjet-financial-data';
+  const FINANCIAL_DB_NAME = 'aqlli-hamyoncha-financial-data';
   const FINANCIAL_DB_VERSION = 1;
   const FINANCIAL_COLLECTIONS = ['transactions', 'fundraising_transactions'];
   let financialDatabase = null;
