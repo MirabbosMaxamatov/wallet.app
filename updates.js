@@ -3,6 +3,16 @@
 
   window.APP_UPDATES = [
     {
+      version: "v2.0 — Click Super App UI Redesign",
+      date: "Noyabr 2026",
+      title: "Aqlli Hamyoncha interfeysining katta yangilanishi",
+      changes: [
+        "Interfeys Click Super App dizayniga moslashtirildi (qora fon, ko'k aksentlar va pastki navigatsiya paneli).",
+        "Tezkor amallar (SMS Parse, Naqd xarajat, Kirim, Tahlil) 4 talik qulay grid ko'rinishiga o'tkazildi.",
+        "Oylik tahlil banneri va ixcham tranzaksiya ro'yxati qo'shilib, mobil foydalanish uchun mukammallashtirildi."
+      ]
+    },
+    {
       version: "v9.5.0",
       date: "18.09.2026",
       title: "Cascade Categories for Hammasi, Quick Amount Buttons & Reset/Archive Fixes",

@@ -798,17 +798,9 @@
       }
     });
   }
-  function formatSignedAmount(value) {
-    const sign = value >= 0 ? '+' : '-';
-    return sign + formatCurrency(value);
-  }
   function getCategoryLabel(value) {
     const labels = { Food: 'food', Transport: 'transport', Salary: 'salary', Shopping: 'shopping', Utilities: 'utilities', Other: 'other' };
     return labels[value] ? t(labels[value]) : value;
-  }
-  function formatDate(dateStr) {
-    const d = new Date(dateStr + 'T00:00:00');
-    return d.toLocaleDateString('uz-UZ', { year: 'numeric', month: 'short', day: 'numeric' });
   }
   function formatDateToUZ(dateString) {
     if (!dateString) return '';
@@ -880,18 +872,6 @@
       return amount * UZS_PER_USD;
     }
     return amount;
-  }
-
-  function formatCurrencyWithToggle(value, showBoth = false) {
-    const uzsValue = currentCurrency === 'USD' ? value * UZS_PER_USD : value;
-    const formatted = formatCurrency(uzsValue);
-    if (showBoth && currentCurrency === 'USD') {
-      return `${formatted} ≈ $${value.toFixed(2)}`;
-    }
-    if (showBoth && currentCurrency === 'UZS') {
-      return `${formatted} ≈ ${(value / UZS_PER_USD).toFixed(2)} $`;
-    }
-    return formatted;
   }
 
   function updateCurrencyToggleUI() {
@@ -1198,7 +1178,6 @@
   const expenseDisplay = $('expense-display');
   const startingBalanceAmount = $('starting-balance-amount');
   const transactionList = $('transaction-list');
-  const emptyState = $('empty-state');
   const archivedList = $('archived-list');
   const archivedEmptyState = $('archived-empty-state');
   const moreToggleBtn = $('more-toggle-btn');
@@ -1210,6 +1189,75 @@
   const balanceEyeIcon = $('balance-eye-icon');
   const initialBalanceTrigger = $('initial-balance-trigger');
   const backupModal = $('backup-modal');
+
+  const transactionSearch = $('transaction-search');
+  const searchEmptyState = $('search-empty-state');
+  function filterTransactions() {
+    if (!transactionList) return;
+    const query = transactionSearch ? transactionSearch.value.trim().toLocaleLowerCase() : '';
+    const rows = transactionList.querySelectorAll('.transaction-row');
+    let visibleRows = 0;
+    rows.forEach(function (row) {
+      const matches = !query || row.textContent.toLocaleLowerCase().includes(query);
+      row.hidden = !matches;
+      if (matches) visibleRows++;
+    });
+    if (searchEmptyState) {
+      searchEmptyState.classList.toggle('hidden', !query || visibleRows > 0);
+    }
+  }
+  if (transactionSearch) transactionSearch.addEventListener('input', filterTransactions);
+
+  function updateHeaderLanguage(language) {
+    document.querySelectorAll('.language-toggle [data-language]').forEach(function (button) {
+      button.setAttribute('aria-pressed', button.dataset.language === language ? 'true' : 'false');
+    });
+    const exportButton = $('quick-export-csv');
+    if (exportButton) {
+      exportButton.setAttribute('aria-label', t('exportCSV'));
+      exportButton.title = t('exportCSV');
+    }
+    const monthTitle = $('monthly-insight-title');
+    if (monthTitle) {
+      const monthNames = language === 'en'
+        ? ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+        : ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'];
+      const month = monthNames[new Date().getMonth()];
+      monthTitle.textContent = t('monthlyInsightTitle').replace('{month}', month);
+    }
+  }
+  document.querySelectorAll('.language-toggle [data-language]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      if (typeof window.setLanguage === 'function') window.setLanguage(button.dataset.language);
+    });
+  });
+  document.addEventListener('app:language-changed', function (event) {
+    updateHeaderLanguage(event.detail.language);
+  });
+  updateHeaderLanguage(typeof window.getCurrentLang === 'function' ? window.getCurrentLang() : 'uz');
+
+  document.querySelectorAll('.bottom-nav-item[data-nav-target]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      const target = document.getElementById(button.dataset.navTarget);
+      if (!target) return;
+      if (target.id === 'more-section' && moreBody && moreBody.classList.contains('hidden') && moreToggleBtn) {
+        moreToggleBtn.click();
+      }
+      document.querySelectorAll('.bottom-nav-item').forEach(function (item) {
+        item.classList.toggle('is-active', item === button);
+        if (item === button) item.setAttribute('aria-current', 'page');
+        else item.removeAttribute('aria-current');
+      });
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+  const monthlyInsightLink = $('monthly-insight-link');
+  if (monthlyInsightLink) {
+    monthlyInsightLink.addEventListener('click', function () {
+      const overview = $('pfm-overview');
+      if (overview) overview.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
 
   function openOverlayModal(modal) {
     if (!modal) return;
@@ -1291,7 +1339,7 @@
   const quickAnalyticsBtn = $('quick-analytics');
   if (quickAnalyticsBtn) {
     quickAnalyticsBtn.addEventListener('click', function () {
-      const analytics = $('dashboard-cards');
+      const analytics = $('pfm-overview');
       if (analytics) analytics.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   }
@@ -1360,7 +1408,7 @@
       const modeIcon = document.getElementById('mode-switch-icon');
       const modeLabel = document.getElementById('mode-switch-label');
       const cardModeLabel = document.getElementById('mode-switch-label-card');
-      const balanceLabel = document.querySelector('.hero-card p');
+      const balanceLabel = document.querySelector('.fintech-balance-card .balance-card-label');
       const sbLabel = document.getElementById('starting-balance-label');
       const sbLabelMobile = document.getElementById('starting-balance-label-mobile');
       const incomeLabel = document.querySelector('.card-income p');
@@ -1705,6 +1753,7 @@
       container.innerHTML = `<p class="text-center text-slate-400 py-6 text-sm" data-i18n="noTransactions">Hozircha tranzaksiyalar yo'q</p>`;
       const emptyMessage = container.querySelector('[data-i18n="noTransactions"]');
       if (emptyMessage) emptyMessage.textContent = t('noTransactions');
+      filterTransactions();
       return;
     }
 
@@ -1944,6 +1993,7 @@
     }
 
     container.innerHTML = html;
+    filterTransactions();
   }
 
 function renderArchivedPeriods() {
@@ -3294,6 +3344,8 @@ function renderArchivedPeriods() {
       var resultStatus = document.getElementById('scan-result-status');
       if (resultStatus) resultStatus.classList.add('hidden');
       switchTab('manual');
+      var typeSelect = document.getElementById('type');
+      if (typeSelect && openBtn.dataset.entryType) typeSelect.value = openBtn.dataset.entryType;
       document.getElementById('amount').focus();
     }
 
